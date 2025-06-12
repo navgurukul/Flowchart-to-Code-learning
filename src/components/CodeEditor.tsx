@@ -36,53 +36,53 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   return (
     <div className="bg-white rounded-lg border border-gray-200 h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        <div className="flex items-center">
-          <Code className="w-5 h-5 text-gray-600 mr-2" />
-          <h3 className="text-lg font-semibold text-gray-900">Generated Code</h3>
+      <div className="flex items-center justify-between p-2 sm:p-4 border-b border-gray-200">
+        <div className="flex items-center flex-shrink-0 mr-2"> {/* Added flex-shrink-0 and mr-2 */}
+          <Code className="w-5 h-5 text-gray-600 mr-1 sm:mr-2" />
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">Generated Code</h3>
           {generatedCode && (
-            <span className="ml-2 px-2 py-1 text-xs bg-emerald-100 text-emerald-700 rounded-full">
+            <span className="ml-2 px-2 py-0.5 sm:py-1 text-xs bg-emerald-100 text-emerald-700 rounded-full whitespace-nowrap"> {/* Added whitespace-nowrap */}
               Auto-generated
             </span>
           )}
         </div>
         
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center flex-wrap justify-end space-x-1 sm:space-x-2"> {/* Added flex-wrap and justify-end */}
           <button
             onClick={() => setShowHints(!showHints)}
-            className="flex items-center px-3 py-1.5 text-sm text-amber-700 bg-amber-100 rounded-md hover:bg-amber-200 transition-colors"
+            className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-amber-700 bg-amber-100 rounded-md hover:bg-amber-200 transition-colors"
           >
-            <Lightbulb className="w-4 h-4 mr-1" />
+            <Lightbulb className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
             Hints
           </button>
 
           <button
             onClick={() => setIsEditable(!isEditable)}
-            className={`flex items-center px-3 py-1.5 text-sm rounded-md transition-colors ${
+            className={`flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm rounded-md transition-colors ${
               isEditable 
                 ? 'text-blue-700 bg-blue-100 border border-blue-300' 
                 : 'text-gray-700 bg-gray-100 hover:bg-gray-200'
             }`}
           >
-            <Edit3 className="w-4 h-4 mr-1" />
+            <Edit3 className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
             {isEditable ? 'Lock' : 'Edit'}
           </button>
           
           <button
             onClick={handleReset}
             disabled={!generatedCode}
-            className="flex items-center px-3 py-1.5 text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            <RotateCcw className="w-4 h-4 mr-1" />
+            <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
             Reset
           </button>
           
           <button
             onClick={handleRunCode}
             disabled={isRunning || !code.trim() || code.includes('// Build your flowchart')}
-            className="flex items-center px-4 py-1.5 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center px-3 sm:px-4 py-1 sm:py-1.5 text-xs sm:text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            <Play className="w-4 h-4 mr-1" />
+            <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
             {isRunning ? 'Running...' : 'Run Code'}
           </button>
         </div>
