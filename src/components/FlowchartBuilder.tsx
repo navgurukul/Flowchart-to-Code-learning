@@ -11,7 +11,11 @@ import {
   Save,
   Download,
   Upload,
-  Zap
+  Zap,
+  PanelLeft, // Added for palette toggle
+  PanelRight, // Added for properties toggle
+  Settings2, // Added for properties toggle
+  Palette // Added for palette toggle
 } from 'lucide-react';
 
 interface FlowchartBuilderProps {
@@ -95,8 +99,27 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStart, setConnectionStart] = useState<string | null>(null);
   const [draggedNodeType, setDraggedNodeType] = useState<FlowchartNodeType | null>(null);
-  const [generatedCode, setGeneratedCode] = useState<string>('');
+  const [generatedCode, setGeneratedCode] = useState<string>(''); // This seems to be local state, but generatedCode is also a prop in App.tsx
   const canvasRef = useRef<HTMLDivElement>(null);
+  const [isPaletteOpen, setIsPaletteOpen] = useState(true); // Default open on larger screens
+  const [isPropertiesOpen, setIsPropertiesOpen] = useState(true); // Default open on larger screens
+
+  // Effect to adjust panel visibility based on screen size
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) { // md breakpoint
+        setIsPaletteOpen(false);
+        setIsPropertiesOpen(false);
+      } else {
+        setIsPaletteOpen(true);
+        setIsPropertiesOpen(true);
+      }
+    };
+    handleResize(); // Initial check
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
 
   const handleDragStart = (nodeType: FlowchartNodeType) => {
     setDraggedNodeType(nodeType);
@@ -241,6 +264,13 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <div className="flex items-center">
+          <button
+            onClick={() => setIsPaletteOpen(!isPaletteOpen)}
+            className="p-1.5 hover:bg-gray-200 rounded-md mr-2 md:hidden" // Hidden on md and above
+            title={isPaletteOpen ? "Hide Palette" : "Show Palette"}
+          >
+            <Palette size={20} />
+          </button>
           <Zap className="w-5 h-5 text-blue-600 mr-2" />
           <h3 className="text-lg font-semibold text-gray-900">Interactive Flowchart Builder</h3>
         </div>
@@ -282,55 +312,69 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
             <RotateCcw className="w-4 h-4 mr-1" />
             Clear
           </button>
+          <button
+            onClick={() => setIsPropertiesOpen(!isPropertiesOpen)}
+            className="p-1.5 hover:bg-gray-200 rounded-md ml-2 md:hidden" // Hidden on md and above
+            title={isPropertiesOpen ? "Hide Properties" : "Show Properties"}
+          >
+            <Settings2 size={20} />
+          </button>
         </div>
       </div>
 
-      <div className="flex-1 flex">
+      <div className="flex-1 flex overflow-hidden"> {/* Added overflow-hidden */}
         {/* Node Palette */}
-        <div className="w-64 border-r border-gray-200 p-4">
-          <h4 className="text-sm font-semibold text-gray-900 mb-4">Flowchart Elements</h4>
-          <div className="space-y-2">
-            {nodePalette.map((node) => (
-              <div
-                key={node.type}
-                draggable
-                onDragStart={() => handleDragStart(node.type)}
-                className={`p-3 rounded-lg border-2 border-dashed cursor-move transition-all hover:shadow-md ${node.color}`}
-              >
-                <div className="flex items-center mb-1">
-                  {node.icon}
-                  <span className="ml-2 font-medium text-sm">{node.label}</span>
+        {isPaletteOpen && (
+          <div
+            className={`border-r border-gray-200 p-4 flex-shrink-0 bg-white
+                        w-full sm:w-48 md:w-56 lg:w-64
+                        absolute sm:relative z-10 sm:z-0 h-full sm:h-auto overflow-y-auto sm:overflow-y-visible
+                        ${isPaletteOpen ? 'block' : 'hidden'}`}
+          >
+            <h4 className="text-sm font-semibold text-gray-900 mb-4">Flowchart Elements</h4>
+            <div className="space-y-2">
+              {nodePalette.map((node) => (
+                <div
+                  key={node.type}
+                  draggable
+                  onDragStart={() => handleDragStart(node.type)}
+                  className={`p-3 rounded-lg border-2 border-dashed cursor-move transition-all hover:shadow-md ${node.color}`}
+                >
+                  <div className="flex items-center mb-1">
+                    {node.icon}
+                    <span className="ml-2 font-medium text-sm">{node.label}</span>
+                  </div>
+                  <p className="text-xs opacity-75">{node.description}</p>
                 </div>
-                <p className="text-xs opacity-75">{node.description}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Required Nodes Checklist */}
-          {exercise.requiredNodes && (
-            <div className="mt-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <h5 className="text-sm font-semibold text-blue-900 mb-2">Required Elements</h5>
-              <div className="space-y-1">
-                {exercise.requiredNodes.map((nodeType) => {
-                  const hasNode = flowchartData.nodes.some(node => node.type === nodeType);
-                  return (
-                    <div key={nodeType} className="flex items-center text-xs">
-                      <div className={`w-2 h-2 rounded-full mr-2 ${
-                        hasNode ? 'bg-emerald-500' : 'bg-gray-300'
-                      }`} />
-                      <span className={hasNode ? 'text-emerald-700' : 'text-gray-600'}>
-                        {nodeType.charAt(0).toUpperCase() + nodeType.slice(1)}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+              ))}
             </div>
-          )}
-        </div>
+
+            {/* Required Nodes Checklist */}
+            {exercise.requiredNodes && (
+              <div className="mt-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <h5 className="text-sm font-semibold text-blue-900 mb-2">Required Elements</h5>
+                <div className="space-y-1">
+                  {exercise.requiredNodes.map((nodeType) => {
+                    const hasNode = flowchartData.nodes.some(node => node.type === nodeType);
+                    return (
+                      <div key={nodeType} className="flex items-center text-xs">
+                        <div className={`w-2 h-2 rounded-full mr-2 ${
+                          hasNode ? 'bg-emerald-500' : 'bg-gray-300'
+                        }`} />
+                        <span className={hasNode ? 'text-emerald-700' : 'text-gray-600'}>
+                          {nodeType.charAt(0).toUpperCase() + nodeType.slice(1)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Canvas */}
-        <div className="flex-1 relative">
+        <div className="flex-1 relative"> {/* This is the key for the canvas to take remaining space */}
           <div
             ref={canvasRef}
             className="w-full h-full bg-gray-50 relative overflow-hidden"
@@ -421,8 +465,9 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
               >
                 <div className={`w-full h-full flex items-center justify-center p-2 ${
                   node.type === 'decision' ? 'transform -rotate-45' : ''
-                }`}>
-                  <span className="text-xs font-medium text-center leading-tight">
+                }`} title={node.data.label} // Show full label on hover
+                >
+                  <span className="text-xs font-medium text-center leading-tight block truncate overflow-hidden text-ellipsis">
                     {node.data.label}
                   </span>
                 </div>
@@ -455,8 +500,13 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
         </div>
 
         {/* Properties Panel */}
-        {selectedNodeData && (
-          <div className="w-80 border-l border-gray-200 p-4">
+        {selectedNodeData && isPropertiesOpen && (
+          <div
+            className={`border-l border-gray-200 p-4 flex-shrink-0 bg-white
+                        w-full sm:w-60 md:w-72 lg:w-80
+                        absolute sm:relative right-0 sm:right-auto z-10 sm:z-0 h-full sm:h-auto overflow-y-auto sm:overflow-y-visible
+                        ${isPropertiesOpen ? 'block' : 'hidden'}`}
+          >
             <h4 className="text-sm font-semibold text-gray-900 mb-4">Node Properties</h4>
             
             <div className="space-y-4">
@@ -506,7 +556,7 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
         )}
       </div>
 
-      {/* Generated Code Preview */}
+      {/* Generated Code Preview - This might need to be reviewed if generatedCode is also a prop */}
       {generatedCode && (
         <div className="border-t border-gray-200 p-4 bg-gray-50">
           <h4 className="text-sm font-semibold text-gray-900 mb-2">Generated Code</h4>
