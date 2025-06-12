@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, PanelLeft, PanelRight } from 'lucide-react'; // Added for icons
 import { Header } from './components/Header';
 import { ExerciseList } from './components/ExerciseList';
 import { FlowchartBuilder } from './components/FlowchartBuilder';
@@ -17,6 +18,8 @@ function App() {
   });
 
   const [currentExerciseId, setCurrentExerciseId] = useState(3);
+  const [isExerciseListOpen, setIsExerciseListOpen] = useState(true);
+  const [isInputOutputOpen, setIsInputOutputOpen] = useState(true);
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<string>('');
@@ -183,17 +186,28 @@ function App() {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header progress={progress} />
       
-      <div className="flex-1 flex">
-        {/* Exercise List - Left Panel */}
-        <ExerciseList
-          exercises={allExercises}
-          progress={progress}
-          currentExercise={currentExerciseId}
-          onSelectExercise={handleSelectExercise}
-        />
+      <div className="flex-1 flex overflow-hidden"> {/* Added overflow-hidden for safety */}
+        {/* Left Panel Toggle & Exercise List */}
+        <div className="flex"> {/* Container for toggle and panel */}
+          <button
+            onClick={() => setIsExerciseListOpen(!isExerciseListOpen)}
+            className="p-2 bg-gray-200 hover:bg-gray-300 h-full flex items-center justify-center"
+            title={isExerciseListOpen ? "Collapse Exercise List" : "Expand Exercise List"}
+          >
+            {isExerciseListOpen ? <ChevronLeft size={20} /> : <PanelLeft size={20} />}
+          </button>
+          {isExerciseListOpen && (
+            <ExerciseList
+              exercises={allExercises}
+              progress={progress}
+              currentExercise={currentExerciseId}
+              onSelectExercise={handleSelectExercise}
+            />
+          )}
+        </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 p-6 space-y-6">
+        <div className="flex-1 p-6 space-y-6 overflow-y-auto"> {/* Added overflow-y-auto */}
           {/* Exercise Title */}
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <div className="flex items-center justify-between">
@@ -234,8 +248,8 @@ function App() {
           </div>
 
           {/* Main Content Grid */}
-          <div className="grid grid-cols-2 gap-6 h-[600px]">
-            {/* Interactive Flowchart Builder */}
+          {/* Ensure this grid and its children can handle varying widths */}
+          <div className={`grid ${isExerciseListOpen || isInputOutputOpen ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-2'} gap-6 h-[600px]`}>
             <FlowchartBuilder
               exercise={currentExercise}
               onGenerateCode={handleFlowchartChange}
@@ -243,7 +257,6 @@ function App() {
               isRunning={isRunning}
             />
             
-            {/* Code Editor */}
             <CodeEditor
               exercise={currentExercise}
               generatedCode={generatedCode}
@@ -253,12 +266,23 @@ function App() {
           </div>
         </div>
 
-        {/* Input/Output Panel - Right Panel */}
-        <InputOutput
-          exercise={currentExercise}
-          result={executionResult}
-          isRunning={isRunning}
-        />
+        {/* Right Panel Toggle & Input/Output Panel */}
+        <div className="flex"> {/* Container for toggle and panel */}
+          {isInputOutputOpen && (
+            <InputOutput
+              exercise={currentExercise}
+              result={executionResult}
+              isRunning={isRunning}
+            />
+          )}
+          <button
+            onClick={() => setIsInputOutputOpen(!isInputOutputOpen)}
+            className="p-2 bg-gray-200 hover:bg-gray-300 h-full flex items-center justify-center"
+            title={isInputOutputOpen ? "Collapse Input/Output Panel" : "Expand Input/Output Panel"}
+          >
+            {isInputOutputOpen ? <ChevronRight size={20} /> : <PanelRight size={20} />}
+          </button>
+        </div>
       </div>
     </div>
   );
