@@ -485,7 +485,7 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
             {flowchartData.nodes.map((node) => (
               <div
                 key={node.id}
-                className={`absolute w-32 h-16 rounded-lg border-2 cursor-pointer transition-all hover:shadow-lg ${
+                className={`absolute w-32 h-16 rounded-lg border-2 cursor-pointer transition-all hover:shadow-lg z-20 ${ // Added z-20
                   getNodeStyle(node.type)
                 } ${selectedNode === node.id ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}
                 style={{
