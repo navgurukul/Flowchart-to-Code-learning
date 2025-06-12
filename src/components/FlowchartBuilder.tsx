@@ -358,10 +358,10 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
         {/* Node Palette */}
         {isPaletteOpen && (
           <div
-            className={`border-r border-gray-200 p-4 flex-shrink-0 bg-white
+            className={`border-r border-gray-200 p-4 sm:mr-4 flex-shrink-0 bg-white
                         w-full sm:w-48 md:w-56 lg:w-64
                         absolute sm:relative z-10 sm:z-0 h-full sm:h-auto overflow-y-auto sm:overflow-y-visible
-                        ${isPaletteOpen ? 'block' : 'hidden'}`}
+                        ${isPaletteOpen ? 'block' : 'hidden'}`} // Added sm:mr-4
           >
             <h4 className="text-sm font-semibold text-gray-900 mb-4">Flowchart Elements</h4>
             <div className="space-y-2">
@@ -590,7 +590,7 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
 
       {/* Generated Code Preview - This might need to be reviewed if generatedCode is also a prop */}
       {generatedCode && (
-        <div className="border-t border-gray-200 p-4 bg-gray-50">
+        <div className="border-t border-gray-200 p-4 bg-gray-50 mt-4"> {/* Added mt-4 */}
           <h4 className="text-sm font-semibold text-gray-900 mb-2">Generated Code</h4>
           <pre className="text-xs bg-white p-3 rounded border overflow-x-auto">
             <code>{generatedCode}</code>
