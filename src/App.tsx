@@ -249,7 +249,7 @@ function App() {
 
           {/* Main Content Grid */}
           {/* Ensure this grid and its children can handle varying widths */}
-          <div className={`grid ${isExerciseListOpen || isInputOutputOpen ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-2'} gap-6 h-[600px]`}>
+          <div className={`grid ${isExerciseListOpen || isInputOutputOpen ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-2'} gap-6 h-[750px]`}> {/* Height changed to 750px */}
             <FlowchartBuilder
               exercise={currentExercise}
               onGenerateCode={handleFlowchartChange}

@@ -120,6 +120,38 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Debounce function
+  const debounce = <F extends (...args: any[]) => any>(func: F, waitFor: number) => {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+
+    const debounced = (...args: Parameters<F>) => {
+      if (timeout !== null) {
+        clearTimeout(timeout);
+        timeout = null;
+      }
+      timeout = setTimeout(() => func(...args), waitFor);
+    };
+
+    return debounced as (...args: Parameters<F>) => ReturnType<F>;
+  };
+
+  // Effect to adjust panel visibility based on screen size using debounce
+  useEffect(() => {
+    const handleResizeInternal = () => {
+      if (window.innerWidth < 768) { // md breakpoint
+        setIsPaletteOpen(false);
+        setIsPropertiesOpen(false);
+      } else {
+        setIsPaletteOpen(true);
+        setIsPropertiesOpen(true);
+      }
+    };
+    const debouncedResize = debounce(handleResizeInternal, 200);
+    debouncedResize(); // Initial check
+    window.addEventListener('resize', debouncedResize);
+    return () => window.removeEventListener('resize', debouncedResize);
+  }, []);
+
 
   const handleDragStart = (nodeType: FlowchartNodeType) => {
     setDraggedNodeType(nodeType);
@@ -262,23 +294,23 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
   return (
     <div className="bg-white rounded-lg border border-gray-200 h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        <div className="flex items-center">
+      <div className="flex items-center justify-between p-2 sm:p-4 border-b border-gray-200">
+        <div className="flex items-center flex-shrink-0"> {/* Added flex-shrink-0 to title container */}
           <button
             onClick={() => setIsPaletteOpen(!isPaletteOpen)}
-            className="p-1.5 hover:bg-gray-200 rounded-md mr-2 md:hidden" // Hidden on md and above
+            className="p-1.5 hover:bg-gray-200 rounded-md mr-1 sm:mr-2 md:hidden" // Hidden on md and above
             title={isPaletteOpen ? "Hide Palette" : "Show Palette"}
           >
             <Palette size={20} />
           </button>
-          <Zap className="w-5 h-5 text-blue-600 mr-2" />
-          <h3 className="text-lg font-semibold text-gray-900">Interactive Flowchart Builder</h3>
+          <Zap className="w-5 h-5 text-blue-600 mr-1 sm:mr-2" />
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">Interactive Flowchart Builder</h3>
         </div>
         
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center flex-wrap justify-end space-x-1 sm:space-x-2 ml-2"> {/* Added flex-wrap and justify-end, reduced ml */}
           <button
             onClick={() => setIsConnecting(!isConnecting)}
-            className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+            className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm rounded-md transition-colors ${
               isConnecting 
                 ? 'bg-orange-100 text-orange-700 border border-orange-300' 
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -290,31 +322,31 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
           <button
             onClick={generateCodeFromFlowchart}
             disabled={flowchartData.nodes.length === 0}
-            className="flex items-center px-3 py-1.5 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            <Zap className="w-4 h-4 mr-1" />
+            <Zap className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
             Generate Code
           </button>
           
           <button
             onClick={() => onRunCode(generatedCode)}
             disabled={!generatedCode || isRunning}
-            className="flex items-center px-3 py-1.5 text-sm text-white bg-emerald-600 rounded-md hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-white bg-emerald-600 rounded-md hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            <Play className="w-4 h-4 mr-1" />
+            <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
             {isRunning ? 'Running...' : 'Run'}
           </button>
           
           <button
             onClick={clearCanvas}
-            className="flex items-center px-3 py-1.5 text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+            className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
           >
-            <RotateCcw className="w-4 h-4 mr-1" />
+            <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
             Clear
           </button>
           <button
             onClick={() => setIsPropertiesOpen(!isPropertiesOpen)}
-            className="p-1.5 hover:bg-gray-200 rounded-md ml-2 md:hidden" // Hidden on md and above
+            className="p-1.5 hover:bg-gray-200 rounded-md ml-1 sm:ml-2 md:hidden" // Hidden on md and above
             title={isPropertiesOpen ? "Hide Properties" : "Show Properties"}
           >
             <Settings2 size={20} />
@@ -453,7 +485,7 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
             {flowchartData.nodes.map((node) => (
               <div
                 key={node.id}
-                className={`absolute w-32 h-16 rounded-lg border-2 cursor-pointer transition-all hover:shadow-lg ${
+                className={`absolute w-32 h-16 rounded-lg border-2 cursor-pointer transition-all hover:shadow-lg z-20 ${ // Added z-20
                   getNodeStyle(node.type)
                 } ${selectedNode === node.id ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}
                 style={{
