@@ -24,6 +24,7 @@ function App() {
   const [isRunning, setIsRunning] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<string>('');
   const [currentFlowchart, setCurrentFlowchart] = useState<FlowchartData>({ nodes: [], edges: [] });
+  const [isCodeEditorOpen, setIsCodeEditorOpen] = useState(true); // New state for CodeEditor visibility
 
   const currentExercise = allExercises.find(ex => ex.id === currentExerciseId) || allExercises[0];
 
@@ -247,9 +248,17 @@ function App() {
             </div>
           </div>
 
+          {/* Toggle for Code Editor */}
+          <button
+            onClick={() => setIsCodeEditorOpen(!isCodeEditorOpen)}
+            className="mb-2 px-3 py-1.5 text-sm bg-gray-200 hover:bg-gray-300 rounded-md"
+          >
+            {isCodeEditorOpen ? 'Hide Code Editor' : 'Show Code Editor'}
+          </button>
+
           {/* Main Content Grid */}
           {/* Ensure this grid and its children can handle varying widths */}
-          <div className={`grid ${isExerciseListOpen || isInputOutputOpen ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-2'} gap-6 h-[750px]`}> {/* Height changed to 750px */}
+          <div className={`grid grid-cols-1 ${isCodeEditorOpen ? 'md:grid-cols-2' : 'md:grid-cols-1'} gap-6 h-[750px]`}> {/* Simplified and corrected grid-cols logic */}
             <FlowchartBuilder
               exercise={currentExercise}
               onGenerateCode={handleFlowchartChange}
@@ -257,12 +266,14 @@ function App() {
               isRunning={isRunning}
             />
             
-            <CodeEditor
-              exercise={currentExercise}
-              generatedCode={generatedCode}
-              onRunCode={handleRunCode}
-              isRunning={isRunning}
-            />
+            {isCodeEditorOpen && (
+              <CodeEditor
+                exercise={currentExercise}
+                generatedCode={generatedCode}
+                onRunCode={handleRunCode}
+                isRunning={isRunning}
+              />
+            )}
           </div>
         </div>
 

@@ -139,7 +139,7 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
   useEffect(() => {
     const handleResizeInternal = () => {
       if (window.innerWidth < 768) { // md breakpoint
-        setIsPaletteOpen(false);
+        setIsPaletteOpen(true); // Changed to true for palette to be open by default on small screens
         setIsPropertiesOpen(false);
       } else {
         setIsPaletteOpen(true);
