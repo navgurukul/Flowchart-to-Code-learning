@@ -5,6 +5,7 @@ import { ExerciseList } from './components/ExerciseList';
 import { FlowchartBuilder } from './components/FlowchartBuilder';
 import { CodeEditor } from './components/CodeEditor';
 import { InputOutput } from './components/InputOutput';
+import { ChatWindow } from './components/ChatWindow'; // Adjust path if necessary
 import { allExercises } from './data/exercises';
 import { SafeCodeExecutor } from './utils/codeExecutor';
 import { StudentProgress, ExecutionResult, FlowchartData } from './types/index';
@@ -295,6 +296,8 @@ function App() {
           </button>
         </div>
       </div>
+      {/* Chat Window - Placed here so it's part of the main app structure but uses fixed positioning */}
+      <ChatWindow />
     </div>
   );
 }
