@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
-import { MessageSquare, Send } from 'lucide-react'; // Or other suitable icons
+import { MessageSquare, Send, X } from 'lucide-react'; // Added X
+
+interface ChatWindowProps {
+  onClose: () => void;
+}
 
 interface BackendResponse {
   response: string;
@@ -14,7 +18,7 @@ interface ChatMessage {
   isStructuredData?: boolean; // Add this to store the type of AI message
 }
 
-export const ChatWindow: React.FC = () => {
+export const ChatWindow: React.FC<ChatWindowProps> = ({ onClose }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentMessage, setCurrentMessage] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -96,7 +100,14 @@ export const ChatWindow: React.FC = () => {
           <MessageSquare size={20} className="text-blue-600 mr-2" />
           <h3 className="text-md font-semibold text-gray-800">AI Chat</h3>
         </div>
-        {/* Can add a close/minimize button here later if needed */}
+        <button
+          onClick={onClose}
+          className='p-1 rounded-md hover:bg-gray-200'
+          title='Close Chat'
+          aria-label='Close AI Chat'
+        >
+          <X size={20} className='text-gray-600' />
+        </button>
       </div>
 
       {/* Message Display Area */}
