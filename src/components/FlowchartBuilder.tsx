@@ -440,7 +440,7 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
         <div className="flex-1 relative"> {/* This is the key for the canvas to take remaining space */}
           <div
             ref={canvasRef}
-            className="w-full h-full bg-gray-50 relative overflow-hidden"
+            className="w-full h-full bg-gray-50 relative" // Removed overflow-hidden
             onDragOver={handleDragOver}
             onDrop={handleDrop}
             onMouseMove={handleCanvasMouseMove}
@@ -560,6 +560,7 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
                       handleDeleteNode(node.id);
                     }}
                     className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                    title="Delete node"
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>
