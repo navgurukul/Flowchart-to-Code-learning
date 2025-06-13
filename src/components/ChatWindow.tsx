@@ -81,14 +81,33 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ onClose, onFlowchartGene
       // New logic: If it's structured data, parse it and call the callback
       if (data.isStructuredData && data.response) {
         try {
-          const flowchartJSON = JSON.parse(data.response);
-          // Basic validation that it has nodes and edges (which are arrays)
-          if (flowchartJSON && Array.isArray(flowchartJSON.nodes) && Array.isArray(flowchartJSON.edges)) {
-            // Type assertion might be needed if TS complains, or more robust validation
-            onFlowchartGenerated(flowchartJSON as FlowchartData);
-            console.log("ChatWindow: Sent structured flowchart data to App.tsx");
+          // Assuming AI sends nodes as: { id: string, label: string, type: string, position: {x: number, y: number} }
+          // And edges as: { id: string, source: string, target: string }
+          const aiOutput = JSON.parse(data.response);
+
+          if (aiOutput && Array.isArray(aiOutput.nodes) && Array.isArray(aiOutput.edges)) {
+            // Transform nodes to meet the FlowchartNode structure, specifically the data.label part
+            const transformedNodes = aiOutput.nodes.map((node: any) => ({
+              id: node.id,
+              type: node.type,
+              position: node.position,
+              // Create the nested 'data' object with 'label'
+              data: {
+                label: node.label,
+                // value and condition will be undefined, which is fine as they are optional in FlowchartNodeData
+              },
+            }));
+
+            // Create the transformed FlowchartData object
+            const transformedFlowchartData: FlowchartData = {
+              nodes: transformedNodes,
+              edges: aiOutput.edges, // Edges structure from AI should be compatible
+            };
+
+            onFlowchartGenerated(transformedFlowchartData);
+            console.log("ChatWindow: Sent transformed structured flowchart data to App.tsx", transformedFlowchartData);
           } else {
-            console.warn("ChatWindow: Received structured data flag, but content was not valid FlowchartData:", flowchartJSON);
+            console.warn("ChatWindow: Received structured data flag from AI, but content was not in expected {nodes: [], edges: []} format:", aiOutput);
           }
         } catch (parseError) {
           console.error("ChatWindow: Failed to parse structured flowchart data from AI:", parseError, data.response);
