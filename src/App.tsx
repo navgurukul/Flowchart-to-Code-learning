@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Confetti from 'react-confetti'; // Added Confetti import
 import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Bot, X } from 'lucide-react'; // Added Bot, X
 import { Header } from './components/Header';
 import { ExerciseList } from './components/ExerciseList';
@@ -28,6 +29,11 @@ function App() {
   const [isCodeEditorOpen, setIsCodeEditorOpen] = useState(true); // New state for CodeEditor visibility
   const [isChatOpen, setIsChatOpen] = useState(false); // Default to closed
   const [aiFlowchartToLoad, setAiFlowchartToLoad] = useState<FlowchartData | null>(null);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [windowSize, setWindowSize] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
 
   const currentExercise = allExercises.find(ex => ex.id === currentExerciseId) || allExercises[0];
 
@@ -143,6 +149,10 @@ function App() {
 
       setExecutionResult(result);
 
+      if (result.isCorrect) {
+        setShowConfetti(true);
+      }
+
       // Update progress if correct and not already completed
       if (result.isCorrect && !progress.completedExercises.includes(currentExerciseId)) {
         const points = currentExercise.difficulty === 'beginner' ? 50 : 
@@ -197,8 +207,31 @@ function App() {
     }
   }, []);
 
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+    window.addEventListener('resize', handleResize);
+    // Call handleResize once initially to set size correctly
+    handleResize();
+    return () => window.removeEventListener('resize', handleResize);
+  }, []); // Empty dependency array means this runs once on mount and cleans up on unmount
+
+  useEffect(() => {
+    if (showConfetti) {
+      const timer = setTimeout(() => {
+        setShowConfetti(false);
+      }, 5000); // Confetti duration: 5 seconds (e.g., 5000ms)
+      return () => clearTimeout(timer);
+    }
+  }, [showConfetti]);
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col relative"> {/* Added relative */}
+      {showConfetti && <Confetti width={windowSize.width} height={windowSize.height} recycle={false} />} {/* recycle={false} makes it a one-shot burst */}
       <Header progress={progress} />
       
       <div className="flex-1 flex overflow-hidden"> {/* Added overflow-hidden for safety */}
