@@ -94,10 +94,25 @@ try:
             # Fallback to the first available model that supports 'generateContent'
             # This was the previous problematic behavior if preferred wasn't exactly 'gemini-pro'
             # Now it's a more informed fallback.
+    # Initialize a specific Gemini model - CHANGE DEFAULT TO 'models/gemini-1.5-flash'
+    model_name_to_use = 'models/gemini-1.5-flash'  # Updated default
+
+    if models_found_supporting_generate_content:
+        # Check if 'models/gemini-1.5-flash' is in the list of suitable models
+        candidate_model_names = [model_name_to_use]
+        actual_model_found = False
+        for name_variant in candidate_model_names:
+            if name_variant in models_found_supporting_generate_content:
+                model_name_to_use = name_variant  # Use the exact name from the list
+                actual_model_found = True
+                break
+
+        if not actual_model_found:
+            # If 'models/gemini-1.5-flash' is not found, use the first available one
+            original_default = model_name_to_use
             model_name_to_use = models_found_supporting_generate_content[0]
             print(f"WARNING: Preferred models ('{preferred_model_name}', '{alternative_model_name}') not found. Automatically selected first available model: '{model_name_to_use}'.")
     else:
-        # No models support 'generateContent', so model cannot be initialized.
         print(f"ERROR: No models supporting 'generateContent' are available with your API key. Cannot initialize a model.")
         raise Exception("No suitable Gemini model found for 'generateContent'.")
 
