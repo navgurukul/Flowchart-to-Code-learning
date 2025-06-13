@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, PanelLeft, PanelRight } from 'lucide-react'; // Added for icons
+import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Bot, X } from 'lucide-react'; // Added Bot, X
 import { Header } from './components/Header';
 import { ExerciseList } from './components/ExerciseList';
 import { FlowchartBuilder } from './components/FlowchartBuilder';
@@ -26,6 +26,7 @@ function App() {
   const [generatedCode, setGeneratedCode] = useState<string>('');
   const [currentFlowchart, setCurrentFlowchart] = useState<FlowchartData>({ nodes: [], edges: [] });
   const [isCodeEditorOpen, setIsCodeEditorOpen] = useState(true); // New state for CodeEditor visibility
+  const [isChatOpen, setIsChatOpen] = useState(false); // Default to closed
 
   const currentExercise = allExercises.find(ex => ex.id === currentExerciseId) || allExercises[0];
 
@@ -185,7 +186,7 @@ function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex flex-col relative"> {/* Added relative */}
       <Header progress={progress} />
       
       <div className="flex-1 flex overflow-hidden"> {/* Added overflow-hidden for safety */}
@@ -296,8 +297,18 @@ function App() {
           </button>
         </div>
       </div>
-      {/* Chat Window - Placed here so it's part of the main app structure but uses fixed positioning */}
-      <ChatWindow />
+      {/* Chat Window (conditionally rendered) */}
+      {isChatOpen && <ChatWindow onClose={() => setIsChatOpen(false)} />}
+
+      {/* AI Chat Toggle Button */}
+      <button
+        onClick={() => setIsChatOpen(!isChatOpen)}
+        className="fixed bottom-4 right-4 z-40 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-transform duration-150 ease-in-out hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        title={isChatOpen ? "Close AI Chat" : "Open AI Chat"}
+        aria-label={isChatOpen ? "Close AI Chat" : "Open AI Chat"}
+      >
+        {isChatOpen ? <X size={24} /> : <Bot size={24} />}
+      </button>
     </div>
   );
 }
