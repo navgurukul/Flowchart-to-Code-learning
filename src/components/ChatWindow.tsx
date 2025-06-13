@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { MessageSquare, Send, X } from 'lucide-react'; // Added X
+import type { FlowchartData } from '../types'; // Import FlowchartData type
 
 interface ChatWindowProps {
   onClose: () => void;
+  onFlowchartGenerated: (flowchartData: FlowchartData) => void; // New prop
 }
 
 interface BackendResponse {
@@ -18,7 +20,7 @@ interface ChatMessage {
   isStructuredData?: boolean; // Add this to store the type of AI message
 }
 
-export const ChatWindow: React.FC<ChatWindowProps> = ({ onClose }) => {
+export const ChatWindow: React.FC<ChatWindowProps> = ({ onClose, onFlowchartGenerated }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentMessage, setCurrentMessage] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -75,6 +77,25 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ onClose }) => {
         isStructuredData: data.isStructuredData === true, // Store the flag
       };
       setMessages(prevMessages => [...prevMessages, aiResponse]);
+
+      // New logic: If it's structured data, parse it and call the callback
+      if (data.isStructuredData && data.response) {
+        try {
+          const flowchartJSON = JSON.parse(data.response);
+          // Basic validation that it has nodes and edges (which are arrays)
+          if (flowchartJSON && Array.isArray(flowchartJSON.nodes) && Array.isArray(flowchartJSON.edges)) {
+            // Type assertion might be needed if TS complains, or more robust validation
+            onFlowchartGenerated(flowchartJSON as FlowchartData);
+            console.log("ChatWindow: Sent structured flowchart data to App.tsx");
+          } else {
+            console.warn("ChatWindow: Received structured data flag, but content was not valid FlowchartData:", flowchartJSON);
+          }
+        } catch (parseError) {
+          console.error("ChatWindow: Failed to parse structured flowchart data from AI:", parseError, data.response);
+          // Optionally, inform the user via chat message that parsing failed for the flowchart data
+          // For now, the raw JSON string is already in aiResponse.text and will be displayed.
+        }
+      }
 
     } catch (error) {
       // console.error('Failed to send message or parse response:', error); // Already have this
