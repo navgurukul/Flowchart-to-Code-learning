@@ -73,24 +73,29 @@ try:
 
     # Initialize a specific Gemini model - YOU MIGHT NEED TO CHANGE 'gemini-pro'
     # based on the output of list_models() above.
-    model_name_to_use = 'gemini-pro' # Default, may need changing
+    # model_name_to_use = 'gemini-1.5-flash' # Old default
+
+    # --- START MODIFICATION ---
+    # Preferred model, including the 'models/' prefix as seen in the user's logs
+    preferred_model_name = 'models/gemini-1.5-flash-latest'
+    # Alternative if the -latest isn't found for some reason
+    alternative_model_name = 'models/gemini-1.5-flash'
+
+    model_name_to_use = None # Will be set from available models
 
     if models_found_supporting_generate_content:
-        # Check if 'models/gemini-pro' or 'gemini-pro' is in the list of suitable models
-        candidate_model_names = [f"models/{model_name_to_use}", model_name_to_use]
-
-        actual_model_found = False
-        for name_variant in candidate_model_names:
-            if name_variant in models_found_supporting_generate_content:
-                model_name_to_use = name_variant # Use the exact name from the list
-                actual_model_found = True
-                break
-
-        if not actual_model_found:
-            # If 'gemini-pro' (or 'models/gemini-pro') is not found, use the first available one
-            original_default = model_name_to_use # Store the original default for the warning message
+        if preferred_model_name in models_found_supporting_generate_content:
+            model_name_to_use = preferred_model_name
+            print(f"INFO: Preferred model '{model_name_to_use}' is available.")
+        elif alternative_model_name in models_found_supporting_generate_content:
+            model_name_to_use = alternative_model_name
+            print(f"INFO: Preferred model not found. Using alternative '{model_name_to_use}'.")
+        else:
+            # Fallback to the first available model that supports 'generateContent'
+            # This was the previous problematic behavior if preferred wasn't exactly 'gemini-pro'
+            # Now it's a more informed fallback.
             model_name_to_use = models_found_supporting_generate_content[0]
-            print(f"WARNING: Default model '{original_default}' not in your available models supporting 'generateContent'. Automatically selected '{model_name_to_use}'.")
+            print(f"WARNING: Preferred models ('{preferred_model_name}', '{alternative_model_name}') not found. Automatically selected first available model: '{model_name_to_use}'.")
     else:
         # No models support 'generateContent', so model cannot be initialized.
         print(f"ERROR: No models supporting 'generateContent' are available with your API key. Cannot initialize a model.")
@@ -98,6 +103,7 @@ try:
 
     model = genai.GenerativeModel(model_name_to_use)
     print(f"INFO: Gemini model '{model_name_to_use}' initialized successfully.")
+    # --- END MODIFICATION ---
 
 except KeyError as e_key:
     # model remains None from its initialization at the top of the try block
