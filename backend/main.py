@@ -1,30 +1,112 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware # Ensure this is imported
 from pydantic import BaseModel
 import os
 import google.generativeai as genai
-import json # Import json module
+import json
+from dotenv import load_dotenv # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< IMPORT THIS
+
+# --- .env DEBUG START ---
+print("DEBUG: Script starting. Attempting to load .env file...")
+# Construct explicit path, assuming main.py is in 'backend' and .env is also in 'backend'
+dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+if os.path.exists(dotenv_path):
+    # override=True ensures that if .env is found, its values are loaded even if system env vars exist.
+    # For this debug, it helps confirm .env is being read.
+    loaded_successfully = load_dotenv(dotenv_path=dotenv_path, override=True)
+    print(f"DEBUG: Explicit load_dotenv(path='{dotenv_path}') attempted. Success: {loaded_successfully}")
+else:
+    print(f"DEBUG: .env file NOT FOUND at explicit path: {dotenv_path}. Trying default load_dotenv().")
+    loaded_successfully = load_dotenv(override=True) # Try default path
+    print(f"DEBUG: Default load_dotenv() attempted. Success: {loaded_successfully}")
+
+retrieved_api_key_immediately = os.environ.get("GEMINI_API_KEY")
+if retrieved_api_key_immediately:
+    print(f"DEBUG: GEMINI_API_KEY after load_dotenv: '{retrieved_api_key_immediately[:5]}...' (partially shown)")
+else:
+    print("DEBUG: GEMINI_API_KEY is NOT in os.environ immediately after load_dotenv() attempt.")
+# --- .env DEBUG END ---
 
 app = FastAPI()
 
-# Configure the Gemini API key
-# IMPORTANT: The API key should be set as an environment variable 'GEMINI_API_KEY'
-# For local development, you can set this in your terminal before running uvicorn:
-# export GEMINI_API_KEY="YOUR_API_KEY" (on Linux/macOS)
-# $Env:GEMINI_API_KEY="YOUR_API_KEY" (on Windows PowerShell)
+# CORS Configuration
+origins = [
+    "http://localhost:5173", # Your frontend URL
+    "http://127.0.0.1:5173",
+    "http://localhost",
+    # Add any other origins if needed
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins, # More secure to list specific origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Gemini API Configuration
+model = None # Initialize model to None
 try:
-    gemini_api_key = os.environ["GEMINI_API_KEY"]
+    gemini_api_key = os.environ.get("GEMINI_API_KEY")
+    # This debug print is crucial
+    print(f"DEBUG: Inside Gemini config try block, value of 'gemini_api_key' variable is: {{gemini_api_key[:5] + '...' if gemini_api_key else 'None'}}")
+
+    if not gemini_api_key:
+        raise KeyError("GEMINI_API_KEY not found in environment. Please ensure it is set in your system environment or in a 'backend/.env' file.")
+
     genai.configure(api_key=gemini_api_key)
-    # Initialize a specific Gemini model (e.g., gemini-pro for text generation)
-    # This model instance can be used later in the chat endpoint
-    model = genai.GenerativeModel('gemini-pro')
-except KeyError:
-    model = None # Or raise an error, or handle appropriately
-    print("ERROR: GEMINI_API_KEY environment variable not set.")
-    print("The AI features will not work until the API key is provided.")
-except Exception as e:
-    model = None
-    print(f"ERROR: An unexpected error occurred during Gemini SDK configuration: {e}")
-    print("The AI features may not work correctly.")
+    print("INFO: Gemini SDK configured with API key.")
+
+    # List available models (inside try block, after configure)
+    print("INFO: Listing available Gemini models (if SDK configured)...")
+    models_found_supporting_generate_content = []
+    for m in genai.list_models():
+        if 'generateContent' in m.supported_generation_methods:
+            models_found_supporting_generate_content.append(m.name)
+            print(f"  - Model Name: {m.name}, Supported: {m.supported_generation_methods}, Display: {m.display_name}")
+    print("INFO: Finished listing models.")
+
+    if not models_found_supporting_generate_content:
+        print("WARNING: No models found supporting 'generateContent'. The chat functionality might not work as expected.")
+        # Depending on strictness, you might raise an error or allow app to run with 'model = None'
+
+    # Initialize a specific Gemini model - YOU MIGHT NEED TO CHANGE 'gemini-pro'
+    # based on the output of list_models() above.
+    model_name_to_use = 'gemini-pro' # Default, may need changing
+
+    if models_found_supporting_generate_content:
+        # Check if 'models/gemini-pro' or 'gemini-pro' is in the list of suitable models
+        candidate_model_names = [f"models/{model_name_to_use}", model_name_to_use]
+
+        actual_model_found = False
+        for name_variant in candidate_model_names:
+            if name_variant in models_found_supporting_generate_content:
+                model_name_to_use = name_variant # Use the exact name from the list
+                actual_model_found = True
+                break
+
+        if not actual_model_found:
+            # If 'gemini-pro' (or 'models/gemini-pro') is not found, use the first available one
+            original_default = model_name_to_use # Store the original default for the warning message
+            model_name_to_use = models_found_supporting_generate_content[0]
+            print(f"WARNING: Default model '{original_default}' not in your available models supporting 'generateContent'. Automatically selected '{model_name_to_use}'.")
+    else:
+        # No models support 'generateContent', so model cannot be initialized.
+        print(f"ERROR: No models supporting 'generateContent' are available with your API key. Cannot initialize a model.")
+        raise Exception("No suitable Gemini model found for 'generateContent'.")
+
+    model = genai.GenerativeModel(model_name_to_use)
+    print(f"INFO: Gemini model '{model_name_to_use}' initialized successfully.")
+
+except KeyError as e_key:
+    # model remains None from its initialization at the top of the try block
+    print(f"ERROR (KeyError): {str(e_key)}")
+    print("       The AI features will not work. Example for .env: GEMINI_API_KEY=YOUR_KEY_HERE")
+except Exception as e_gen:
+    # model remains None
+    print(f"ERROR (General Exception during Gemini Setup): {str(e_gen)}")
+    print("       The AI features may not work correctly.")
 
 
 class ChatMessage(BaseModel):
@@ -32,17 +114,17 @@ class ChatMessage(BaseModel):
 
 @app.get("/")
 async def read_root():
-    return {"message": "Flowchart AI Backend is running! (Gemini Configured - Check Logs for Status)"}
+    status = "Gemini Configured and Model Initialized" if model else "Gemini NOT Configured or Model Init Failed - Check Logs & .env setup"
+    return {"message": f"Flowchart AI Backend is running! ({status})"}
 
 @app.post("/api/chat")
 async def handle_chat_message(chat_message: ChatMessage):
     if model is None:
-        # Use HTTPException for clearer error reporting to client
-        raise HTTPException(status_code=503, detail="AI Service not configured. Please check server logs.")
+        raise HTTPException(status_code=503, detail="AI Service not configured or model not available. Ensure GEMINI_API_KEY is set and valid, and a suitable model is available.")
 
     user_message = chat_message.message.strip()
     response_text = ""
-    is_structured_data = False # Flag to indicate if response is structured
+    is_structured_data = False
 
     try:
         if user_message.lower().startswith("/learn "):
@@ -59,72 +141,50 @@ async def handle_chat_message(chat_message: ChatMessage):
                     f"4. One or two key takeaways or common pitfalls related to '{topic}'.\n"
                     f"Focus on educational value and clarity. Use markdown for formatting if it helps readability (e.g., for lists or code blocks)."
                 )
-                ai_response = await model.generate_content_async(prompt) # Use async version if available and FastAPI endpoint is async
+                ai_response = await model.generate_content_async(prompt)
                 response_text = ai_response.text
         elif user_message.lower().startswith("/generate "):
             description = user_message[len("/generate "):].strip()
             if not description:
                 response_text = "Please provide a description after /generate. For example: /generate a flowchart for making tea"
             else:
-                # New prompt for /generate asking for JSON
                 prompt = (
                     f"Generate a simple flowchart representation for the task: '{description}'.\n"
                     f"Output your response as a single JSON object containing two keys: 'nodes' and 'edges'.\n"
-                    f"'nodes' should be an array of objects, where each node has at least 'id' (string, unique), 'label' (string), and 'type' (string, e.g., 'start', 'end', 'process', 'decision', 'input', 'output'). You can optionally add a 'position' object with 'x' and 'y' numbers, but it's not critical for this initial structured output.\n"
-                    f"'edges' should be an array of objects, where each edge has at least 'id' (string, unique), 'source' (string, matches a node id), and 'target' (string, matches a node id). \n"
+                    f"'nodes' should be an array of objects, where each node has at least 'id' (string, unique), 'label' (string), and 'type' (string, e.g., 'start', 'end', 'process', 'decision', 'input', 'output').\n"
+                    f"'edges' should be an array of objects, where each edge has at least 'id' (string, unique), 'source' (string, matches a node id), and 'target' (string, matches a node id).\n"
                     f"Example node: {{'id': 'n1', 'label': 'Start', 'type': 'start'}}\n"
                     f"Example edge: {{'id': 'e1', 'source': 'n1', 'target': 'n2'}}\n"
                     f"Keep the flowchart simple, with a few nodes and edges to represent the core logic for '{description}'.\n"
                     f"If you cannot generate a valid JSON structure for any reason, please explain the steps in plain text as before."
                 )
                 ai_response = await model.generate_content_async(prompt)
-
-                # Attempt to parse the AI response as JSON
                 try:
-                    # The .text from Gemini might be wrapped in markdown (```json ... ```)
                     potential_json = ai_response.text
                     if potential_json.strip().startswith("```json"):
-                        potential_json = potential_json.strip()[7:-3].strip() # Remove markdown fences
-                    elif potential_json.strip().startswith("```"): # More generic markdown fence removal
+                        potential_json = potential_json.strip()[7:-3].strip()
+                    elif potential_json.strip().startswith("```"):
                          potential_json = potential_json.strip()[3:-3].strip()
-
                     parsed_json = json.loads(potential_json)
-                    # Basic validation: check if it has 'nodes' and 'edges' keys and they are lists
                     if isinstance(parsed_json, dict) and \
                        'nodes' in parsed_json and isinstance(parsed_json['nodes'], list) and \
                        'edges' in parsed_json and isinstance(parsed_json['edges'], list):
-                        response_text = json.dumps(parsed_json, indent=2) # Pretty print JSON string
+                        response_text = json.dumps(parsed_json, indent=2)
                         is_structured_data = True
                     else:
-                        # It parsed as JSON but not the expected structure, use raw text
                         response_text = ai_response.text
-                except json.JSONDecodeError:
-                    # Not valid JSON, use the raw text response
+                except Exception:
                     response_text = ai_response.text
-                except Exception: # Catch any other parsing/validation error
-                    response_text = ai_response.text # Fallback to raw text
-
         else:
-            # For now, only respond to specific commands
-            # In the future, could add general chat capabilities here
             response_text = "Sorry, I can only respond to `/learn <topic>` and `/generate <description>` commands at the moment."
-            # Alternatively, to make it more conversational (but might require more prompt engineering):
-            # prompt = f"User's query: {user_message}. Respond helpfully. If it's not a question about flowcharts or programming, you can say you are specialized in those areas."
-            # ai_response = await model.generate_content_async(prompt)
-            # response_text = ai_response.text
-
 
     except Exception as e:
         print(f"Error during AI content generation: {e}")
-        # It's good practice to catch specific exceptions from the SDK if known
-        # For example, if the SDK has google.generativeai.types.BlockedPromptException or similar
-        # from google.generativeai.types import BlockedPromptException (example, check actual SDK)
-        # except BlockedPromptException:
-        #     raise HTTPException(status_code=400, detail="Your request was blocked by the AI's safety filters.")
         raise HTTPException(status_code=500, detail=f"An error occurred while processing your request with the AI: {str(e)}")
 
-    return {"response": response_text, "isStructuredData": is_structured_data} # Add new flag to response
+    return {"response": response_text, "isStructuredData": is_structured_data}
 
+# Comments for running the app
 # To run this application:
 # 1. Make sure you are in the 'backend' directory in your terminal.
 # 2. Create a virtual environment: python -m venv venv
@@ -132,5 +192,8 @@ async def handle_chat_message(chat_message: ChatMessage):
 #    - Windows: venv\Scripts\activate
 #    - macOS/Linux: source venv/bin/activate
 # 4. Install dependencies: pip install -r requirements.txt
-# 5. Run the server: uvicorn main:app --reload --port 8000
-#    (Note: Changed port to 8000 to avoid common conflicts)
+# 5. Set your GEMINI_API_KEY:
+#    - Create a file named '.env' in this 'backend' directory.
+#    - Add the line: GEMINI_API_KEY=YOUR_ACTUAL_API_KEY
+#    OR set it as a system environment variable.
+# 6. Run the server: uvicorn main:app --reload --port 8000
