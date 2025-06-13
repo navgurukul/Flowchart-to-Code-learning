@@ -27,6 +27,7 @@ function App() {
   const [currentFlowchart, setCurrentFlowchart] = useState<FlowchartData>({ nodes: [], edges: [] });
   const [isCodeEditorOpen, setIsCodeEditorOpen] = useState(true); // New state for CodeEditor visibility
   const [isChatOpen, setIsChatOpen] = useState(false); // Default to closed
+  const [aiFlowchartToLoad, setAiFlowchartToLoad] = useState<FlowchartData | null>(null);
 
   const currentExercise = allExercises.find(ex => ex.id === currentExerciseId) || allExercises[0];
 
@@ -171,6 +172,17 @@ function App() {
     localStorage.setItem('studentProgress', JSON.stringify(progress));
   }, [progress]);
 
+  const handleNewFlowchartFromAI = (newFlowchartData: FlowchartData) => {
+    console.log("App.tsx: Received new flowchart from AI to load:", newFlowchartData);
+    // This will be the data that FlowchartBuilder should render.
+    // We'll need a way for FlowchartBuilder to pick this up.
+    // For now, just setting this state.
+    setAiFlowchartToLoad(newFlowchartData);
+    // We also want this to become the "current" flowchart that code is generated from etc.
+    // So, also call the existing handler that FlowchartBuilder uses.
+    handleFlowchartChange(newFlowchartData); // This will update generatedCode and what FlowchartBuilder shows.
+  };
+
   // Load progress from localStorage on mount
   useEffect(() => {
     const savedProgress = localStorage.getItem('studentProgress');
@@ -266,6 +278,7 @@ function App() {
               onGenerateCode={handleFlowchartChange}
               onRunCode={handleRunCode}
               isRunning={isRunning}
+              newFlowchartToLoad={aiFlowchartToLoad} // Pass the new state here
             />
             
             {isCodeEditorOpen && (
@@ -298,7 +311,10 @@ function App() {
         </div>
       </div>
       {/* Chat Window (conditionally rendered) */}
-      {isChatOpen && <ChatWindow onClose={() => setIsChatOpen(false)} />}
+      {isChatOpen && <ChatWindow
+                      onClose={() => setIsChatOpen(false)}
+                      onFlowchartGenerated={handleNewFlowchartFromAI} // New prop
+                   />}
 
       {/* AI Chat Toggle Button */}
       <button

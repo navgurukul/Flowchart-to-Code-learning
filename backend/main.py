@@ -94,25 +94,10 @@ try:
             # Fallback to the first available model that supports 'generateContent'
             # This was the previous problematic behavior if preferred wasn't exactly 'gemini-pro'
             # Now it's a more informed fallback.
-    # Initialize a specific Gemini model - CHANGE DEFAULT TO 'models/gemini-1.5-flash'
-    model_name_to_use = 'models/gemini-1.5-flash'  # Updated default
-
-    if models_found_supporting_generate_content:
-        # Check if 'models/gemini-1.5-flash' is in the list of suitable models
-        candidate_model_names = [model_name_to_use]
-        actual_model_found = False
-        for name_variant in candidate_model_names:
-            if name_variant in models_found_supporting_generate_content:
-                model_name_to_use = name_variant  # Use the exact name from the list
-                actual_model_found = True
-                break
-
-        if not actual_model_found:
-            # If 'models/gemini-1.5-flash' is not found, use the first available one
-            original_default = model_name_to_use
             model_name_to_use = models_found_supporting_generate_content[0]
             print(f"WARNING: Preferred models ('{preferred_model_name}', '{alternative_model_name}') not found. Automatically selected first available model: '{model_name_to_use}'.")
     else:
+        # No models support 'generateContent', so model cannot be initialized.
         print(f"ERROR: No models supporting 'generateContent' are available with your API key. Cannot initialize a model.")
         raise Exception("No suitable Gemini model found for 'generateContent'.")
 
@@ -172,12 +157,14 @@ async def handle_chat_message(chat_message: ChatMessage):
                 prompt = (
                     f"Generate a simple flowchart representation for the task: '{description}'.\n"
                     f"Output your response as a single JSON object containing two keys: 'nodes' and 'edges'.\n"
-                    f"'nodes' should be an array of objects, where each node has at least 'id' (string, unique), 'label' (string), and 'type' (string, e.g., 'start', 'end', 'process', 'decision', 'input', 'output').\n"
-                    f"'edges' should be an array of objects, where each edge has at least 'id' (string, unique), 'source' (string, matches a node id), and 'target' (string, matches a node id).\n"
-                    f"Example node: {{'id': 'n1', 'label': 'Start', 'type': 'start'}}\n"
+                    f"'nodes' should be an array of objects, where each node has at least 'id' (string, unique), 'label' (string), "
+                    f"'type' (string, e.g., 'start', 'end', 'process', 'decision', 'input', 'output'), "
+                    f"and crucially a 'position' object with 'x' and 'y' keys (numbers, e.g., x between 0-800, y between 0-600, incrementing y for sequential nodes by about 100 units is a good start to avoid overlap).\n"
+                    f"'edges' should be an array of objects, where each edge has at least 'id' (string, unique), 'source' (string, matches a node id), and 'target' (string, matches a node id). \n"
+                    f"Example node: {{'id': 'n1', 'label': 'Start', 'type': 'start', 'position': {{'x': 50, 'y': 50}}}}\n"
                     f"Example edge: {{'id': 'e1', 'source': 'n1', 'target': 'n2'}}\n"
-                    f"Keep the flowchart simple, with a few nodes and edges to represent the core logic for '{description}'.\n"
-                    f"If you cannot generate a valid JSON structure for any reason, please explain the steps in plain text as before."
+                    f"Keep the flowchart simple, with a few nodes (e.g., 3-5 nodes) and edges to represent the core logic for '{description}'. Ensure node positions are sensible and avoid overlap as much as possible.\n"
+                    f"If you cannot generate a valid JSON structure with these requirements for any reason, please explain the steps in plain text as before, mentioning why JSON could not be provided."
                 )
                 ai_response = await model.generate_content_async(prompt)
                 try:

@@ -24,6 +24,7 @@ interface FlowchartBuilderProps {
   onGenerateCode: (flowchart: FlowchartData) => void;
   onRunCode: (code: string) => void;
   isRunning: boolean;
+  newFlowchartToLoad?: FlowchartData | null; // New prop for AI generated flowcharts
 }
 
 interface NodePalette {
@@ -90,7 +91,8 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
   exercise,
   onGenerateCode,
   onRunCode,
-  isRunning
+  isRunning,
+  newFlowchartToLoad
 }) => {
   const [flowchartData, setFlowchartData] = useState<FlowchartData>({
     nodes: [],
@@ -105,6 +107,15 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
   const [connectingMousePosition, setConnectingMousePosition] = useState<{ x: number; y: number } | null>(null);
   const [isPaletteOpen, setIsPaletteOpen] = useState(true); // Default open on larger screens
   const [isPropertiesOpen, setIsPropertiesOpen] = useState(true); // Default open on larger screens
+
+  useEffect(() => {
+    if (newFlowchartToLoad && (newFlowchartToLoad.nodes.length > 0 || newFlowchartToLoad.edges.length > 0)) {
+      console.log('FlowchartBuilder: Received new flowchart to load via props:', newFlowchartToLoad);
+      setFlowchartData(newFlowchartToLoad);
+      setSelectedNode(null); // Reset selection
+      // The existing useEffect that watches flowchartData will call onGenerateCode
+    }
+  }, [newFlowchartToLoad]); // Dependency array includes newFlowchartToLoad
 
   // Effect to adjust panel visibility based on screen size
   useEffect(() => {
