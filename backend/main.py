@@ -71,28 +71,25 @@ try:
         print("WARNING: No models found supporting 'generateContent'. The chat functionality might not work as expected.")
         # Depending on strictness, you might raise an error or allow app to run with 'model = None'
 
-    # Initialize a specific Gemini model - YOU MIGHT NEED TO CHANGE 'gemini-pro'
-    # based on the output of list_models() above.
-    model_name_to_use = 'gemini-pro' # Default, may need changing
+    # Initialize a specific Gemini model - CHANGE DEFAULT TO 'models/gemini-1.5-flash'
+    model_name_to_use = 'models/gemini-1.5-flash'  # Updated default
 
     if models_found_supporting_generate_content:
-        # Check if 'models/gemini-pro' or 'gemini-pro' is in the list of suitable models
-        candidate_model_names = [f"models/{model_name_to_use}", model_name_to_use]
-
+        # Check if 'models/gemini-1.5-flash' is in the list of suitable models
+        candidate_model_names = [model_name_to_use]
         actual_model_found = False
         for name_variant in candidate_model_names:
             if name_variant in models_found_supporting_generate_content:
-                model_name_to_use = name_variant # Use the exact name from the list
+                model_name_to_use = name_variant  # Use the exact name from the list
                 actual_model_found = True
                 break
 
         if not actual_model_found:
-            # If 'gemini-pro' (or 'models/gemini-pro') is not found, use the first available one
-            original_default = model_name_to_use # Store the original default for the warning message
+            # If 'models/gemini-1.5-flash' is not found, use the first available one
+            original_default = model_name_to_use
             model_name_to_use = models_found_supporting_generate_content[0]
             print(f"WARNING: Default model '{original_default}' not in your available models supporting 'generateContent'. Automatically selected '{model_name_to_use}'.")
     else:
-        # No models support 'generateContent', so model cannot be initialized.
         print(f"ERROR: No models supporting 'generateContent' are available with your API key. Cannot initialize a model.")
         raise Exception("No suitable Gemini model found for 'generateContent'.")
 
