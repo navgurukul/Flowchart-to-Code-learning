@@ -15,7 +15,8 @@ import {
   PanelLeft, // Added for palette toggle
   PanelRight, // Added for properties toggle
   Settings2, // Added for properties toggle
-  Palette // Added for palette toggle
+  Palette, // Added for palette toggle
+  X // For the close button on properties panel
 } from 'lucide-react';
 
 interface FlowchartBuilderProps {
@@ -101,6 +102,7 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
   const [draggedNodeType, setDraggedNodeType] = useState<FlowchartNodeType | null>(null);
   const [generatedCode, setGeneratedCode] = useState<string>(''); // This seems to be local state, but generatedCode is also a prop in App.tsx
   const canvasRef = useRef<HTMLDivElement>(null);
+  const [connectingMousePosition, setConnectingMousePosition] = useState<{ x: number; y: number } | null>(null);
   const [isPaletteOpen, setIsPaletteOpen] = useState(true); // Default open on larger screens
   const [isPropertiesOpen, setIsPropertiesOpen] = useState(true); // Default open on larger screens
 
@@ -172,7 +174,7 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
     const newNode: FlowchartNode = {
       id: `node-${Date.now()}`,
       type: draggedNodeType,
-      position: { x: x - 60, y: y - 30 }, // Center the node on cursor
+      position: { x: x - 64, y: y - 32 }, // Center the node on cursor
       data: {
         label: draggedNodeType.charAt(0).toUpperCase() + draggedNodeType.slice(1),
         value: ''
@@ -187,26 +189,47 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
     setDraggedNodeType(null);
   };
 
+  const handleCanvasMouseMove = (e: React.MouseEvent) => {
+    if (isConnecting && connectionStart && canvasRef.current) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      setConnectingMousePosition({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      });
+    } else if (connectingMousePosition) {
+      // If not connecting anymore, clear the position
+      setConnectingMousePosition(null);
+    }
+  };
+
   const handleNodeClick = (nodeId: string) => {
-    if (isConnecting && connectionStart && connectionStart !== nodeId) {
-      // Create connection
-      const newEdge: FlowchartEdge = {
-        id: `edge-${Date.now()}`,
-        source: connectionStart,
-        target: nodeId,
-        type: 'default'
-      };
-
-      setFlowchartData(prev => ({
-        ...prev,
-        edges: [...prev.edges, newEdge]
-      }));
-
-      setIsConnecting(false);
-      setConnectionStart(null);
-    } else if (isConnecting) {
-      setConnectionStart(nodeId);
+    if (isConnecting) {
+      if (!connectionStart) {
+        // This is the first click in a connection sequence
+        setConnectionStart(nodeId);
+        // Visual feedback for line preview is handled by onMouseMove
+      } else {
+        // This is the second click
+        if (connectionStart !== nodeId) {
+          // Connecting to a different node
+          const newEdge: FlowchartEdge = {
+            id: `edge-${Date.now()}`,
+            source: connectionStart,
+            target: nodeId,
+            type: 'default', // Consider edge types later if needed
+          };
+          setFlowchartData(prev => ({
+            ...prev,
+            edges: [...prev.edges, newEdge],
+          }));
+        }
+        // Reset connection state whether an edge was created or not (e.g. clicked same node)
+        setIsConnecting(false);
+        setConnectionStart(null);
+        setConnectingMousePosition(null); // Reset preview line
+      }
     } else {
+      // Not in connecting mode, so select the node
       setSelectedNode(nodeId);
     }
   };
@@ -280,6 +303,7 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
     setFlowchartData({ nodes: [], edges: [] });
     setSelectedNode(null);
     setGeneratedCode('');
+    setConnectingMousePosition(null);
   };
 
   const getNodeStyle = (nodeType: FlowchartNodeType) => {
@@ -309,7 +333,14 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
         
         <div className="flex items-center flex-wrap justify-end space-x-1 sm:space-x-2 ml-2"> {/* Added flex-wrap and justify-end, reduced ml */}
           <button
-            onClick={() => setIsConnecting(!isConnecting)}
+            onClick={() => {
+              const newIsConnecting = !isConnecting;
+              setIsConnecting(newIsConnecting);
+              if (!newIsConnecting) { // If we are turning connecting mode OFF
+                setConnectionStart(null);
+                setConnectingMousePosition(null);
+              }
+            }}
             className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm rounded-md transition-colors ${
               isConnecting 
                 ? 'bg-orange-100 text-orange-700 border border-orange-300' 
@@ -412,6 +443,7 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
             className="w-full h-full bg-gray-50 relative overflow-hidden"
             onDragOver={handleDragOver}
             onDrop={handleDrop}
+            onMouseMove={handleCanvasMouseMove}
             style={{
               backgroundImage: 'radial-gradient(circle, #e5e7eb 1px, transparent 1px)',
               backgroundSize: '20px 20px'
@@ -419,16 +451,33 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
           >
             {/* Render Edges */}
             <svg className="absolute inset-0 w-full h-full pointer-events-none">
+              {isConnecting && connectionStart && connectingMousePosition && (() => {
+                const sourceNode = flowchartData.nodes.find(n => n.id === connectionStart);
+                if (!sourceNode) return null;
+                const x1 = sourceNode.position.x + 64; // Adjusted for new center
+                const y1 = sourceNode.position.y + 32; // Adjusted for new center
+                return (
+                  <line
+                    x1={x1}
+                    y1={y1}
+                    x2={connectingMousePosition.x}
+                    y2={connectingMousePosition.y}
+                    stroke="#2563eb" // A distinct color like blue
+                    strokeWidth="2"
+                    strokeDasharray="5,5" // Make it a dashed line
+                  />
+                );
+              })()}
               {flowchartData.edges.map((edge) => {
                 const sourceNode = flowchartData.nodes.find(n => n.id === edge.source);
                 const targetNode = flowchartData.nodes.find(n => n.id === edge.target);
                 
                 if (!sourceNode || !targetNode) return null;
 
-                const x1 = sourceNode.position.x + 60;
-                const y1 = sourceNode.position.y + 30;
-                const x2 = targetNode.position.x + 60;
-                const y2 = targetNode.position.y + 30;
+                const x1 = sourceNode.position.x + 64; // Adjusted for new center (assuming this was intended from previous task)
+                const y1 = sourceNode.position.y + 32; // Adjusted for new center
+                const x2 = targetNode.position.x + 64; // Adjusted for new center
+                const y2 = targetNode.position.y + 32; // Adjusted for new center
 
                 return (
                   <g key={edge.id}>
@@ -539,7 +588,16 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
                         absolute sm:relative right-0 sm:right-auto z-10 sm:z-0 h-full sm:h-auto overflow-y-auto sm:overflow-y-visible
                         ${isPropertiesOpen ? 'block' : 'hidden'}`}
           >
-            <h4 className="text-sm font-semibold text-gray-900 mb-4">Node Properties</h4>
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="text-sm font-semibold text-gray-900">Node Properties</h4>
+              <button
+                onClick={() => setSelectedNode(null)} // Action to close the panel
+                className="p-1 hover:bg-gray-200 rounded-md text-gray-600 hover:text-gray-800"
+                title="Close Properties"
+              >
+                <X size={18} /> {/* Using lucide-react X icon */}
+              </button>
+            </div>
             
             <div className="space-y-4">
               <div>
