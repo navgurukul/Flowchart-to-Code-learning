@@ -84,7 +84,7 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
         // When auth state changes (e.g. page reload),
         // we have the Firebase user. If we had a separate backend session or user profile,

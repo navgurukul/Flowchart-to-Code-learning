@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware # Ensure this is imported
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import os
 import google.generativeai as genai
@@ -224,6 +225,16 @@ async def handle_chat_message(chat_message: ChatMessage):
         raise HTTPException(status_code=500, detail=f"An error occurred while processing your request with the AI: {str(e)}")
 
     return {"response": response_text, "isStructuredData": is_structured_data}
+
+
+@app.post("/api/auth/google")
+async def google_auth(request: Request):
+    data = await request.json()
+    token = data.get("token")
+    if not token:
+        return JSONResponse(status_code=400, content={"detail": "No token provided"})
+    # Optionally: verify token with Firebase Admin SDK here
+    return {"status": "ok"}
 
 
 @app.post("/auth/google", response_model=FirebaseUser)
