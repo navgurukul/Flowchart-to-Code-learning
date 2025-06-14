@@ -118,6 +118,14 @@ except Exception as e_gen:
 class ChatMessage(BaseModel):
     message: str
 
+from datetime import datetime # Added import
+from typing import List # Added import
+
+class UserDetails(BaseModel):
+    last_active: datetime
+    points: int
+    tasks_completed: List[str]
+
 @app.get("/")
 async def read_root():
     status = "Gemini Configured and Model Initialized" if model else "Gemini NOT Configured or Model Init Failed - Check Logs & .env setup"
@@ -191,6 +199,25 @@ async def handle_chat_message(chat_message: ChatMessage):
         raise HTTPException(status_code=500, detail=f"An error occurred while processing your request with the AI: {str(e)}")
 
     return {"response": response_text, "isStructuredData": is_structured_data}
+
+
+@app.post("/auth/google")
+async def auth_google_signin():
+    # This is a placeholder for the OAuth initiation
+    # In a real scenario, this would redirect the user to Google's OAuth consent screen
+    return {"message": "Google Sign-In initiated (placeholder)"}
+
+
+@app.get("/users/{user_id}/details", response_model=UserDetails)
+async def get_user_details(user_id: str):
+    # Mock data for now
+    # In a real application, you would fetch this from a database based on user_id
+    mock_user_data = {
+        "last_active": datetime(2024, 7, 15, 10, 0, 0), # Example datetime
+        "points": 100,
+        "tasks_completed": ["Exercise 1", "Exercise 2"]
+    }
+    return UserDetails(**mock_user_data)
 
 # Comments for running the app
 # To run this application:
