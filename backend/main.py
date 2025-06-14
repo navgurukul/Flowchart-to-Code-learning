@@ -5,6 +5,9 @@ import os
 import google.generativeai as genai
 import json
 from dotenv import load_dotenv # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< IMPORT THIS
+import firebase_admin
+from firebase_admin import credentials, auth
+from typing import Optional # Added for Optional email in FirebaseUser
 
 # --- .env DEBUG START ---
 print("DEBUG: Script starting. Attempting to load .env file...")
@@ -26,6 +29,21 @@ if retrieved_api_key_immediately:
 else:
     print("DEBUG: GEMINI_API_KEY is NOT in os.environ immediately after load_dotenv() attempt.")
 # --- .env DEBUG END ---
+
+# Firebase Admin SDK Initialization
+try:
+    cred_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+    if not cred_path:
+        print("WARNING: GOOGLE_APPLICATION_CREDENTIALS environment variable not set. Firebase Admin SDK will not be initialized.")
+        # Or raise an error if Firebase is critical for the app to start
+    elif not os.path.exists(cred_path): # Check if the path actually exists
+        print(f"ERROR: Firebase credentials file not found at path: {cred_path}. Firebase Admin SDK will not be initialized.")
+    else:
+        cred = credentials.Certificate(cred_path)
+        firebase_admin.initialize_app(cred)
+        print("INFO: Firebase Admin SDK initialized successfully.")
+except Exception as e:
+    print(f"ERROR: Failed to initialize Firebase Admin SDK: {e}")
 
 app = FastAPI()
 
@@ -126,6 +144,13 @@ class UserDetails(BaseModel):
     points: int
     tasks_completed: List[str]
 
+class IdToken(BaseModel):
+    token: str
+
+class FirebaseUser(BaseModel):
+    uid: str
+    email: Optional[str] = None
+
 @app.get("/")
 async def read_root():
     status = "Gemini Configured and Model Initialized" if model else "Gemini NOT Configured or Model Init Failed - Check Logs & .env setup"
@@ -201,11 +226,23 @@ async def handle_chat_message(chat_message: ChatMessage):
     return {"response": response_text, "isStructuredData": is_structured_data}
 
 
-@app.post("/auth/google")
-async def auth_google_signin():
-    # This is a placeholder for the OAuth initiation
-    # In a real scenario, this would redirect the user to Google's OAuth consent screen
-    return {"message": "Google Sign-In initiated (placeholder)"}
+@app.post("/auth/google", response_model=FirebaseUser)
+async def auth_google_signin(id_token_body: IdToken):
+    token_string = id_token_body.token
+    try:
+        # Note: verify_id_token is synchronous.
+        # If this becomes a performance bottleneck, consider running it in a thread pool:
+        # from fastapi.concurrency import run_in_threadpool
+        # decoded_token = await run_in_threadpool(auth.verify_id_token, token_string)
+        decoded_token = auth.verify_id_token(token_string)
+        uid = decoded_token['uid']
+        email = decoded_token.get('email')
+        # Here you would typically create or update the user in your database
+        return FirebaseUser(uid=uid, email=email)
+    except firebase_admin.auth.InvalidIdTokenError as e:
+        raise HTTPException(status_code=401, detail=f"Invalid ID token: {e}")
+    except Exception as e: # Catch other potential errors during token verification
+        raise HTTPException(status_code=401, detail=f"Token verification failed: {e}")
 
 
 @app.get("/users/{user_id}/details", response_model=UserDetails)
