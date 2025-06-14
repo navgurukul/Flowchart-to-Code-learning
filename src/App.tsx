@@ -7,8 +7,10 @@ import { ExerciseList } from './components/ExerciseList';
 import { FlowchartBuilder } from './components/FlowchartBuilder';
 import { CodeEditor } from './components/CodeEditor';
 import { InputOutput } from './components/InputOutput';
-import { ChatWindow } from './components/ChatWindow'; // Adjust path if necessary
+import { ChatWindow } from './components/ChatWindow';
+import GuideModal from './components/GuideModal'; // Import GuideModal
 import { allExercises } from './data/exercises';
+import { guideSteps } from './data/guideSteps';
 import { SafeCodeExecutor } from './utils/codeExecutor';
 import { StudentProgress, ExecutionResult, FlowchartData } from './types/index';
 
@@ -39,6 +41,11 @@ function App() {
     width: window.innerWidth,
     height: window.innerHeight,
   });
+
+  // Guide State
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [currentGuideStep, setCurrentGuideStep] = useState(0);
+  // No need for hasSeenGuide state, directly use localStorage and setIsGuideOpen
 
   // If currentExerciseId is null, currentExercise will be null.
   // Otherwise, it will be the found exercise or undefined if not found (though ExerciseList should prevent invalid IDs).
@@ -208,11 +215,46 @@ function App() {
     handleFlowchartChange(newFlowchartData); // This will update generatedCode and what FlowchartBuilder shows.
   };
 
+  // Guide Modal Handlers
+  const handleGuideNext = () => {
+    if (currentGuideStep < guideSteps.length - 1) {
+      setCurrentGuideStep(prevStep => prevStep + 1);
+    }
+  };
+
+  const handleGuidePrev = () => {
+    if (currentGuideStep > 0) {
+      setCurrentGuideStep(prevStep => prevStep - 1);
+    }
+  };
+
+  const handleGuideClose = () => {
+    setIsGuideOpen(false);
+    localStorage.setItem('flowchartGuideSeen', 'true');
+    setCurrentGuideStep(0); // Reset for next time
+  };
+
+  const handleOpenGuide = () => { // New handler to open guide
+    setCurrentGuideStep(0);
+    setIsGuideOpen(true);
+  };
+
   // Load progress on mount or when auth state changes
   useEffect(() => {
     if (authLoading) {
-      console.log("Auth state loading, waiting to load progress...");
+      console.log("Auth state loading, waiting to load progress and check guide status...");
       return; // Wait for authentication to resolve
+    }
+
+    // Check if guide has been seen, only after auth is resolved
+    const guideSeen = localStorage.getItem('flowchartGuideSeen');
+    if (guideSeen !== 'true') {
+      console.log("Guide not seen, opening guide.");
+      setIsGuideOpen(true);
+      setCurrentGuideStep(0);
+      // Don't proceed to loadData immediately if guide is opening,
+      // or ensure guide doesn't interfere with loading experience.
+      // For now, guide opens, and data loads in parallel if needed or after guide closes.
     }
 
     const loadData = async () => {
@@ -330,7 +372,7 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col relative"> {/* Added relative */}
       {showConfetti && <Confetti width={windowSize.width} height={windowSize.height} recycle={false} />} {/* recycle={false} makes it a one-shot burst */}
-      <Header progress={progress} />
+      <Header progress={progress} onOpenGuide={handleOpenGuide} />
       
       <div className="flex-1 flex overflow-hidden"> {/* Added overflow-hidden for safety */}
         {/* Left Panel Toggle & Exercise List */}
@@ -463,6 +505,19 @@ function App() {
       >
         {isChatOpen ? <X size={24} /> : <Bot size={24} />}
       </button>
+
+      <GuideModal
+        isOpen={isGuideOpen}
+        title={guideSteps[currentGuideStep]?.title || "Guide"}
+        content={guideSteps[currentGuideStep]?.content || "Loading content..."}
+        // imageSrc={guideSteps[currentGuideStep]?.actualImageSrcUrl} // Future: use actual image URLs
+        imagePlaceholderText={guideSteps[currentGuideStep]?.imagePlaceholder} // Pass placeholder text
+        currentStep={currentGuideStep}
+        totalSteps={guideSteps.length}
+        onNext={handleGuideNext}
+        onPrev={handleGuidePrev}
+        onClose={handleGuideClose}
+      />
     </div>
   );
 }

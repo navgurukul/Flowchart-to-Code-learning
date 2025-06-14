@@ -1,74 +1,81 @@
 import React from 'react';
-import { StudentProgress } from '../types/index';
-import { User, Trophy, Target, Clock } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext'; // Adjusted path
+import { StudentProgress } from '../types'; // Ensure this path is correct
+import { User, Trophy, Target, Clock, HelpCircle } from 'lucide-react'; // Added HelpCircle
+import { useAuth } from '../contexts/AuthContext';
 
 interface HeaderProps {
-  progress: StudentProgress; // This might become dynamic based on auth user later
+  progress: StudentProgress;
+  onOpenGuide: () => void; // Added prop for opening guide
 }
 
-export const Header: React.FC<HeaderProps> = ({ progress }) => {
+export const Header: React.FC<HeaderProps> = ({ progress, onOpenGuide }) => {
   const { currentUser, signInWithGoogle, signOut, loading } = useAuth();
 
   return (
-    <header className="bg-white border-b border-gray-200 px-6 py-4">
+    <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3"> {/* Adjusted padding for smaller screens */}
       <div className="flex items-center justify-between">
+        {/* Left Section: Logo and Title */}
         <div className="flex items-center">
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg p-2 mr-4">
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg p-2 mr-3 sm:mr-4">
             <Target className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">
-              Flowchart Programming Academy
+            <h1 className="text-lg sm:text-xl font-bold text-gray-900">
+              Flowchart Academy
             </h1>
-            <p className="text-sm text-gray-600">
-              Master flowchart-to-code translation through hands-on practice
+            <p className="text-xs sm:text-sm text-gray-600 hidden md:block"> {/* Hidden on very small screens */}
+              Visual Logic to Code
             </p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-6">
-          {/* Stats - These would ideally also be tied to the currentUser */}
-          {currentUser && ( // Only show stats if a user is logged in for now
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center">
-                <Trophy className="w-4 h-4 text-yellow-600 mr-1" />
-                <span className="text-sm font-medium text-gray-700">
+        {/* Right Section: Stats, Auth, and Guide Button */}
+        <div className="flex items-center space-x-3 sm:space-x-4 md:space-x-6">
+          {/* Stats - Conditionally render based on user and screen size */}
+          {currentUser && (
+            <div className="hidden lg:flex items-center space-x-3 md:space-x-4"> {/* Hidden on smaller than lg */}
+              <div className="flex items-center" title="Total Score">
+                <Trophy className="w-4 h-4 text-yellow-500 mr-1" />
+                <span className="text-xs sm:text-sm font-medium text-gray-700">
                   {progress.totalScore} pts
                 </span>
               </div>
 
-              <div className="flex items-center">
-                <Target className="w-4 h-4 text-blue-600 mr-1" />
-                <span className="text-sm font-medium text-gray-700">
-                  {progress.completedExercises.length}/50 complete
+              <div className="flex items-center" title="Completed Exercises">
+                <Target className="w-4 h-4 text-blue-500 mr-1" />
+                <span className="text-xs sm:text-sm font-medium text-gray-700">
+                  {progress.completedExercises.length} done
                 </span>
               </div>
 
-              <div className="flex items-center">
-                <Clock className="w-4 h-4 text-green-600 mr-1" />
-                <span className="text-sm font-medium text-gray-700">
-                  Last active: {new Date(progress.lastAccessedAt).toLocaleDateString()}
+              <div className="flex items-center" title={`Last Active: ${new Date(progress.lastAccessedAt).toLocaleDateString()}`}>
+                <Clock className="w-4 h-4 text-green-500 mr-1" />
+                <span className="text-xs sm:text-sm font-medium text-gray-700 hidden xl:inline"> {/* Show full text on xl */}
+                  Active: {new Date(progress.lastAccessedAt).toLocaleDateString()}
+                </span>
+                <span className="text-xs sm:text-sm font-medium text-gray-700 xl:hidden"> {/* Show short on smaller */}
+                  {new Date(progress.lastAccessedAt).toLocaleDateString()}
                 </span>
               </div>
             </div>
           )}
 
-          {/* Auth Section */}
-          <div className="flex items-center">
+          {/* Auth Section & Guide Button */}
+          <div className="flex items-center space-x-2 sm:space-x-3">
             {loading ? (
-              <p className="text-sm text-gray-700">Loading...</p>
+              <p className="text-xs sm:text-sm text-gray-700">Loading...</p>
             ) : currentUser ? (
               <>
-                <div className="flex items-center mr-4">
-                  <User className="w-5 h-5 text-gray-600 mr-2" />
-                  <span className="text-sm font-medium text-gray-700">
-                    {currentUser.displayName || currentUser.email || currentUser.uid}
+                <div className="flex items-center" title={currentUser.displayName || currentUser.email || currentUser.uid}>
+                  <User className="w-5 h-5 text-gray-600 mr-1 sm:mr-2" />
+                  <span className="text-xs sm:text-sm font-medium text-gray-700 hidden md:inline"> {/* Hide name on small screens */}
+                    {currentUser.displayName || currentUser.email?.split('@')[0] || 'User'}
                   </span>
                 </div>
                 <button
                   onClick={signOut}
-                  className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-3 rounded text-sm transition-colors duration-150"
+                  className="bg-red-500 hover:bg-red-600 text-white font-semibold py-1.5 px-2 sm:py-2 sm:px-3 rounded text-xs sm:text-sm transition-colors duration-150"
+                  title="Sign Out"
                 >
                   Sign Out
                 </button>
@@ -76,11 +83,19 @@ export const Header: React.FC<HeaderProps> = ({ progress }) => {
             ) : (
               <button
                 onClick={signInWithGoogle}
-                className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded text-sm transition-colors duration-150"
+                className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-1.5 px-2 sm:py-2 sm:px-3 rounded text-xs sm:text-sm transition-colors duration-150"
               >
                 Sign in with Google
               </button>
             )}
+            <button
+              onClick={onOpenGuide}
+              className="p-1.5 sm:p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-100 rounded-full transition-colors duration-150"
+              title="Show Application Guide"
+              aria-label="Show Application Guide"
+            >
+              <HelpCircle size={20} /> {/* Adjusted size for consistency */}
+            </button>
           </div>
         </div>
       </div>
