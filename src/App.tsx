@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import Confetti from 'react-confetti'; // Added Confetti import
-import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Bot, X } from 'lucide-react'; // Added Bot, X
+import Confetti from 'react-confetti';
+import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Bot, X } from 'lucide-react';
+import { useAuth } from './contexts/AuthContext'; // Import useAuth
 import { Header } from './components/Header';
 import { ExerciseList } from './components/ExerciseList';
 import { FlowchartBuilder } from './components/FlowchartBuilder';
@@ -12,14 +13,18 @@ import { SafeCodeExecutor } from './utils/codeExecutor';
 import { StudentProgress, ExecutionResult, FlowchartData } from './types/index';
 
 function App() {
-  const [progress, setProgress] = useState<StudentProgress>({
-    completedExercises: [1, 2], // Start with first two completed as examples
-    currentExercise: 3,
-    totalScore: 150,
-    lastAccessedAt: new Date().toISOString()
-  });
+  const { currentUser, loading: authLoading } = useAuth(); // Get auth state
 
-  const [currentExerciseId, setCurrentExerciseId] = useState(3);
+  // Initial progress state (will be overwritten by loaded data)
+  const defaultInitialProgress: StudentProgress = {
+    completedExercises: [],
+    currentExercise: 1,
+    totalScore: 0,
+    lastAccessedAt: new Date().toISOString()
+  };
+
+  const [progress, setProgress] = useState<StudentProgress>(defaultInitialProgress);
+  const [currentExerciseId, setCurrentExerciseId] = useState(defaultInitialProgress.currentExercise);
   const [isExerciseListOpen, setIsExerciseListOpen] = useState(true);
   const [isInputOutputOpen, setIsInputOutputOpen] = useState(true);
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
@@ -177,10 +182,16 @@ function App() {
     }
   };
 
-  // Save progress to localStorage
+  // Save progress
   useEffect(() => {
-    localStorage.setItem('studentProgress', JSON.stringify(progress));
-  }, [progress]);
+    if (currentUser) {
+      console.log("Saving to backend would happen here for user:", currentUser.uid, "Progress:", progress);
+      // For now, still save to localStorage for logged-in users
+      localStorage.setItem(`studentProgress_${currentUser.uid}`, JSON.stringify(progress));
+    } else {
+      localStorage.setItem('studentProgress_anonymous', JSON.stringify(progress));
+    }
+  }, [progress, currentUser]);
 
   const handleNewFlowchartFromAI = (newFlowchartData: FlowchartData) => {
     console.log("App.tsx: Received new flowchart from AI to load:", newFlowchartData);
@@ -193,19 +204,91 @@ function App() {
     handleFlowchartChange(newFlowchartData); // This will update generatedCode and what FlowchartBuilder shows.
   };
 
-  // Load progress from localStorage on mount
+  // Load progress on mount or when auth state changes
   useEffect(() => {
-    const savedProgress = localStorage.getItem('studentProgress');
-    if (savedProgress) {
-      try {
-        const parsed = JSON.parse(savedProgress);
-        setProgress(parsed);
-        setCurrentExerciseId(parsed.currentExercise || 1);
-      } catch (error) {
-        console.error('Failed to load saved progress:', error);
-      }
+    if (authLoading) {
+      console.log("Auth state loading, waiting to load progress...");
+      return; // Wait for authentication to resolve
     }
-  }, []);
+
+    const loadData = async () => {
+      if (currentUser) {
+        console.log("User logged in, attempting to fetch progress for UID:", currentUser.uid);
+        try {
+          // TODO: Adjust the fetch URL if your backend is on a different port/domain
+          const response = await fetch(`/api/users/${currentUser.uid}/details`);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch user details: ${response.status}`);
+          }
+          const backendData = await response.json(); // This is UserDetails model
+          console.log("Fetched backend data:", backendData);
+
+          // Map UserDetails to StudentProgress
+          const nextExerciseId = backendData.tasks_completed.length > 0
+                               ? Math.max(0, ...backendData.tasks_completed.map(Number)) + 1
+                               : 1;
+
+          // Ensure nextExerciseId doesn't exceed available exercises
+          const maxExerciseId = allExercises.length > 0 ? Math.max(...allExercises.map(ex => ex.id)) : 1;
+          const validNextExerciseId = Math.min(nextExerciseId, maxExerciseId);
+
+
+          const newProgress: StudentProgress = {
+            completedExercises: backendData.tasks_completed.map(Number),
+            currentExercise: validNextExerciseId,
+            totalScore: backendData.points,
+            lastAccessedAt: new Date(backendData.last_active).toISOString(),
+          };
+          setProgress(newProgress);
+          setCurrentExerciseId(newProgress.currentExercise);
+          console.log("Progress updated from backend:", newProgress);
+
+        } catch (error) {
+          console.error('Failed to fetch progress from backend, using default:', error);
+          // Fallback to default progress or load from user-specific localStorage if preferred
+          const userSpecificStorageKey = `studentProgress_${currentUser.uid}`;
+          const savedProgressLocal = localStorage.getItem(userSpecificStorageKey);
+          if (savedProgressLocal) {
+            try {
+              const parsed = JSON.parse(savedProgressLocal);
+              setProgress(parsed);
+              setCurrentExerciseId(parsed.currentExercise || 1);
+              console.log("Loaded progress from user-specific localStorage:", parsed);
+            } catch (parseError) {
+              console.error('Failed to parse user-specific saved progress:', parseError);
+              setProgress(defaultInitialProgress);
+              setCurrentExerciseId(defaultInitialProgress.currentExercise);
+            }
+          } else {
+            setProgress(defaultInitialProgress);
+            setCurrentExerciseId(defaultInitialProgress.currentExercise);
+            console.log("No user-specific local progress, set to default.");
+          }
+        }
+      } else {
+        console.log("User not logged in, loading progress from anonymous localStorage.");
+        const savedProgress = localStorage.getItem('studentProgress_anonymous');
+        if (savedProgress) {
+          try {
+            const parsed = JSON.parse(savedProgress);
+            setProgress(parsed);
+            setCurrentExerciseId(parsed.currentExercise || 1);
+            console.log("Loaded progress from anonymous localStorage:", parsed);
+          } catch (error) {
+            console.error('Failed to load anonymous saved progress:', error);
+            setProgress(defaultInitialProgress);
+            setCurrentExerciseId(defaultInitialProgress.currentExercise);
+          }
+        } else {
+          console.log("No anonymous local progress, set to default.");
+          setProgress(defaultInitialProgress);
+          setCurrentExerciseId(defaultInitialProgress.currentExercise);
+        }
+      }
+    };
+
+    loadData();
+  }, [currentUser, authLoading]); // Re-run when auth state is confirmed or user changes
 
   useEffect(() => {
     const handleResize = () => {
