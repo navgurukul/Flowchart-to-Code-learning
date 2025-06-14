@@ -18,13 +18,13 @@ function App() {
   // Initial progress state (will be overwritten by loaded data)
   const defaultInitialProgress: StudentProgress = {
     completedExercises: [],
-    currentExercise: 1,
+    currentExercise: null, // Changed: No exercise selected initially
     totalScore: 0,
     lastAccessedAt: new Date().toISOString()
   };
 
   const [progress, setProgress] = useState<StudentProgress>(defaultInitialProgress);
-  const [currentExerciseId, setCurrentExerciseId] = useState(defaultInitialProgress.currentExercise);
+  const [currentExerciseId, setCurrentExerciseId] = useState<number | null>(null); // Changed: No exercise selected initially
   const [isExerciseListOpen, setIsExerciseListOpen] = useState(true);
   const [isInputOutputOpen, setIsInputOutputOpen] = useState(true);
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
@@ -40,7 +40,11 @@ function App() {
     height: window.innerHeight,
   });
 
-  const currentExercise = allExercises.find(ex => ex.id === currentExerciseId) || allExercises[0];
+  // If currentExerciseId is null, currentExercise will be null.
+  // Otherwise, it will be the found exercise or undefined if not found (though ExerciseList should prevent invalid IDs).
+  const currentExercise = currentExerciseId !== null
+    ? allExercises.find(ex => ex.id === currentExerciseId)
+    : null;
 
   const handleSelectExercise = (exerciseId: number) => {
     setCurrentExerciseId(exerciseId);
@@ -224,45 +228,55 @@ function App() {
           console.log("Fetched backend data:", backendData);
 
           // Map UserDetails to StudentProgress
-          const nextExerciseId = backendData.tasks_completed.length > 0
-                               ? Math.max(0, ...backendData.tasks_completed.map(Number)) + 1
-                               : 1;
+          const completedExercisesNumbers = backendData.tasks_completed.map(Number);
+          const latestCompleted = completedExercisesNumbers.length > 0 ? Math.max(0, ...completedExercisesNumbers) : 0;
 
-          // Ensure nextExerciseId doesn't exceed available exercises
-          const maxExerciseId = allExercises.length > 0 ? Math.max(...allExercises.map(ex => ex.id)) : 1;
-          const validNextExerciseId = Math.min(nextExerciseId, maxExerciseId);
+          let nextExerciseId: number | null = null;
+          const firstIncomplete = allExercises.find(ex => ex.id > latestCompleted && !completedExercisesNumbers.includes(ex.id));
+          if (firstIncomplete) {
+            nextExerciseId = firstIncomplete.id;
+          } else if (allExercises.length > 0) {
+            // If all are complete or no specific next, default to first or last+1 (capped)
+            nextExerciseId = completedExercisesNumbers.includes(allExercises[allExercises.length -1].id)
+                              ? allExercises[allExercises.length -1].id // Stay on last if all complete
+                              : (latestCompleted < allExercises.length ? latestCompleted + 1 : allExercises[0].id);
+          }
+          // Ensure nextExerciseId is not out of bounds if calculated as latestCompleted + 1
+          if (nextExerciseId && nextExerciseId > allExercises[allExercises.length -1].id && allExercises.length > 0) {
+             nextExerciseId = allExercises[allExercises.length -1].id;
+          }
 
 
           const newProgress: StudentProgress = {
-            completedExercises: backendData.tasks_completed.map(Number),
-            currentExercise: validNextExerciseId,
+            completedExercises: completedExercisesNumbers,
+            currentExercise: nextExerciseId, // Can be null if no exercises or logic determines so
             totalScore: backendData.points,
             lastAccessedAt: new Date(backendData.last_active).toISOString(),
           };
           setProgress(newProgress);
-          setCurrentExerciseId(newProgress.currentExercise);
+          setCurrentExerciseId(newProgress.currentExercise); // This can be null
           console.log("Progress updated from backend:", newProgress);
 
         } catch (error) {
           console.error('Failed to fetch progress from backend, using default:', error);
-          // Fallback to default progress or load from user-specific localStorage if preferred
           const userSpecificStorageKey = `studentProgress_${currentUser.uid}`;
           const savedProgressLocal = localStorage.getItem(userSpecificStorageKey);
           if (savedProgressLocal) {
             try {
               const parsed = JSON.parse(savedProgressLocal);
               setProgress(parsed);
-              setCurrentExerciseId(parsed.currentExercise || 1);
+              // Ensure currentExercise from local storage is valid, default to null if not.
+              setCurrentExerciseId(parsed.currentExercise === 0 ? null : (parsed.currentExercise || null));
               console.log("Loaded progress from user-specific localStorage:", parsed);
             } catch (parseError) {
               console.error('Failed to parse user-specific saved progress:', parseError);
               setProgress(defaultInitialProgress);
-              setCurrentExerciseId(defaultInitialProgress.currentExercise);
+              setCurrentExerciseId(defaultInitialProgress.currentExercise); // null
             }
           } else {
             setProgress(defaultInitialProgress);
-            setCurrentExerciseId(defaultInitialProgress.currentExercise);
-            console.log("No user-specific local progress, set to default.");
+            setCurrentExerciseId(defaultInitialProgress.currentExercise); // null
+            console.log("No user-specific local progress, set to default (no exercise selected).");
           }
         }
       } else {
@@ -272,17 +286,18 @@ function App() {
           try {
             const parsed = JSON.parse(savedProgress);
             setProgress(parsed);
-            setCurrentExerciseId(parsed.currentExercise || 1);
+             // Ensure currentExercise from local storage is valid, default to null if not.
+            setCurrentExerciseId(parsed.currentExercise === 0 ? null : (parsed.currentExercise || null));
             console.log("Loaded progress from anonymous localStorage:", parsed);
           } catch (error) {
             console.error('Failed to load anonymous saved progress:', error);
             setProgress(defaultInitialProgress);
-            setCurrentExerciseId(defaultInitialProgress.currentExercise);
+            setCurrentExerciseId(defaultInitialProgress.currentExercise); // null
           }
         } else {
-          console.log("No anonymous local progress, set to default.");
+          console.log("No anonymous local progress, set to default (no exercise selected).");
           setProgress(defaultInitialProgress);
-          setCurrentExerciseId(defaultInitialProgress.currentExercise);
+          setCurrentExerciseId(defaultInitialProgress.currentExercise); // null
         }
       }
     };
@@ -338,93 +353,100 @@ function App() {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 p-6 space-y-6 overflow-y-auto"> {/* Added overflow-y-auto */}
-          {/* Exercise Title */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="flex items-center mb-2">
-                  <span className="text-sm font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full mr-3">
-                    Exercise {currentExercise.id}
-                  </span>
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                    currentExercise.difficulty === 'beginner' 
-                      ? 'text-green-600 bg-green-100' 
-                      : currentExercise.difficulty === 'intermediate'
-                      ? 'text-yellow-600 bg-yellow-100'
-                      : 'text-red-600 bg-red-100'
-                  }`}>
-                    {currentExercise.difficulty}
-                  </span>
+        {currentExercise ? (
+          <div className="flex-1 p-6 space-y-6 overflow-y-auto"> {/* Added overflow-y-auto */}
+            {/* Exercise Title */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center mb-2">
+                    <span className="text-sm font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full mr-3">
+                      Exercise {currentExercise.id}
+                    </span>
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                      currentExercise.difficulty === 'beginner'
+                        ? 'text-green-600 bg-green-100'
+                        : currentExercise.difficulty === 'intermediate'
+                        ? 'text-yellow-600 bg-yellow-100'
+                        : 'text-red-600 bg-red-100'
+                    }`}>
+                      {currentExercise.difficulty}
+                    </span>
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    {currentExercise.title}
+                  </h2>
+                  <p className="text-gray-600 mb-3">
+                    {currentExercise.description}
+                  </p>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h3 className="text-sm font-semibold text-blue-900 mb-2">Problem Statement</h3>
+                    <p className="text-sm text-blue-800">{currentExercise.problemStatement}</p>
+                  </div>
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  {currentExercise.title}
-                </h2>
-                <p className="text-gray-600 mb-3">
-                  {currentExercise.description}
-                </p>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h3 className="text-sm font-semibold text-blue-900 mb-2">Problem Statement</h3>
-                  <p className="text-sm text-blue-800">{currentExercise.problemStatement}</p>
-                </div>
-              </div>
-              
-              <div className="text-right">
-                <div className="text-sm text-gray-500 mb-1">Category</div>
-                <div className="text-sm font-medium text-gray-900">
-                  {currentExercise.category}
+
+                <div className="text-right">
+                  <div className="text-sm text-gray-500 mb-1">Category</div>
+                  <div className="text-sm font-medium text-gray-900">
+                    {currentExercise.category}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Toggle for Code Editor */}
-          <button
-            onClick={() => setIsCodeEditorOpen(!isCodeEditorOpen)}
-            className="mb-2 px-3 py-1.5 text-sm bg-gray-200 hover:bg-gray-300 rounded-md"
-          >
-            {isCodeEditorOpen ? 'Hide Code Editor' : 'Show Code Editor'}
-          </button>
+            {/* Toggle for Code Editor */}
+            <button
+              onClick={() => setIsCodeEditorOpen(!isCodeEditorOpen)}
+              className="mb-2 px-3 py-1.5 text-sm bg-gray-200 hover:bg-gray-300 rounded-md"
+            >
+              {isCodeEditorOpen ? 'Hide Code Editor' : 'Show Code Editor'}
+            </button>
 
-          {/* Main Content Grid */}
-          {/* Ensure this grid and its children can handle varying widths */}
-          <div className={`grid grid-cols-1 ${isCodeEditorOpen ? 'md:grid-cols-2' : 'md:grid-cols-1'} gap-6 h-[750px]`}> {/* Simplified and corrected grid-cols logic */}
-            <FlowchartBuilder
-              exercise={currentExercise}
-              onGenerateCode={handleFlowchartChange}
-              onRunCode={handleRunCode}
-              isRunning={isRunning}
-              newFlowchartToLoad={aiFlowchartToLoad} // Pass the new state here
-            />
-            
-            {isCodeEditorOpen && (
-              <CodeEditor
+            {/* Main Content Grid */}
+            <div className={`grid grid-cols-1 ${isCodeEditorOpen ? 'md:grid-cols-2' : 'md:grid-cols-1'} gap-6 h-[750px]`}>
+              <FlowchartBuilder
                 exercise={currentExercise}
-                generatedCode={generatedCode}
+                onGenerateCode={handleFlowchartChange}
                 onRunCode={handleRunCode}
+                isRunning={isRunning}
+                newFlowchartToLoad={aiFlowchartToLoad}
+              />
+
+              {isCodeEditorOpen && (
+                <CodeEditor
+                  exercise={currentExercise}
+                  generatedCode={generatedCode}
+                  onRunCode={handleRunCode}
+                  isRunning={isRunning}
+                />
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 p-6 flex items-center justify-center">
+            <p className="text-xl text-gray-500">Please select an exercise to begin.</p>
+          </div>
+        )}
+
+        {/* Right Panel Toggle & Input/Output Panel */}
+        {currentExercise && ( // Only show if an exercise is selected
+          <div className="flex"> {/* Container for toggle and panel */}
+            {isInputOutputOpen && (
+              <InputOutput
+                exercise={currentExercise} // currentExercise will not be null here
+                result={executionResult}
                 isRunning={isRunning}
               />
             )}
+            <button
+              onClick={() => setIsInputOutputOpen(!isInputOutputOpen)}
+              className="p-2 bg-gray-200 hover:bg-gray-300 h-full flex items-center justify-center"
+              title={isInputOutputOpen ? "Collapse Input/Output Panel" : "Expand Input/Output Panel"}
+            >
+              {isInputOutputOpen ? <ChevronRight size={20} /> : <PanelRight size={20} />}
+            </button>
           </div>
-        </div>
-
-        {/* Right Panel Toggle & Input/Output Panel */}
-        <div className="flex"> {/* Container for toggle and panel */}
-          {isInputOutputOpen && (
-            <InputOutput
-              exercise={currentExercise}
-              result={executionResult}
-              isRunning={isRunning}
-            />
-          )}
-          <button
-            onClick={() => setIsInputOutputOpen(!isInputOutputOpen)}
-            className="p-2 bg-gray-200 hover:bg-gray-300 h-full flex items-center justify-center"
-            title={isInputOutputOpen ? "Collapse Input/Output Panel" : "Expand Input/Output Panel"}
-          >
-            {isInputOutputOpen ? <ChevronRight size={20} /> : <PanelRight size={20} />}
-          </button>
-        </div>
+        )}
       </div>
       {/* Chat Window (conditionally rendered) */}
       {isChatOpen && <ChatWindow
