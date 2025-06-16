@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Exercise, ExecutionResult } from '../types/index';
-import { CheckCircle, XCircle, Clock, AlertTriangle, ChevronUp, ChevronDown } from 'lucide-react'; // Import ChevronUp and ChevronDown
+import { CheckCircle, XCircle, Clock, AlertTriangle, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from 'lucide-react'; // Import ChevronUp and ChevronDown
 
 interface InputOutputProps {
   exercise: Exercise;
@@ -16,7 +16,10 @@ export const InputOutput: React.FC<InputOutputProps> = ({
   const [isContentVisible, setIsContentVisible] = useState(true); // Default to true (expanded)
 
   return (
-    <div className="w-96 bg-white border-l border-gray-200 flex flex-col h-full">
+    <div className={`
+      bg-white border-gray-200 flex flex-col h-full transition-all duration-300 ease-in-out
+      ${isContentVisible ? 'w-96 border-l' : 'w-0 border-l-0 overflow-hidden'}
+    `}>
       {/* Header */}
       <div className="p-4 sm:p-6 border-b border-gray-200"> {/* Adjusted padding for consistency */}
         <div className="flex justify-between items-center mb-1 sm:mb-2"> {/* Reduced mb for tighter look */}
@@ -27,7 +30,7 @@ export const InputOutput: React.FC<InputOutputProps> = ({
             aria-label={isContentVisible ? "Collapse section" : "Expand section"}
             title={isContentVisible ? "Collapse section" : "Expand section"}
           >
-            {isContentVisible ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+            {isContentVisible ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
           </button>
         </div>
         {isContentVisible && ( // Conditionally render the description
@@ -41,7 +44,7 @@ export const InputOutput: React.FC<InputOutputProps> = ({
       <div
         className={`
           transition-all duration-300 ease-in-out overflow-hidden
-          ${isContentVisible ? 'max-h-[1500px] opacity-100' : 'max-h-0 opacity-0'}
+          ${isContentVisible ? 'max-w-[500px] opacity-100' : 'max-w-0 opacity-0'}
         `}
       >
         {/* Input Section */}
