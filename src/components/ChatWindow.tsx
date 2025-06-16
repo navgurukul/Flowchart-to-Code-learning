@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { MessageSquare, Send, X } from 'lucide-react'; // Added X
 import type { FlowchartData } from '../types'; // Import FlowchartData type
 
@@ -19,6 +20,27 @@ interface ChatMessage {
   isError?: boolean;
   isStructuredData?: boolean; // Add this to store the type of AI message
 }
+
+// Define custom components for Markdown elements with Tailwind styling
+const markdownComponents = {
+  h1: ({node, ...props}) => <h1 className="text-lg font-bold mt-2 mb-1" {...props} />,
+  h2: ({node, ...props}) => <h2 className="text-md font-semibold mt-2 mb-1" {...props} />,
+  h3: ({node, ...props}) => <h3 className="text-base font-semibold mt-1 mb-1" {...props} />,
+  p: ({node, ...props}) => <p className="mb-2" {...props} />,
+  strong: ({node, ...props}) => <strong className="font-bold" {...props} />,
+  em: ({node, ...props}) => <em className="italic" {...props} />,
+  ul: ({node, ...props}) => <ul className="list-disc list-inside mb-2 pl-4" {...props} />,
+  ol: ({node, ...props}) => <ol className="list-decimal list-inside mb-2 pl-4" {...props} />,
+  li: ({node, ...props}) => <li className="mb-1" {...props} />,
+  a: ({node, ...props}) => <a className="text-blue-500 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
+  code: ({node, inline, className, children, ...props}) => {
+    if (inline) {
+      return <code className="bg-gray-200 text-gray-700 px-1 py-0.5 rounded text-xs" {...props}>{children}</code>;
+    }
+    return <code className={className} {...props}>{children}</code>; // For code blocks, rely on 'pre' styling
+  },
+  pre: ({node, ...props}) => <pre className="bg-gray-800 text-gray-100 p-2 rounded-md overflow-x-auto text-xs my-2 whitespace-pre-wrap" {...props} />,
+};
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({ onClose, onFlowchartGenerated }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -172,12 +194,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ onClose, onFlowchartGene
                 <pre className="whitespace-pre-wrap text-xs bg-gray-800 text-gray-100 p-2 rounded-md overflow-x-auto">
                   <code>{msg.text}</code>
                 </pre>
-              ) : (
-                // For regular text, allow line breaks to render
+              ) : msg.sender === 'ai' && !msg.isError ? ( // AI message, not error, not structured
+                <ReactMarkdown components={markdownComponents}>{msg.text}</ReactMarkdown>
+              ) : ( // User messages, or AI error messages
+                // Original rendering for plain text with line breaks:
                 msg.text.split('\n').map((line, index) => (
                   <React.Fragment key={index}>
                     {line}
-                    <br />
+                    {index < msg.text.split('\n').length - 1 && <br />}
                   </React.Fragment>
                 ))
               )}
