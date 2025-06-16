@@ -18,19 +18,19 @@ export const InputOutput: React.FC<InputOutputProps> = ({
   return (
     <div className={`
       bg-white border-gray-200 flex flex-col h-full transition-all duration-300 ease-in-out
-      ${isContentVisible ? 'w-96 border-l' : 'w-0 border-l-0 overflow-hidden'}
+      ${isContentVisible ? 'w-96 border-l' : 'w-12 border-l overflow-hidden'}
     `}>
       {/* Header */}
-      <div className="p-4 sm:p-6 border-b border-gray-200"> {/* Adjusted padding for consistency */}
-        <div className="flex justify-between items-center mb-1 sm:mb-2"> {/* Reduced mb for tighter look */}
-          <h3 className="text-md sm:text-lg font-semibold text-gray-900">Input & Output</h3>
+      <div className={`border-gray-200 ${isContentVisible ? 'p-4 sm:p-6 border-b' : 'p-0 w-full h-full flex items-center justify-center'}`}>
+        <div className={`flex items-center ${isContentVisible ? 'justify-between mb-1 sm:mb-2' : 'justify-center w-full'}`}>
+          {isContentVisible && <h3 className="text-md sm:text-lg font-semibold text-gray-900">Input & Output</h3>}
           <button
             onClick={() => setIsContentVisible(!isContentVisible)}
-            className="p-1 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"
+            className={`p-1 rounded-md transition-colors ${isContentVisible ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' : 'text-gray-700 hover:text-blue-600 w-full h-full flex items-center justify-center bg-gray-100 hover:bg-gray-200'}`}
             aria-label={isContentVisible ? "Collapse section" : "Expand section"}
             title={isContentVisible ? "Collapse section" : "Expand section"}
           >
-            {isContentVisible ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
+            {isContentVisible ? <ChevronLeft size={20} /> : <ChevronRight size={24} />}
           </button>
         </div>
         {isContentVisible && ( // Conditionally render the description
