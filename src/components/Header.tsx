@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StudentProgress } from '../types'; // Ensure this path is correct
 import { User, Trophy, Target, Clock, HelpCircle } from 'lucide-react'; // Added HelpCircle
 import { useAuth } from '../contexts/AuthContext';
@@ -6,10 +6,12 @@ import { useAuth } from '../contexts/AuthContext';
 interface HeaderProps {
   progress: StudentProgress;
   onOpenGuide: () => void; // Added prop for opening guide
+  onSetAppMode: (mode: 'normal' | 'learn' | 'generate') => void; // New prop
 }
 
-export const Header: React.FC<HeaderProps> = ({ progress, onOpenGuide }) => {
+export const Header: React.FC<HeaderProps> = ({ progress, onOpenGuide, onSetAppMode }) => {
   const { currentUser, signInWithGoogle, signOut, loading } = useAuth();
+  const [isModesMenuOpen, setIsModesMenuOpen] = useState(false);
 
   return (
     <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3"> {/* Adjusted padding for smaller screens */}
@@ -88,6 +90,49 @@ export const Header: React.FC<HeaderProps> = ({ progress, onOpenGuide }) => {
                 Sign in with Google
               </button>
             )}
+
+            <div className="relative"> {/* Needed for dropdown positioning later */}
+              <button
+                onClick={() => setIsModesMenuOpen(!isModesMenuOpen)}
+                className={`font-medium py-1.5 px-2 sm:py-2 sm:px-3 rounded text-xs sm:text-sm transition-colors duration-150 ${
+                  isModesMenuOpen
+                    ? 'bg-blue-100 text-blue-700' // Style when open
+                    : 'text-gray-500 hover:bg-blue-100 hover:text-blue-600' // Style when closed
+                }`}
+                title="Select Mode"
+              >
+                Modes
+              </button>
+              {isModesMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-50">
+                  <a
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      console.log('Learn by Topic clicked');
+                      onSetAppMode('learn'); // Set app mode
+                      setIsModesMenuOpen(false);
+                    }}
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                  >
+                    Learn by Topic
+                  </a>
+                  <a
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      console.log('Generate by Name clicked');
+                      onSetAppMode('generate'); // Set app mode
+                      setIsModesMenuOpen(false);
+                    }}
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                  >
+                    Generate by Name
+                  </a>
+                </div>
+              )}
+            </div>
+
             <button
               onClick={onOpenGuide}
               className="p-1.5 sm:p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-100 rounded-full transition-colors duration-150"
