@@ -41,7 +41,6 @@ function App() {
     width: window.innerWidth,
     height: window.innerHeight,
   });
-  const [currentAppMode, setCurrentAppMode] = useState<'normal' | 'learn' | 'generate'>('normal');
 
   // Guide State
   const [isGuideOpen, setIsGuideOpen] = useState(false);
@@ -370,14 +369,10 @@ function App() {
     }
   }, [showConfetti]);
 
-  useEffect(() => {
-    console.log("App mode changed to:", currentAppMode);
-  }, [currentAppMode]);
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col relative"> {/* Added relative */}
       {showConfetti && <Confetti width={windowSize.width} height={windowSize.height} recycle={false} />} {/* recycle={false} makes it a one-shot burst */}
-      <Header progress={progress} onOpenGuide={handleOpenGuide} onSetAppMode={setCurrentAppMode} />
+      <Header progress={progress} onOpenGuide={handleOpenGuide} />
       
       <div className="flex-1 flex overflow-hidden"> {/* Added overflow-hidden for safety */}
         {/* Left Panel Toggle & Exercise List */}
