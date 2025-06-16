@@ -24,22 +24,38 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ onClose, onFlowchartGene
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentMessage, setCurrentMessage] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isModesMenuOpen, setIsModesMenuOpen] = useState(false);
+  const [currentChatMode, setCurrentChatMode] = useState<'default' | 'learn' | 'generate'>('default');
+
+  const getModeButtonText = () => {
+    if (currentChatMode === 'learn') return 'Mode: Learn';
+    if (currentChatMode === 'generate') return 'Mode: Generate';
+    return 'Mode';
+  };
 
   const handleSendMessage = async () => {
     if (currentMessage.trim() === '') return;
 
     setIsLoading(true); // Set loading true
 
+    const textForUserMessage = currentMessage; // Capture before clearing
+    setCurrentMessage(''); // Clear input field
+
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
-      text: currentMessage,
+      text: textForUserMessage, // This is what the user typed, without prefixes
       sender: 'user',
     };
-
-    // Add user's message to messages list immediately
     setMessages(prevMessages => [...prevMessages, userMessage]);
-    const messageToSend = currentMessage;
-    setCurrentMessage('');
+
+    let messageToSendToBackend: string;
+    if (currentChatMode === 'learn') {
+      messageToSendToBackend = `learn: ${textForUserMessage}`;
+    } else if (currentChatMode === 'generate') {
+      messageToSendToBackend = `generate: ${textForUserMessage}`;
+    } else {
+      messageToSendToBackend = textForUserMessage;
+    }
 
     try {
       const response = await fetch('http://localhost:8000/api/chat', {
@@ -47,7 +63,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ onClose, onFlowchartGene
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: messageToSend }),
+        body: JSON.stringify({ message: messageToSendToBackend }),
       });
 
       if (!response.ok) {
@@ -199,6 +215,41 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ onClose, onFlowchartGene
       {/* Input Area */}
       <div className="p-3 border-t border-gray-200 bg-white rounded-b-lg">
         <div className="flex items-center space-x-2">
+          <div className="relative">
+            <button
+              type="button" // Important for buttons not submitting forms
+              onClick={() => setIsModesMenuOpen(!isModesMenuOpen)}
+              className="px-3 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md border border-gray-300"
+              // Add conditional styling for open state later if desired
+            >
+              {getModeButtonText()}
+            </button>
+            {isModesMenuOpen && (
+              <div className="absolute bottom-full left-0 mb-1 w-40 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-[60]"> {/* Higher z-index than parent if needed */}
+                <button
+                  type="button"
+                  onClick={() => { setCurrentChatMode('default'); console.log('Default Mode selected'); setIsModesMenuOpen(false); }}
+                  className={`block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 hover:text-gray-900 ${currentChatMode === 'default' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
+                >
+                  Default
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setCurrentChatMode('learn'); console.log('Learn Mode selected'); setIsModesMenuOpen(false); }}
+                  className={`block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 hover:text-gray-900 ${currentChatMode === 'learn' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
+                >
+                  Learn
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setCurrentChatMode('generate'); console.log('Generate Mode selected'); setIsModesMenuOpen(false); }}
+                  className={`block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 hover:text-gray-900 ${currentChatMode === 'generate' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
+                >
+                  Generate
+                </button>
+              </div>
+            )}
+          </div>
           <input
             type="text"
             value={currentMessage}
