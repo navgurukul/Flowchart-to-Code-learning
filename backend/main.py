@@ -50,10 +50,10 @@ app = FastAPI()
 
 # CORS Configuration
 origins = [
-    "http://localhost:5173", # Your frontend URL
+    "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost",
-    # Add any other origins if needed
+    "https://flowchart-to-code-learning.vercel.app",  # <-- Add your deployed frontend URL here
 ]
 
 app.add_middleware(
