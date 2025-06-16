@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { MessageSquare, Send, X } from 'lucide-react'; // Added X
-import type { FlowchartData } from '../types'; // Import FlowchartData type
+import { MessageSquare, Send, X } from 'lucide-react';
+import type { FlowchartData } from '../types';
 
 interface ChatWindowProps {
   onClose: () => void;
-  onFlowchartGenerated: (flowchartData: FlowchartData) => void; // New prop
+  onFlowchartGenerated: (flowchartData: FlowchartData) => void;
 }
 
 interface BackendResponse {
   response: string;
-  isStructuredData?: boolean; // Optional flag from backend
+  isStructuredData?: boolean;
 }
 
 interface ChatMessage {
@@ -18,10 +18,9 @@ interface ChatMessage {
   text: string;
   sender: 'user' | 'ai';
   isError?: boolean;
-  isStructuredData?: boolean; // Add this to store the type of AI message
+  isStructuredData?: boolean;
 }
 
-// Define custom components for Markdown elements with Tailwind styling
 const markdownComponents = {
   h1: ({node, ...props}) => <h1 className="text-lg font-bold mt-2 mb-1" {...props} />,
   h2: ({node, ...props}) => <h2 className="text-md font-semibold mt-2 mb-1" {...props} />,
@@ -37,7 +36,7 @@ const markdownComponents = {
     if (inline) {
       return <code className="bg-gray-200 text-gray-700 px-1 py-0.5 rounded text-xs" {...props}>{children}</code>;
     }
-    return <code className={className} {...props}>{children}</code>; // For code blocks, rely on 'pre' styling
+    return <code className={className} {...props}>{children}</code>;
   },
   pre: ({node, ...props}) => <pre className="bg-gray-800 text-gray-100 p-2 rounded-md overflow-x-auto text-xs my-2 whitespace-pre-wrap" {...props} />,
 };
@@ -47,87 +46,72 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ onClose, onFlowchartGene
   const [currentMessage, setCurrentMessage] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
+  // Use VITE_API_BASE_URL or fallback to local proxy
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+  const chatEndpoint = `${apiBaseUrl}/api/chat`;
+
   const handleSendMessage = async () => {
     if (currentMessage.trim() === '') return;
 
-    setIsLoading(true); // Set loading true
+    setIsLoading(true);
 
-    const textForUserMessage = currentMessage; // Capture before clearing
-    setCurrentMessage(''); // Clear input field
+    const textForUserMessage = currentMessage;
+    setCurrentMessage('');
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
-      text: textForUserMessage, // This is what the user typed, without prefixes
+      text: textForUserMessage,
       sender: 'user',
     };
     setMessages(prevMessages => [...prevMessages, userMessage]);
 
-    // Reverted: messageToSendToBackend is now just textForUserMessage
-    const messageToSendToBackend = textForUserMessage;
-
     try {
-      const response = await fetch('http://localhost:8000/api/chat', {
+      const response = await fetch(chatEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: messageToSendToBackend }),
+        body: JSON.stringify({ message: textForUserMessage }),
       });
 
       if (!response.ok) {
-        // Handle HTTP errors (e.g., 404, 500)
         const errorData = await response.json().catch(() => ({ detail: 'Server error. Please try again.' }));
-        // console.error('API Error:', errorData); // Already have this
         setMessages(prevMessages => [
           ...prevMessages,
           {
             id: (Date.now() + 1).toString(),
-            // Ensure the error message is clearly an error
             text: `Error: ${errorData.detail || 'Failed to get response from server.'}`,
-            sender: 'ai', // Consider a different sender type or styling for errors
-            isError: true, // Add an optional isError flag
+            sender: 'ai',
+            isError: true,
           },
         ]);
-        return; // Return early after handling error
+        return;
       }
 
-      // const data = await response.json(); // This line is already there
-      const data: BackendResponse = await response.json(); // Explicitly type it
+      const data: BackendResponse = await response.json();
 
       const aiResponse: ChatMessage = {
         id: (Date.now() + 1).toString(),
         text: data.response,
         sender: 'ai',
-        isStructuredData: data.isStructuredData === true, // Store the flag
+        isStructuredData: data.isStructuredData === true,
       };
       setMessages(prevMessages => [...prevMessages, aiResponse]);
 
-      // New logic: If it's structured data, parse it and call the callback
       if (data.isStructuredData && data.response) {
         try {
-          // Assuming AI sends nodes as: { id: string, label: string, type: string, position: {x: number, y: number} }
-          // And edges as: { id: string, source: string, target: string }
           const aiOutput = JSON.parse(data.response);
-
           if (aiOutput && Array.isArray(aiOutput.nodes) && Array.isArray(aiOutput.edges)) {
-            // Transform nodes to meet the FlowchartNode structure, specifically the data.label part
             const transformedNodes = aiOutput.nodes.map((node: any) => ({
               id: node.id,
               type: node.type,
               position: node.position,
-              // Create the nested 'data' object with 'label'
-              data: {
-                label: node.label,
-                // value and condition will be undefined, which is fine as they are optional in FlowchartNodeData
-              },
+              data: { label: node.label },
             }));
-
-            // Create the transformed FlowchartData object
             const transformedFlowchartData: FlowchartData = {
               nodes: transformedNodes,
-              edges: aiOutput.edges, // Edges structure from AI should be compatible
+              edges: aiOutput.edges,
             };
-
             onFlowchartGenerated(transformedFlowchartData);
             console.log("ChatWindow: Sent transformed structured flowchart data to App.tsx", transformedFlowchartData);
           } else {
@@ -135,24 +119,21 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ onClose, onFlowchartGene
           }
         } catch (parseError) {
           console.error("ChatWindow: Failed to parse structured flowchart data from AI:", parseError, data.response);
-          // Optionally, inform the user via chat message that parsing failed for the flowchart data
-          // For now, the raw JSON string is already in aiResponse.text and will be displayed.
         }
       }
 
     } catch (error) {
-      // console.error('Failed to send message or parse response:', error); // Already have this
       setMessages(prevMessages => [
         ...prevMessages,
         {
           id: (Date.now() + 1).toString(),
           text: 'Error: Could not connect to the AI service. Please check your connection or try again later.',
-          sender: 'ai', // Consider a different sender type or styling for errors
-          isError: true, // Add an optional isError flag
+          sender: 'ai',
+          isError: true,
         },
       ]);
     } finally {
-      setIsLoading(false); // Set loading false in finally
+      setIsLoading(false);
     }
   };
 
@@ -194,10 +175,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ onClose, onFlowchartGene
                 <pre className="whitespace-pre-wrap text-xs bg-gray-800 text-gray-100 p-2 rounded-md overflow-x-auto">
                   <code>{msg.text}</code>
                 </pre>
-              ) : msg.sender === 'ai' && !msg.isError ? ( // AI message, not error, not structured
+              ) : msg.sender === 'ai' && !msg.isError ? (
                 <ReactMarkdown components={markdownComponents}>{msg.text}</ReactMarkdown>
-              ) : ( // User messages, or AI error messages
-                // Original rendering for plain text with line breaks:
+              ) : (
                 msg.text.split('\n').map((line, index) => (
                   <React.Fragment key={index}>
                     {line}
@@ -231,21 +211,21 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ onClose, onFlowchartGene
             onChange={(e) => setCurrentMessage(e.target.value)}
             onKeyPress={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault(); // Prevent newline on Enter
+                e.preventDefault();
                 handleSendMessage();
               }
             }}
             placeholder="Type /learn or /generate..."
-            disabled={isLoading} // Add this
-            className={`flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${isLoading ? 'bg-gray-100' : ''}`} // Optional: style when disabled
+            disabled={isLoading}
+            className={`flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${isLoading ? 'bg-gray-100' : ''}`}
           />
           <button
             onClick={handleSendMessage}
-            disabled={currentMessage.trim() === '' || isLoading} // Add isLoading here
+            disabled={currentMessage.trim() === '' || isLoading}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
           >
             {isLoading ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> // Simple spinner
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             ) : (
               <Send size={18} />
             )}
