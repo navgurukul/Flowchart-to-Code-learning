@@ -474,7 +474,7 @@ function App() {
 
         {/* Right Panel Toggle & Input/Output Panel */}
         {currentExercise && ( // Only show if an exercise is selected
-          <div className="flex"> {/* Container for toggle and panel */}
+          <div className="flex h-full sticky top-0"> {/* Apply sticky classes here */}
             {isInputOutputOpen && (
               <InputOutput
                 exercise={currentExercise} // currentExercise will not be null here
