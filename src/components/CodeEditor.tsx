@@ -104,6 +104,11 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
       {/* Code Editor */}
       <div className="flex-1 p-4">
+        <div className="flex justify-end mb-1"> {/* Container to push label to the right */}
+          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-sm">
+            JavaScript
+          </span>
+        </div>
         {!generatedCode ? (
           <div className="h-full flex items-center justify-center bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
             <div className="text-center text-gray-500">
