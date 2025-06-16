@@ -1,3 +1,13 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.flowchart-dots-bg {
+  background-image: radial-gradient(circle, #cccccc 1px, rgba(0,0,0,0) 1px);
+  background-size: 16px 16px;
+  /* You might want to set a base background-color for the canvas itself,
+     if it's not already white or another desired color from its parent.
+     e.g., background-color: #f9fafb; (Tailwind's gray-50) or #ffffff; (white)
+     This will be under the dots.
+  */
+}

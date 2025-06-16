@@ -451,14 +451,10 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
         <div className="flex-1 relative"> {/* This is the key for the canvas to take remaining space */}
           <div
             ref={canvasRef}
-            className="w-full h-full bg-gray-50 relative" // Removed overflow-hidden
+            className="w-full h-full bg-gray-50 relative flowchart-dots-bg"
             onDragOver={handleDragOver}
             onDrop={handleDrop}
             onMouseMove={handleCanvasMouseMove}
-            style={{
-              backgroundImage: 'radial-gradient(circle, #e5e7eb 1px, transparent 1px)',
-              backgroundSize: '20px 20px'
-            }}
           >
             {/* Render Edges */}
             <svg className="absolute inset-0 w-full h-full pointer-events-none">
