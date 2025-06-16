@@ -1,5 +1,6 @@
 // src/contexts/AuthContext.tsx
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import toast from 'react-hot-toast';
 import { User as FirebaseUser, onAuthStateChanged, signOut as firebaseSignOut, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { auth } from '../firebaseConfig'; // Your Firebase auth instance
 
@@ -8,6 +9,7 @@ interface AppUser {
   uid: string;
   email: string | null;
   displayName?: string | null;
+  photoURL?: string | null; // Add this line
   // Add other relevant backend user details if needed
   // e.g., points?: number; tasksCompleted?: string[];
 }
@@ -32,6 +34,7 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       uid: firebaseUser.uid,
       email: firebaseUser.email,
       displayName: firebaseUser.displayName,
+      photoURL: firebaseUser.photoURL, // Add this line
     };
   };
 
@@ -68,6 +71,11 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         // console.log("Backend response:", backendData);
         // For now, AppUser is derived from FirebaseUser directly after backend confirmation
         setCurrentUser(mapFirebaseUserToAppUser(firebaseUser));
+        // Construct welcome message
+        const welcomeMessage = firebaseUser.displayName
+          ? `Welcome, ${firebaseUser.displayName.split(' ')[0]}!` // Use first name if display name exists
+          : 'Signed in successfully!';
+        toast.success(welcomeMessage);
       }
     } catch (error) {
       console.error("Error during Google sign-in:", error);

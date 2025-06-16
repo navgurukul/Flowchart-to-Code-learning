@@ -67,7 +67,15 @@ export const Header: React.FC<HeaderProps> = ({ progress, onOpenGuide }) => {
             ) : currentUser ? (
               <>
                 <div className="flex items-center" title={currentUser.displayName || currentUser.email || currentUser.uid}>
-                  <User className="w-5 h-5 text-gray-600 mr-1 sm:mr-2" />
+                  {currentUser.photoURL ? (
+                    <img
+                      src={currentUser.photoURL}
+                      alt={currentUser.displayName || 'User profile'}
+                      className="w-6 h-6 rounded-full mr-1 sm:mr-2 object-cover"
+                    />
+                  ) : (
+                    <User className="w-5 h-5 text-gray-600 mr-1 sm:mr-2" />
+                  )}
                   <span className="text-xs sm:text-sm font-medium text-gray-700 hidden md:inline"> {/* Hide name on small screens */}
                     {currentUser.displayName || currentUser.email?.split('@')[0] || 'User'}
                   </span>

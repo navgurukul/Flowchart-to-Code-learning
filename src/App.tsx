@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Confetti from 'react-confetti';
+import { Toaster } from 'react-hot-toast';
 import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Bot, X } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext'; // Import useAuth
 import { Header } from './components/Header';
@@ -371,6 +372,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col relative"> {/* Added relative */}
+      <Toaster position="top-center" reverseOrder={false} /> {/* Add Toaster here */}
       {showConfetti && <Confetti width={windowSize.width} height={windowSize.height} recycle={false} />} {/* recycle={false} makes it a one-shot burst */}
       <Header progress={progress} onOpenGuide={handleOpenGuide} />
       
