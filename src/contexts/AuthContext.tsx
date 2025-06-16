@@ -44,7 +44,9 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         const idToken = await firebaseUser.getIdToken();
         // TODO: Adjust the fetch URL if your backend is on a different port/domain
         // e.g., http://localhost:8000/api/auth/google
-        const response = await fetch('/api/auth/google', {
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || ''; // Fallback to empty for same-origin or proxy
+        const endpoint = `${apiBaseUrl}/api/auth/google`;
+        const response = await fetch(endpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
