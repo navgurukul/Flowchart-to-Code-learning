@@ -46,8 +46,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ onClose, onFlowchartGene
   const [currentMessage, setCurrentMessage] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  // Use VITE_API_BASE_URL or fallback to local proxy
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+  // Use VITE_API_BASE_URL or fallback to localhost for dev
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
   const chatEndpoint = `${apiBaseUrl}/api/chat`;
 
   const handleSendMessage = async () => {

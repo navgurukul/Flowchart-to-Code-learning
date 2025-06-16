@@ -53,7 +53,8 @@ origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost",
-    "https://flowchart-to-code-learning.vercel.app",  # <-- Add your deployed frontend URL here
+    "https://flowchart-to-code-learning.vercel.app",  # Frontend on Vercel
+    "https://flowchart-to-code-learning-1.onrender.com",  # <-- Add your backend Render URL for completeness
 ]
 
 app.add_middleware(
