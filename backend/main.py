@@ -55,6 +55,8 @@ origins = [
     "http://localhost",
     "https://flowchart-to-code-learning.vercel.app",  # Frontend on Vercel
     "https://flowchart-to-code-learning-1.onrender.com",  # <-- Add your backend Render URL for completeness
+    "https://flowchart-learner-git-langchain-vinit-sources-projects.vercel.app/"
+     "https://flowchart-learner.vercel.app/"
 ]
 
 app.add_middleware(
