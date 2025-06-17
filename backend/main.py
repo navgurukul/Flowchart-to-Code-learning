@@ -8,7 +8,7 @@ import json
 from dotenv import load_dotenv # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< IMPORT THIS
 import firebase_admin
 from firebase_admin import credentials, auth
-from typing import Optional # Added for Optional email in FirebaseUser
+from typing import Optional, List # Added List
 
 # --- .env DEBUG START ---
 print("DEBUG: Script starting. Attempting to load .env file...")
@@ -141,7 +141,7 @@ class ChatMessage(BaseModel):
     message: str
 
 from datetime import datetime # Added import
-from typing import List # Added import
+# from typing import List # Already imported above
 
 class UserDetails(BaseModel):
     last_active: datetime
@@ -154,6 +154,22 @@ class IdToken(BaseModel):
 class FirebaseUser(BaseModel):
     uid: str
     email: Optional[str] = None
+
+# New Pydantic models for pagination
+class Item(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+
+class PaginatedResponse(BaseModel):
+    items: List[Item]
+    total_items: int
+    page: int
+    size: int
+    total_pages: int
+
+# Mock data for the pagination example
+mock_items_data = [Item(id=i, name=f"Item {i}", description=f"Description for item {i}") for i in range(1, 101)]
 
 @app.get("/")
 async def read_root():
@@ -269,6 +285,31 @@ async def get_user_details(user_id: str):
         "tasks_completed": ["Exercise 1", "Exercise 2"]
     }
     return UserDetails(**mock_user_data)
+
+# New Pagination Endpoint
+@app.get("/items", response_model=PaginatedResponse)
+async def get_items(page: int = 1, size: int = 10):
+    if page < 1:
+        page = 1
+    if size < 1:
+        size = 1
+    if size > 100: # Max page size limit
+        size = 100
+
+    start_index = (page - 1) * size
+    end_index = start_index + size
+
+    total_items = len(mock_items_data)
+    paginated_items = mock_items_data[start_index:end_index]
+    total_pages = (total_items + size - 1) // size # Ceiling division
+
+    return PaginatedResponse(
+        items=paginated_items,
+        total_items=total_items,
+        page=page,
+        size=len(paginated_items), # Actual number of items returned on this page
+        total_pages=total_pages
+    )
 
 # Comments for running the app
 # To run this application:
