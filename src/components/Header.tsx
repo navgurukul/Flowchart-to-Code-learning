@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { StudentProgress } from '../types'; // Ensure this path is correct
 import { User, Trophy, Target, Clock, HelpCircle, Signal } from 'lucide-react'; // Added HelpCircle & Signal
 import { useAuth } from '../contexts/AuthContext';
-import { getDatabase, ref, onValue, off } from 'firebase/database';
-import { app } from '../../firebaseConfig'; // Firebase app instance
+import { getDatabase, ref, onValue, onDisconnect, set } from 'firebase/database';
+import { app } from "../firebaseConfig";
 
 interface HeaderProps {
   progress: StudentProgress;
@@ -15,26 +15,23 @@ export const Header: React.FC<HeaderProps> = ({ progress, onOpenGuide }) => {
   const [onlineUsersCount, setOnlineUsersCount] = useState(0);
 
   useEffect(() => {
-    if (!currentUser) {
-      setOnlineUsersCount(0); // Reset count if user logs out
-      return;
-    }
-
     const db = getDatabase(app);
-    const statusRef = ref(db, '/status');
+    const onlineRef = ref(db, "onlineUsers");
 
-    const listener = onValue(statusRef, (snapshot) => {
-      const statuses = snapshot.val();
-      let count = 0;
-      if (statuses) {
-        count = Object.values(statuses).filter(status => (status as any)?.online === true).length;
-      }
-      setOnlineUsersCount(count);
+    // Listen for changes
+    const unsubscribe = onValue(onlineRef, (snapshot) => {
+      const users = snapshot.val();
+      setOnlineUsersCount(users ? Object.keys(users).length : 0);
     });
 
-    return () => {
-      off(statusRef, 'value', listener); // Detach the listener by providing all args
-    };
+    // On login, set this user as online
+    if (currentUser) {
+      const userRef = ref(db, `onlineUsers/${currentUser.uid}`);
+      set(userRef, true);
+      onDisconnect(userRef).remove();
+    }
+
+    return () => unsubscribe();
   }, [currentUser]); // Re-run if currentUser changes (login/logout)
 
   return (
