@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Confetti from 'react-confetti';
 import { Toaster } from 'react-hot-toast';
+import { getDatabase, ref, get, set } from 'firebase/database'; // Added set
+import { app } from '../firebaseConfig';
 import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Bot, X } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext'; // Import useAuth
 import { Header } from './components/Header';
@@ -197,10 +199,28 @@ function App() {
   // Save progress
   useEffect(() => {
     if (currentUser) {
-      console.log("Saving to backend would happen here for user:", currentUser.uid, "Progress:", progress);
-      // For now, still save to localStorage for logged-in users
+      // Save to Firebase Realtime Database
+      try {
+        const db = getDatabase(app);
+        const userProgressRef = ref(db, `userProgress/${currentUser.uid}`);
+        set(userProgressRef, progress)
+          .then(() => {
+            console.log("Progress saved to Firebase Realtime Database for user:", currentUser.uid);
+          })
+          .catch((error) => {
+            console.error("Error saving progress to Firebase Realtime Database:", error);
+          });
+      } catch (error) {
+        // This catch is for synchronous errors in the setup, though unlikely for db/ref calls
+        console.error("Synchronous error setting up Firebase save:", error);
+      }
+
+      // Also save to localStorage as a backup or for quicker local access
+      console.log("Saving progress to localStorage for user:", currentUser.uid);
       localStorage.setItem(`studentProgress_${currentUser.uid}`, JSON.stringify(progress));
     } else {
+      // Save to anonymous localStorage if no user is logged in
+      console.log("Saving progress to anonymous localStorage.");
       localStorage.setItem('studentProgress_anonymous', JSON.stringify(progress));
     }
   }, [progress, currentUser]);
@@ -261,6 +281,35 @@ function App() {
     const loadData = async () => {
       if (currentUser) {
         console.log("User logged in, attempting to fetch progress for UID:", currentUser.uid);
+
+        // 1. Try loading from Firebase Realtime Database first
+        try {
+          const db = getDatabase(app);
+          const userProgressRef = ref(db, `userProgress/${currentUser.uid}`);
+          const snapshot = await get(userProgressRef);
+
+          if (snapshot.exists()) {
+            const firebaseProgress = snapshot.val() as StudentProgress;
+            // Data integrity check
+            if (firebaseProgress && firebaseProgress.completedExercises && typeof firebaseProgress.totalScore === 'number') {
+              setProgress(firebaseProgress);
+              setCurrentExerciseId(firebaseProgress.currentExercise === 0 ? null : (firebaseProgress.currentExercise || null));
+              console.log("Progress loaded from Firebase Realtime Database:", firebaseProgress);
+              return; // Successfully loaded from Firebase, skip other methods
+            } else {
+              console.warn("Firebase data exists but is not in the expected format:", firebaseProgress);
+              // Fall through to API/localStorage if data is malformed
+            }
+          } else {
+            console.log("No progress found in Firebase Realtime Database for this user.");
+            // Fall through to API/localStorage
+          }
+        } catch (error) {
+          console.error("Error loading progress from Firebase Realtime Database:", error);
+          // Fall through to API/localStorage on error
+        }
+
+        // 2. If Firebase load failed or no data, try API
         try {
           // TODO: Adjust the fetch URL if your backend is on a different port/domain
           const response = await fetch(`/api/users/${currentUser.uid}/details`);
