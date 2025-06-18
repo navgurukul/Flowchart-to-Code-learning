@@ -2,7 +2,8 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import toast from 'react-hot-toast';
 import { User as FirebaseUser, onAuthStateChanged, signOut as firebaseSignOut, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { auth } from '../firebaseConfig'; // Your Firebase auth instance
+import { auth, app } from '../firebaseConfig'; // Your Firebase auth instance and app instance
+import { getDatabase, ref, set, onDisconnect, serverTimestamp, onValue, Unsubscribe } from 'firebase/database'; // Firebase Realtime Database
 
 // Define the shape of the user object you want to store (can be extended)
 interface AppUser {
@@ -85,30 +86,89 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
 
   const signOut = async () => {
     try {
+      if (currentUser) {
+        const db = getDatabase(app);
+        const userStatusDatabaseRef = ref(db, '/status/' + currentUser.uid);
+        await set(userStatusDatabaseRef, { online: false, last_changed: serverTimestamp() });
+      }
       await firebaseSignOut(auth);
       setCurrentUser(null);
       // setBackendUser(null);
     } catch (error) {
       console.error("Error signing out:", error);
+      toast.error("Error signing out.");
     }
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+    let presenceOnValueUnsubscribe: Unsubscribe | undefined;
+    let userStatusDatabaseRefClean: any = null; // To store ref for onDisconnect cleanup
+
+    const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
-        // When auth state changes (e.g. page reload),
-        // we have the Firebase user. If we had a separate backend session or user profile,
-        // we might want to re-fetch/validate it here.
-        // For this example, direct mapping is fine.
         setCurrentUser(mapFirebaseUserToAppUser(firebaseUser));
+
+        const db = getDatabase(app);
+        const userStatusDatabaseRef = ref(db, '/status/' + firebaseUser.uid);
+        userStatusDatabaseRefClean = userStatusDatabaseRef; // Save for potential cleanup
+        const presenceRef = ref(db, '.info/connected');
+
+        // Clean up previous listener if any
+        if (presenceOnValueUnsubscribe) {
+          presenceOnValueUnsubscribe();
+        }
+
+        presenceOnValueUnsubscribe = onValue(presenceRef, (snapshot) => {
+          if (snapshot.val() === false) {
+            // If disconnected, Firebase Realtime Database handles setting offline via onDisconnect
+            // No immediate action needed here unless explicitly required by logic
+            return;
+          }
+          // User is connected (or reconnected)
+          onDisconnect(userStatusDatabaseRef).set({ online: false, last_changed: serverTimestamp() })
+            .then(() => {
+              set(userStatusDatabaseRef, { online: true, last_changed: serverTimestamp() });
+            })
+            .catch((error) => {
+              console.error("Error setting up onDisconnect or user status:", error);
+            });
+        });
+
       } else {
+        // User is logged out
+        if (presenceOnValueUnsubscribe) {
+          presenceOnValueUnsubscribe(); // Detach the .info/connected listener
+          presenceOnValueUnsubscribe = undefined;
+        }
+        // If there was an active onDisconnect setup for a user,
+        // and they logged out manually, it should ideally be cancelled.
+        // However, onDisconnect is designed to fire when the client *actually* disconnects.
+        // If the user logged out gracefully, we already set their status to offline in `signOut`.
+        // If `userStatusDatabaseRefClean` is available, we can try to cancel:
+        if (userStatusDatabaseRefClean) {
+            // onDisconnect(userStatusDatabaseRefClean).cancel(); // Not strictly necessary if signOut handles it
+            // We can also just remove the status node or set to offline if not handled by signOut,
+            // but signOut *is* handling it.
+        }
         setCurrentUser(null);
       }
       setLoading(false);
     });
 
-    return () => unsubscribe(); // Cleanup subscription on unmount
-  }, []);
+    return () => {
+      authUnsubscribe(); // Cleanup Firebase Auth subscription
+      if (presenceOnValueUnsubscribe) {
+        presenceOnValueUnsubscribe(); // Cleanup presence listener
+      }
+      // If there's an onDisconnect set for a user and the component unmounts (e.g. app closing, not just logout)
+      // it should ideally be cancelled. However, onDisconnect is tied to the connection itself.
+      // If userStatusDatabaseRefClean is available:
+      // if (userStatusDatabaseRefClean) {
+      //   onDisconnect(userStatusDatabaseRefClean).cancel();
+      // }
+      // Forcing offline on component unmount might be too aggressive if it's not a true disconnect/logout
+    };
+  }, []); // currentUser removed from dependency array to avoid re-running on its change
 
   return (
     <AuthContext.Provider value={{ currentUser, loading, signInWithGoogle, signOut }}>

@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { StudentProgress } from '../types'; // Ensure this path is correct
-import { User, Trophy, Target, Clock, HelpCircle } from 'lucide-react'; // Added HelpCircle
+import { User, Trophy, Target, Clock, HelpCircle, Signal } from 'lucide-react'; // Added HelpCircle & Signal
 import { useAuth } from '../contexts/AuthContext';
+import { getDatabase, ref, onValue, off } from 'firebase/database';
+import { app } from '../../firebaseConfig'; // Firebase app instance
 
 interface HeaderProps {
   progress: StudentProgress;
@@ -10,6 +12,30 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ progress, onOpenGuide }) => {
   const { currentUser, signInWithGoogle, signOut, loading } = useAuth();
+  const [onlineUsersCount, setOnlineUsersCount] = useState(0);
+
+  useEffect(() => {
+    if (!currentUser) {
+      setOnlineUsersCount(0); // Reset count if user logs out
+      return;
+    }
+
+    const db = getDatabase(app);
+    const statusRef = ref(db, '/status');
+
+    const listener = onValue(statusRef, (snapshot) => {
+      const statuses = snapshot.val();
+      let count = 0;
+      if (statuses) {
+        count = Object.values(statuses).filter(status => (status as any)?.online === true).length;
+      }
+      setOnlineUsersCount(count);
+    });
+
+    return () => {
+      off(statusRef, 'value', listener); // Detach the listener by providing all args
+    };
+  }, [currentUser]); // Re-run if currentUser changes (login/logout)
 
   return (
     <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3"> {/* Adjusted padding for smaller screens */}
@@ -31,9 +57,15 @@ export const Header: React.FC<HeaderProps> = ({ progress, onOpenGuide }) => {
 
         {/* Right Section: Stats, Auth, and Guide Button */}
         <div className="flex items-center space-x-3 sm:space-x-4 md:space-x-6">
-          {/* Stats - Conditionally render based on user and screen size */}
+          {/* Stats & Online Users Count - Conditionally render based on user and screen size */}
           {currentUser && (
             <div className="hidden lg:flex items-center space-x-3 md:space-x-4"> {/* Hidden on smaller than lg */}
+              <div className="flex items-center text-green-600" title="Online Users">
+                <Signal size={16} className="mr-1" />
+                <span className="text-xs sm:text-sm font-medium">
+                  {onlineUsersCount} Online
+                </span>
+              </div>
               <div className="flex items-center" title="Total Score">
                 <Trophy className="w-4 h-4 text-yellow-500 mr-1" />
                 <span className="text-xs sm:text-sm font-medium text-gray-700">
@@ -57,6 +89,16 @@ export const Header: React.FC<HeaderProps> = ({ progress, onOpenGuide }) => {
                   {new Date(progress.lastAccessedAt).toLocaleDateString()}
                 </span>
               </div>
+            </div>
+          )}
+
+          {/* Mobile Online Users Count (visible on smaller than lg) */}
+          {currentUser && (
+            <div className="flex items-center text-green-600 lg:hidden" title="Online Users">
+              <Signal size={16} className="mr-1" />
+              <span className="text-xs sm:text-sm font-medium">
+                {onlineUsersCount}
+              </span>
             </div>
           )}
 

@@ -7,7 +7,7 @@ import google.generativeai as genai
 import json
 from dotenv import load_dotenv # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< IMPORT THIS
 import firebase_admin
-from firebase_admin import credentials, auth
+from firebase_admin import credentials, auth, db
 from typing import Optional # Added for Optional email in FirebaseUser
 
 # --- .env DEBUG START ---
@@ -269,6 +269,28 @@ async def get_user_details(user_id: str):
         "tasks_completed": ["Exercise 1", "Exercise 2"]
     }
     return UserDetails(**mock_user_data)
+
+
+@app.get("/api/online-users")
+async def get_online_users():
+    try:
+        ref = db.reference("/status")
+        status_data = ref.get()
+
+        if status_data is None or not isinstance(status_data, dict):
+            count = 0
+        else:
+            count = 0
+            for user_status in status_data.values(): # Iterate through the values (dictionaries for each user)
+                if isinstance(user_status, dict) and user_status.get("online") is True:
+                    count += 1
+
+        return {"online_users": count}
+    except Exception as e:
+        # Log the error for debugging
+        print(f"Error accessing Firebase Realtime Database: {e}")
+        # Return a generic error message to the client
+        raise HTTPException(status_code=500, detail="Failed to retrieve online user count from the database.")
 
 # Comments for running the app
 # To run this application:
