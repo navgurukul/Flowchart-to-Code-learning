@@ -6,7 +6,7 @@ import { app } from '../firebaseConfig';
 import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Bot, X } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext'; // Import useAuth
 import { Header } from './components/Header';
-import { ExerciseList } from './components/ExerciseList';
+import { GamifiedExerciseMap } from './components/GamifiedExerciseMap';
 import { FlowchartBuilder } from './components/FlowchartBuilder';
 import { CodeEditor } from './components/CodeEditor';
 import { InputOutput } from './components/InputOutput';
@@ -436,10 +436,10 @@ function App() {
             {isExerciseListOpen ? <ChevronLeft size={20} /> : <PanelLeft size={20} />}
           </button>
           {isExerciseListOpen && (
-            <ExerciseList
+            <GamifiedExerciseMap
               exercises={allExercises}
               progress={progress}
-              currentExercise={currentExerciseId}
+              currentExerciseId={currentExerciseId}
               onSelectExercise={handleSelectExercise}
             />
           )}
