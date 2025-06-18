@@ -3,7 +3,7 @@ import { StudentProgress } from '../types'; // Ensure this path is correct
 import { User, Trophy, Target, Clock, HelpCircle, Signal } from 'lucide-react'; // Added HelpCircle & Signal
 import { useAuth } from '../contexts/AuthContext';
 import { getDatabase, ref, onValue, off } from 'firebase/database';
-import { app } from '../../firebaseConfig'; // Firebase app instance
+import { app } from "../firebaseConfig";
 
 interface HeaderProps {
   progress: StudentProgress;
