@@ -10,9 +10,11 @@ interface AppUser {
   uid: string;
   email: string | null;
   displayName?: string | null;
-  photoURL?: string | null; // Add this line
-  // Add other relevant backend user details if needed
-  // e.g., points?: number; tasksCompleted?: string[];
+  photoURL?: string | null;
+  // User progress and details
+  points?: number;
+  completedExercises?: number[];
+  currentExercise?: number | null;
 }
 
 interface AuthContextType {
@@ -72,6 +74,29 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         // console.log("Backend response:", backendData);
         // For now, AppUser is derived from FirebaseUser directly after backend confirmation
         setCurrentUser(mapFirebaseUserToAppUser(firebaseUser));
+
+        // Attempt to sync localStorage progress to Firebase
+        try {
+          const uid = firebaseUser.uid;
+          const localStorageKey = `studentProgress_${uid}`;
+          const localProgressData = localStorage.getItem(localStorageKey);
+
+          if (localProgressData) {
+            const parsedData = JSON.parse(localProgressData);
+            const db = getDatabase(app);
+            const userProgressRef = ref(db, `/userProgress/${uid}`);
+            await set(userProgressRef, parsedData);
+            console.log('Successfully synced local progress to Firebase.');
+            // Optionally, remove the local data after successful sync
+            // localStorage.removeItem(localStorageKey);
+          } else {
+            console.log('No local progress found to sync.');
+          }
+        } catch (syncError) {
+          console.error('Error syncing local progress to Firebase:', syncError);
+          // Log and continue, do not block login
+        }
+
         // Construct welcome message
         const welcomeMessage = firebaseUser.displayName
           ? `Welcome, ${firebaseUser.displayName.split(' ')[0]}!` // Use first name if display name exists
