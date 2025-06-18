@@ -34,7 +34,7 @@ function App() {
   const [isRunning, setIsRunning] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<string>('');
   const [currentFlowchart, setCurrentFlowchart] = useState<FlowchartData>({ nodes: [], edges: [] });
-  const [isCodeEditorOpen, setIsCodeEditorOpen] = useState(true); // New state for CodeEditor visibility
+  const [isCodeEditorOpen, setIsCodeEditorOpen] = useState(false); // Changed: Default to false
   const [isChatOpen, setIsChatOpen] = useState(false); // Default to closed
   const [aiFlowchartToLoad, setAiFlowchartToLoad] = useState<FlowchartData | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -60,6 +60,7 @@ function App() {
     setExecutionResult(null); // Reset execution result when changing exercises
     setGeneratedCode(''); // Clear generated code
     setCurrentFlowchart({ nodes: [], edges: [] }); // Clear flowchart
+    setIsCodeEditorOpen(false); // Reset code editor visibility to closed
     // Note: We no longer set progress.currentExercise here, as this is UI state.
     // The backend and UserProgressContext handle the persistent 'last_active' etc.
   };
