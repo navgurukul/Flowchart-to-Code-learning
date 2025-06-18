@@ -46,17 +46,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ onClose, onFlowchartGene
   const [currentMessage, setCurrentMessage] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  // Use VITE_API_BASE_URL and throw an error if not set in production
-  const apiBaseUrl =
-    import.meta.env.VITE_API_BASE_URL ||
-    (import.meta.env.DEV ? "http://localhost:8000" : undefined);
-
-  if (!apiBaseUrl) {
-    throw new Error(
-      "VITE_API_BASE_URL is not set! Please set it in your environment variables."
-    );
-  }
-
+  // Always use production endpoint
+  const apiBaseUrl = "https://flowchart-to-code-learning-1.onrender.com";
   const chatEndpoint = `${apiBaseUrl}/api/chat`;
 
   const handleSendMessage = async () => {
