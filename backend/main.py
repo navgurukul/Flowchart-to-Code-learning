@@ -8,7 +8,6 @@ import json
 from dotenv import load_dotenv # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< IMPORT THIS
 import firebase_admin
 from firebase_admin import credentials, auth, db
-from google.cloud import firestore # Firestore import
 from typing import Optional # Added for Optional email in FirebaseUser
 
 # --- .env DEBUG START ---
@@ -46,22 +45,6 @@ try:
         print("INFO: Firebase Admin SDK initialized successfully.")
 except Exception as e:
     print(f"ERROR: Failed to initialize Firebase Admin SDK: {e}")
-
-# Firestore Client Initialization
-db_firestore = None # Initialize db_firestore to None
-try:
-    # GOOGLE_APPLICATION_CREDENTIALS should already be set for Firebase Admin
-    # Firestore client will pick it up automatically.
-    if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
-        db_firestore = firestore.Client()
-        print("INFO: Cloud Firestore client initialized successfully.")
-    else:
-        print("WARNING: GOOGLE_APPLICATION_CREDENTIALS not set. Cloud Firestore client will not be initialized.")
-except Exception as e:
-    db_firestore = None # Ensure it's None on failure
-    print(f"ERROR: Failed to initialize Cloud Firestore client: {e}")
-    # Depending on how critical Firestore is at startup,
-    # you might want to raise an error or handle this more gracefully.
 
 app = FastAPI()
 
@@ -164,10 +147,6 @@ class UserDetails(BaseModel):
     last_active: datetime
     points: int
     tasks_completed: List[str]
-
-class ExerciseCompletionRequest(BaseModel):
-    exerciseId: str
-    pointsEarned: int
 
 class IdToken(BaseModel):
     token: str
@@ -282,80 +261,14 @@ async def auth_google_signin(id_token_body: IdToken):
 
 @app.get("/users/{user_id}/details", response_model=UserDetails)
 async def get_user_details(user_id: str):
-    if db_firestore is None:
-        print("ERROR: Firestore client (db_firestore) not initialized.") # Log for server visibility
-        raise HTTPException(status_code=503, detail="Firestore service is unavailable.")
-
-    try:
-        doc_ref = db_firestore.collection('users').document(user_id)
-        doc = doc_ref.get()
-
-        if doc.exists:
-            user_data = doc.to_dict()
-            # Ensure last_active is a datetime object, Firestore might return it as such
-            # Pydantic will validate, but good to be aware
-            if 'last_active' not in user_data or not isinstance(user_data['last_active'], datetime):
-                # This case should ideally not happen if data is written correctly,
-                # but as a fallback or for old data:
-                user_data['last_active'] = datetime.utcnow()
-            return UserDetails(**user_data)
-        else:
-            # New user: create a document with default data
-            default_data = {
-                "last_active": firestore.SERVER_TIMESTAMP,  # Use Firestore server timestamp
-                "points": 0,
-                "tasks_completed": []
-            }
-            doc_ref.set(default_data) # Create the document in Firestore
-
-            # For the immediate response, Pydantic needs a concrete datetime.
-            # The SERVER_TIMESTAMP is resolved on the server.
-            # We provide a datetime.utcnow() for the response model for the new user.
-            # The actual server-resolved timestamp will be available on subsequent fetches.
-            response_data_for_new_user = {
-                "last_active": datetime.utcnow(),
-                "points": default_data["points"],
-                "tasks_completed": default_data["tasks_completed"]
-            }
-            return UserDetails(**response_data_for_new_user)
-
-    except Exception as e:
-        print(f"ERROR: Firestore operation failed in get_user_details for user_id {user_id}: {e}")
-        # Log the full error for debugging
-        # Consider specific exceptions for more granular error handling if needed
-        raise HTTPException(status_code=500, detail=f"An error occurred while fetching user details: {str(e)}")
-
-
-@app.post("/api/users/{user_id}/complete-exercise")
-async def complete_exercise_for_user(user_id: str, payload: ExerciseCompletionRequest):
-    if db_firestore is None:
-        print("ERROR: Firestore client (db_firestore) not initialized.")
-        raise HTTPException(status_code=503, detail="Firestore service is unavailable.")
-
-    try:
-        doc_ref = db_firestore.collection('users').document(user_id)
-        doc = doc_ref.get()
-
-        if not doc.exists:
-            # It's important that the user document is created first (e.g., by calling /users/{user_id}/details)
-            # before trying to update exercise progress.
-            raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found. Cannot update exercise progress.")
-
-        # User exists, proceed with update
-        update_data = {
-            "tasks_completed": firestore.ArrayUnion([payload.exerciseId]),
-            "points": firestore.Increment(payload.pointsEarned),
-            "last_active": firestore.SERVER_TIMESTAMP
-        }
-        doc_ref.update(update_data)
-
-        return {"message": "Exercise progress updated successfully."}
-
-    except HTTPException:
-        raise # Re-raise HTTPException directly (e.g. the 404 or 503)
-    except Exception as e:
-        print(f"ERROR: Firestore operation failed in complete_exercise_for_user for user_id {user_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"An error occurred while updating exercise progress: {str(e)}")
+    # Mock data for now
+    # In a real application, you would fetch this from a database based on user_id
+    mock_user_data = {
+        "last_active": datetime(2024, 7, 15, 10, 0, 0), # Example datetime
+        "points": 100,
+        "tasks_completed": ["Exercise 1", "Exercise 2"]
+    }
+    return UserDetails(**mock_user_data)
 
 
 @app.get("/api/online-users")
