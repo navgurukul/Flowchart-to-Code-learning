@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import Confetti from 'react-confetti';
-import { Toaster } from 'react-hot-toast';
+import { Toaster, toast } from 'react-hot-toast'; // Import toast
 import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Bot, X } from 'lucide-react';
-import { useAuth } from './contexts/AuthContext'; // Import useAuth
+import { useAuth } from './contexts/AuthContext';
+import { useUserProgress } from './contexts/UserProgressContext'; // Import useUserProgress
 import { Header } from './components/Header';
 import { ExerciseList } from './components/ExerciseList';
 import { FlowchartBuilder } from './components/FlowchartBuilder';
@@ -16,18 +17,17 @@ import { SafeCodeExecutor } from './utils/codeExecutor';
 import { StudentProgress, ExecutionResult, FlowchartData } from './types/index';
 
 function App() {
-  const { currentUser, loading: authLoading } = useAuth(); // Get auth state
+  const { currentUser, loading: authLoading } = useAuth();
+  const {
+    progress: userProgress,
+    loading: progressLoading,
+    error: progressError,
+    completeExercise,
+    // fetchUserProgress, // Not directly called here, happens via AuthContext effect
+  } = useUserProgress();
 
-  // Initial progress state (will be overwritten by loaded data)
-  const defaultInitialProgress: StudentProgress = {
-    completedExercises: [],
-    currentExercise: null, // Changed: No exercise selected initially
-    totalScore: 0,
-    lastAccessedAt: new Date().toISOString()
-  };
-
-  const [progress, setProgress] = useState<StudentProgress>(defaultInitialProgress);
-  const [currentExerciseId, setCurrentExerciseId] = useState<number | null>(null); // Changed: No exercise selected initially
+  // State for UI interaction, not directly part of UserProgressData from context
+  const [currentExerciseId, setCurrentExerciseId] = useState<number | null>(null);
   const [isExerciseListOpen, setIsExerciseListOpen] = useState(true);
   const [isInputOutputOpen, setIsInputOutputOpen] = useState(true);
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
@@ -48,22 +48,20 @@ function App() {
   const [currentGuideStep, setCurrentGuideStep] = useState(0);
   // No need for hasSeenGuide state, directly use localStorage and setIsGuideOpen
 
+
   // If currentExerciseId is null, currentExercise will be null.
-  // Otherwise, it will be the found exercise or undefined if not found (though ExerciseList should prevent invalid IDs).
+  // Otherwise, it will be the found exercise or undefined if not found.
   const currentExercise = currentExerciseId !== null
     ? allExercises.find(ex => ex.id === currentExerciseId)
     : null;
 
   const handleSelectExercise = (exerciseId: number) => {
     setCurrentExerciseId(exerciseId);
-    setExecutionResult(null);
-    setGeneratedCode('');
-    setCurrentFlowchart({ nodes: [], edges: [] });
-    setProgress(prev => ({
-      ...prev,
-      currentExercise: exerciseId,
-      lastAccessedAt: new Date().toISOString()
-    }));
+    setExecutionResult(null); // Reset execution result when changing exercises
+    setGeneratedCode(''); // Clear generated code
+    setCurrentFlowchart({ nodes: [], edges: [] }); // Clear flowchart
+    // Note: We no longer set progress.currentExercise here, as this is UI state.
+    // The backend and UserProgressContext handle the persistent 'last_active' etc.
   };
 
   const handleFlowchartChange = (flowchart: FlowchartData) => {
@@ -171,16 +169,22 @@ function App() {
       }
 
       // Update progress if correct and not already completed
-      if (result.isCorrect && !progress.completedExercises.includes(currentExerciseId)) {
-        const points = currentExercise.difficulty === 'beginner' ? 50 : 
-                     currentExercise.difficulty === 'intermediate' ? 75 : 100;
-        
-        setProgress(prev => ({
-          ...prev,
-          completedExercises: [...prev.completedExercises, currentExerciseId],
-          totalScore: prev.totalScore + points,
-          lastAccessedAt: new Date().toISOString()
-        }));
+      if (result.isCorrect) {
+        setShowConfetti(true);
+      }
+
+      // Update progress if correct and not already completed, using context
+      if (result.isCorrect && currentExerciseId !== null && currentUser && userProgress && !userProgress.tasks_completed.includes(currentExerciseId.toString())) {
+        const points = currentExercise?.difficulty === 'beginner' ? 50 :
+                       currentExercise?.difficulty === 'intermediate' ? 75 : 100;
+        try {
+          await completeExercise(currentUser.uid, currentExerciseId.toString(), points);
+          // Confetti is already handled above. userProgress will update via context.
+          // toast.success("Exercise completed and progress saved!"); // Optional: context might show its own toasts
+        } catch (err) {
+          console.error("Failed to complete exercise via context:", err);
+          toast.error("Failed to save exercise completion. Please try again.");
+        }
       }
     } catch (error) {
       setExecutionResult({
@@ -203,7 +207,7 @@ function App() {
     } else {
       localStorage.setItem('studentProgress_anonymous', JSON.stringify(progress));
     }
-  }, [progress, currentUser]);
+  }, [currentUser, userProgress]); // Removed old 'progress' dependency
 
   const handleNewFlowchartFromAI = (newFlowchartData: FlowchartData) => {
     console.log("App.tsx: Received new flowchart from AI to load:", newFlowchartData);
@@ -240,113 +244,59 @@ function App() {
     setIsGuideOpen(true);
   };
 
-  // Load progress on mount or when auth state changes
+  // Load progress on mount or when auth state changes - This is now handled by UserProgressContext
+  // However, we might still want to initialize currentExerciseId based on loaded progress or guide status.
   useEffect(() => {
     if (authLoading) {
-      console.log("Auth state loading, waiting to load progress and check guide status...");
+      console.log("Auth state loading, waiting to check guide status...");
       return; // Wait for authentication to resolve
     }
 
     // Check if guide has been seen, only after auth is resolved
     const guideSeen = localStorage.getItem('flowchartGuideSeen');
-    if (guideSeen !== 'true') {
+    if (guideSeen !== 'true' && !currentUser) { // Show guide if not seen and user is not logged in (or first load for anyone)
       console.log("Guide not seen, opening guide.");
       setIsGuideOpen(true);
       setCurrentGuideStep(0);
-      // Don't proceed to loadData immediately if guide is opening,
-      // or ensure guide doesn't interfere with loading experience.
-      // For now, guide opens, and data loads in parallel if needed or after guide closes.
+    } else if (guideSeen !== 'true' && currentUser && userProgress) { // If user is logged in and progress is loaded
+        setIsGuideOpen(true);
+        setCurrentGuideStep(0);
     }
 
-    const loadData = async () => {
-      if (currentUser) {
-        console.log("User logged in, attempting to fetch progress for UID:", currentUser.uid);
-        try {
-          // TODO: Adjust the fetch URL if your backend is on a different port/domain
-          const response = await fetch(`/api/users/${currentUser.uid}/details`);
-          if (!response.ok) {
-            throw new Error(`Failed to fetch user details: ${response.status}`);
-          }
-          const backendData = await response.json(); // This is UserDetails model
-          console.log("Fetched backend data:", backendData);
 
-          // Map UserDetails to StudentProgress
-          const completedExercisesNumbers = backendData.tasks_completed.map(Number);
-          const latestCompleted = completedExercisesNumbers.length > 0 ? Math.max(0, ...completedExercisesNumbers) : 0;
-
-          let nextExerciseId: number | null = null;
-          const firstIncomplete = allExercises.find(ex => ex.id > latestCompleted && !completedExercisesNumbers.includes(ex.id));
-          if (firstIncomplete) {
-            nextExerciseId = firstIncomplete.id;
-          } else if (allExercises.length > 0) {
-            // If all are complete or no specific next, default to first or last+1 (capped)
-            nextExerciseId = completedExercisesNumbers.includes(allExercises[allExercises.length -1].id)
-                              ? allExercises[allExercises.length -1].id // Stay on last if all complete
-                              : (latestCompleted < allExercises.length ? latestCompleted + 1 : allExercises[0].id);
-          }
-          // Ensure nextExerciseId is not out of bounds if calculated as latestCompleted + 1
-          if (nextExerciseId && nextExerciseId > allExercises[allExercises.length -1].id && allExercises.length > 0) {
-             nextExerciseId = allExercises[allExercises.length -1].id;
-          }
-
-
-          const newProgress: StudentProgress = {
-            completedExercises: completedExercisesNumbers,
-            currentExercise: nextExerciseId, // Can be null if no exercises or logic determines so
-            totalScore: backendData.points,
-            lastAccessedAt: new Date(backendData.last_active).toISOString(),
-          };
-          setProgress(newProgress);
-          setCurrentExerciseId(newProgress.currentExercise); // This can be null
-          console.log("Progress updated from backend:", newProgress);
-
-        } catch (error) {
-          console.error('Failed to fetch progress from backend, using default:', error);
-          const userSpecificStorageKey = `studentProgress_${currentUser.uid}`;
-          const savedProgressLocal = localStorage.getItem(userSpecificStorageKey);
-          if (savedProgressLocal) {
-            try {
-              const parsed = JSON.parse(savedProgressLocal);
-              setProgress(parsed);
-              // Ensure currentExercise from local storage is valid, default to null if not.
-              setCurrentExerciseId(parsed.currentExercise === 0 ? null : (parsed.currentExercise || null));
-              console.log("Loaded progress from user-specific localStorage:", parsed);
-            } catch (parseError) {
-              console.error('Failed to parse user-specific saved progress:', parseError);
-              setProgress(defaultInitialProgress);
-              setCurrentExerciseId(defaultInitialProgress.currentExercise); // null
+    // Initialize currentExerciseId. This could be based on userProgress if available,
+    // or default to null or the first exercise.
+    // UserProgressContext handles fetching, App.tsx just reacts to it for UI.
+    if (currentUser && userProgress && !currentExerciseId) {
+        // Attempt to set a sensible default current exercise if none is selected
+        // This logic might need refinement based on desired UX (e.g., last viewed, first incomplete)
+        const lastCompletedNumeric = userProgress.tasks_completed.map(id => parseInt(id,10)).sort((a,b)=>b-a);
+        let nextExercise : number | null = null;
+        if(lastCompletedNumeric.length > 0){
+            const findNext = allExercises.find(ex => ex.id > lastCompletedNumeric[0] && !userProgress.tasks_completed.includes(ex.id.toString()));
+            if(findNext) nextExercise = findNext.id;
+            else { // if no next, maybe they completed all after last one, or last one is the last exercise.
+                 const lastCompletedIsLastExercise = allExercises.some(ex => ex.id === lastCompletedNumeric[0] && ex.id === allExercises[allExercises.length-1].id);
+                 if(lastCompletedIsLastExercise || userProgress.tasks_completed.length === allExercises.length) {
+                    nextExercise = lastCompletedNumeric[0]; // stay on last completed if all done or it's the true last
+                 } else {
+                    // Default to first exercise if no better logic applies or they are stuck
+                    nextExercise = allExercises.length > 0 ? allExercises[0].id : null;
+                 }
             }
-          } else {
-            setProgress(defaultInitialProgress);
-            setCurrentExerciseId(defaultInitialProgress.currentExercise); // null
-            console.log("No user-specific local progress, set to default (no exercise selected).");
-          }
+        } else if (allExercises.length > 0) {
+             nextExercise = allExercises[0].id; // Default to the first exercise if no progress
         }
-      } else {
-        console.log("User not logged in, loading progress from anonymous localStorage.");
-        const savedProgress = localStorage.getItem('studentProgress_anonymous');
-        if (savedProgress) {
-          try {
-            const parsed = JSON.parse(savedProgress);
-            setProgress(parsed);
-             // Ensure currentExercise from local storage is valid, default to null if not.
-            setCurrentExerciseId(parsed.currentExercise === 0 ? null : (parsed.currentExercise || null));
-            console.log("Loaded progress from anonymous localStorage:", parsed);
-          } catch (error) {
-            console.error('Failed to load anonymous saved progress:', error);
-            setProgress(defaultInitialProgress);
-            setCurrentExerciseId(defaultInitialProgress.currentExercise); // null
-          }
-        } else {
-          console.log("No anonymous local progress, set to default (no exercise selected).");
-          setProgress(defaultInitialProgress);
-          setCurrentExerciseId(defaultInitialProgress.currentExercise); // null
-        }
-      }
-    };
+        setCurrentExerciseId(nextExercise);
 
-    loadData();
-  }, [currentUser, authLoading]); // Re-run when auth state is confirmed or user changes
+    } else if (!currentUser && !currentExerciseId && allExercises.length > 0) {
+      // For anonymous users, if no exercise is selected, default to the first one.
+      // setCurrentExerciseId(allExercises[0].id); // Or null to force selection
+      setCurrentExerciseId(null); // Force selection for anonymous as well
+    }
+
+  }, [currentUser, authLoading, userProgress]); // React to changes in these
+
 
   useEffect(() => {
     const handleResize = () => {
@@ -370,11 +320,40 @@ function App() {
     }
   }, [showConfetti]);
 
+  // Construct headerProgress from userProgress
+  const headerProgress: StudentProgress = userProgress ? {
+    completedExercises: userProgress.tasks_completed.map(id => parseInt(id, 10)),
+    currentExercise: currentExerciseId, // This UI state is still managed by App.tsx
+    totalScore: userProgress.points,
+    lastAccessedAt: userProgress.last_active, // Already a string from UserProgressData
+  } : { // Default structure if userProgress is null (e.g., initial load, logged out)
+    completedExercises: [],
+    currentExercise: null,
+    totalScore: 0,
+    lastAccessedAt: new Date().toISOString(),
+  };
+
+  // Loading and Error States from Context
+  if (authLoading || (currentUser && progressLoading && !userProgress)) {
+    return <div className="flex justify-center items-center min-h-screen text-lg">Loading application data...</div>;
+  }
+  // If user is logged in and there's an error fetching their progress specifically
+  if (currentUser && progressError) {
+    return <div className="flex flex-col justify-center items-center min-h-screen text-lg text-red-600">
+        <p>Error loading your progress: {progressError.message}</p>
+        <p className="text-sm text-gray-500 mt-2">Please try refreshing the page. If the issue persists, contact support.</p>
+      </div>;
+  }
+  // If there's an error but no specific user context (e.g. general auth error, though auth context might handle this)
+  // This might be redundant if AuthContext handles its own errors comprehensively before this point.
+  // For now, focusing on progressError when a user is present.
+
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col relative"> {/* Added relative */}
       <Toaster position="top-center" reverseOrder={false} /> {/* Add Toaster here */}
       {showConfetti && <Confetti width={windowSize.width} height={windowSize.height} recycle={false} />} {/* recycle={false} makes it a one-shot burst */}
-      <Header progress={progress} onOpenGuide={handleOpenGuide} />
+      <Header progress={headerProgress} onOpenGuide={handleOpenGuide} />
       
       <div className="flex-1 flex overflow-hidden"> {/* Added overflow-hidden for safety */}
         {/* Left Panel Toggle & Exercise List */}
@@ -389,7 +368,7 @@ function App() {
           {isExerciseListOpen && (
             <ExerciseList
               exercises={allExercises}
-              progress={progress}
+              progress={headerProgress} // Use the mapped headerProgress
               currentExercise={currentExerciseId}
               onSelectExercise={handleSelectExercise}
             />

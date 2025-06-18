@@ -5,3 +5,4 @@ python-dotenv>=0.21.0
 google-auth>=2.0.0
 httpx>=0.20.0 # For TestClient
 firebase-admin>=6.0.0
+google-cloud-firestore>=2.0.0
