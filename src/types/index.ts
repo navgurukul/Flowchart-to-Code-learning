@@ -43,6 +43,7 @@ export interface FlowchartNode {
     value?: string;
     condition?: string;
   };
+  isDragging?: boolean;
 }
 
 export interface FlowchartEdge {
