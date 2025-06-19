@@ -107,6 +107,32 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
   const [connectingMousePosition, setConnectingMousePosition] = useState<{ x: number; y: number } | null>(null);
   const [isPaletteOpen, setIsPaletteOpen] = useState(true); // Default open on larger screens
   const [isPropertiesOpen, setIsPropertiesOpen] = useState(true); // Default open on larger screens
+  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
+  const didDragNodeRef = useRef(false);
+
+  const handleDragEnd = useCallback(() => {
+    if (draggingNodeId) {
+      setFlowchartData(prev => ({
+        ...prev,
+        nodes: prev.nodes.map(n =>
+          n.id === draggingNodeId ? { ...n, isDragging: false } : n
+        ),
+      }));
+      setDraggingNodeId(null);
+      setDragOffset(null);
+    }
+  }, [draggingNodeId, setFlowchartData, setDraggingNodeId, setDragOffset]);
+
+  useEffect(() => {
+    // This effect handles the case where the mouse is released outside the canvas or window
+    if (draggingNodeId) {
+      window.addEventListener('mouseup', handleDragEnd);
+    }
+    return () => {
+      window.removeEventListener('mouseup', handleDragEnd);
+    };
+  }, [draggingNodeId, handleDragEnd]);
 
   useEffect(() => {
     if (newFlowchartToLoad && (newFlowchartToLoad.nodes.length > 0 || newFlowchartToLoad.edges.length > 0)) {
@@ -201,19 +227,84 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
   };
 
   const handleCanvasMouseMove = (e: React.MouseEvent) => {
-    if (isConnecting && connectionStart && canvasRef.current) {
+    if (draggingNodeId && dragOffset && canvasRef.current) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const mouseXInCanvas = e.clientX - rect.left;
+      const mouseYInCanvas = e.clientY - rect.top;
+
+      const newNodeX = mouseXInCanvas - dragOffset.x;
+      const newNodeY = mouseYInCanvas - dragOffset.y;
+
+      setFlowchartData(prev => ({
+        ...prev,
+        nodes: prev.nodes.map(n =>
+          n.id === draggingNodeId
+            ? { ...n, position: { x: newNodeX, y: newNodeY } }
+            : n
+        )
+      }));
+      didDragNodeRef.current = true; // Mark that a drag occurred
+      // No need to explicitly set isDragging here as it's managed by mousedown/mouseup
+      // and styles can rely on draggingNodeId
+    } else if (isConnecting && connectionStart && canvasRef.current) {
       const rect = canvasRef.current.getBoundingClientRect();
       setConnectingMousePosition({
         x: e.clientX - rect.left,
         y: e.clientY - rect.top,
       });
     } else if (connectingMousePosition) {
-      // If not connecting anymore, clear the position
+      // If not connecting anymore, and not dragging, clear the preview line position
       setConnectingMousePosition(null);
     }
   };
 
+  const handleNodeMouseDown = (event: React.MouseEvent, nodeId: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    didDragNodeRef.current = false; // Reset drag flag
+
+    const node = flowchartData.nodes.find(n => n.id === nodeId);
+    if (!node || !canvasRef.current) return;
+
+    const canvasRect = canvasRef.current.getBoundingClientRect();
+    const mouseXInCanvas = event.clientX - canvasRect.left;
+    const mouseYInCanvas = event.clientY - canvasRect.top;
+
+    const offsetX = mouseXInCanvas - node.position.x;
+    const offsetY = mouseYInCanvas - node.position.y;
+
+    setDraggingNodeId(nodeId);
+    setDragOffset({ x: offsetX, y: offsetY });
+
+    // Set isDragging on the node
+    setFlowchartData(prev => ({
+      ...prev,
+      nodes: prev.nodes.map(n =>
+        n.id === nodeId ? { ...n, isDragging: true } : n
+      ),
+    }));
+  };
+
   const handleNodeClick = (nodeId: string) => {
+    if (didDragNodeRef.current) {
+      // If a drag just happened, don't process this click.
+      // The ref will be reset on the next mousedown.
+      return;
+    }
+
+    // Prevent node selection or connection logic if a drag is starting
+    // This check might be redundant if stopPropagation in handleNodeMouseDown works perfectly
+    // but can be a safeguard.
+    // Note: The original check `if (draggingNodeId === nodeId && dragOffset)` is likely
+    // not needed anymore because `handleDragEnd` (which fires on mouseup, triggering click)
+    // clears `draggingNodeId` and `dragOffset`. The `didDragNodeRef.current` check is more robust.
+    // However, keeping it for now to ensure no unintended behavior changes from its removal.
+    if (draggingNodeId === nodeId && dragOffset) {
+      // If a drag is initiated, don't process click for selection/connection
+      // The mouseup event will handle the end of the drag.
+      return;
+    }
+
     if (isConnecting) {
       if (!connectionStart) {
         // This is the first click in a connection sequence
@@ -455,6 +546,8 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
             onDragOver={handleDragOver}
             onDrop={handleDrop}
             onMouseMove={handleCanvasMouseMove}
+            onMouseUp={handleDragEnd}
+            onMouseLeave={handleDragEnd}
           >
             {/* Render Edges */}
             <svg className="absolute inset-0 w-full h-full pointer-events-none">
@@ -547,9 +640,11 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
                 style={{
                   left: node.position.x,
                   top: node.position.y,
-                  transform: node.type === 'decision' ? 'rotate(45deg)' : 'none'
+                  transform: node.type === 'decision' ? 'rotate(45deg)' : 'none',
+                  cursor: draggingNodeId === node.id ? 'grabbing' : 'grab' // Visual feedback for dragging
                 }}
                 onClick={() => handleNodeClick(node.id)}
+                onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
               >
                 <div className={`w-full h-full flex items-center justify-center p-2 ${
                   node.type === 'decision' ? 'transform -rotate-45' : ''
