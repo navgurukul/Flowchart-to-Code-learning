@@ -61,7 +61,6 @@ origins = [
     "http://127.0.0.1:5173",
     "http://127.0.0.1:5500",
     "http://localhost:5500",
-    "http://localhost",
     "https://flowchart-to-code-learning.vercel.app",  # Frontend on Vercel
     # <-- Add your backend Render URL for completeness
     "https://flowchart-to-code-learning-1.onrender.com",
@@ -78,80 +77,96 @@ app.add_middleware(
 )
 
 # Gemini API Configuration
-model = None  # Initialize model to None
-try:
-    gemini_api_key = os.environ.get("GEMINI_API_KEY")
-    # This debug print is crucial
-    print(
-        f"DEBUG: Inside Gemini config try block, value of 'gemini_api_key' variable is: {{gemini_api_key[:5] + '...' if gemini_api_key else 'None'}}")
 
-    if not gemini_api_key:
-        raise KeyError(
-            "GEMINI_API_KEY not found in environment. Please ensure it is set in your system environment or in a 'backend/.env' file.")
 
-    genai.configure(api_key=gemini_api_key)
-    print("INFO: Gemini SDK configured with API key.")
+def configure_gemini(gemini_version: str = "2.0") -> Optional[genai.GenerativeModel]:
+    """
+    Configures the Gemini API with the API key from environment variables.
+    This function is called at the start of the application to ensure
+    the Gemini SDK is ready for use.
+    """
+    global model  # Declare model as global to modify it in this function
+    model = None  # Initialize model to None
 
-    # List available models (inside try block, after configure)
-    print("INFO: Listing available Gemini models (if SDK configured)...")
-    models_found_supporting_generate_content = []
-    for m in genai.list_models():
-        if 'generateContent' in m.supported_generation_methods:
-            models_found_supporting_generate_content.append(m.name)
-            print(
-                f"  - Model Name: {m.name}, Supported: {m.supported_generation_methods}, Display: {m.display_name}")
-    print("INFO: Finished listing models.")
+    try:
+        gemini_api_key = os.environ.get("GEMINI_API_KEY")
+        # This debug print is crucial
+        print(
+            f"DEBUG: Inside Gemini config try block, value of 'gemini_api_key' variable is: {{gemini_api_key[:5] + '...' if gemini_api_key else 'None'}}")
 
-    if not models_found_supporting_generate_content:
-        print("WARNING: No models found supporting 'generateContent'. The chat functionality might not work as expected.")
-        # Depending on strictness, you might raise an error or allow app to run with 'model = None'
+        if not gemini_api_key:
+            raise KeyError(
+                "GEMINI_API_KEY not found in environment. Please ensure it is set in your system environment or in a 'backend/.env' file.")
 
-    # Initialize a specific Gemini model - YOU MIGHT NEED TO CHANGE 'gemini-pro'
-    # based on the output of list_models() above.
-    # model_name_to_use = 'gemini-1.5-flash' # Old default
+        genai.configure(api_key=gemini_api_key)
+        print("INFO: Gemini SDK configured with API key.")
 
-    # --- START MODIFICATION ---
-    # Preferred model, including the 'models/' prefix as seen in the user's logs
-    preferred_model_name = 'models/gemini-1.5-flash-latest'
-    # Alternative if the -latest isn't found for some reason
-    alternative_model_name = 'models/gemini-1.5-flash'
+        # List available models (inside try block, after configure)
+        print("INFO: Listing available Gemini models (if SDK configured)...")
+        models_found_supporting_generate_content = []
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                models_found_supporting_generate_content.append(m.name)
+                print(
+                    f"  - Model Name: {m.name}, Supported: {m.supported_generation_methods}, Display: {m.display_name}")
+        print("INFO: Finished listing models.")
 
-    model_name_to_use = None  # Will be set from available models
+        if not models_found_supporting_generate_content:
+            print("WARNING: No models found supporting 'generateContent'. The chat functionality might not work as expected.")
+            # Depending on strictness, you might raise an error or allow app to run with 'model = None'
 
-    if models_found_supporting_generate_content:
-        if preferred_model_name in models_found_supporting_generate_content:
-            model_name_to_use = preferred_model_name
-            print(f"INFO: Preferred model '{model_name_to_use}' is available.")
-        elif alternative_model_name in models_found_supporting_generate_content:
-            model_name_to_use = alternative_model_name
-            print(
-                f"INFO: Preferred model not found. Using alternative '{model_name_to_use}'.")
+        # Initialize a specific Gemini model - YOU MIGHT NEED TO CHANGE 'gemini-pro'
+        # based on the output of list_models() above.
+        # model_name_to_use = 'gemini-1.5-flash' # Old default
+
+        # --- START MODIFICATION ---
+        # Preferred model, including the 'models/' prefix as seen in the user's logs
+        if gemini_version == "2.0":
+            preferred_model_name = 'models/gemini-2.0-flash'
+        elif gemini_version == "2.5":
+            preferred_model_name = 'models/gemini-2.5-pro-preview-06-05'
+        # Alternative if the preferred_model_name isn't found for some reason
+        alternative_model_name = 'models/gemini-2.0-flash'
+
+        model_name_to_use = None  # Will be set from available models
+
+        if models_found_supporting_generate_content:
+            if preferred_model_name in models_found_supporting_generate_content:
+                model_name_to_use = preferred_model_name
+                print(
+                    f"INFO: Preferred model '{model_name_to_use}' is available.")
+            elif alternative_model_name in models_found_supporting_generate_content:
+                model_name_to_use = alternative_model_name
+                print(
+                    f"INFO: Preferred model not found. Using alternative '{model_name_to_use}'.")
+            else:
+                # Fallback to the first available model that supports 'generateContent'
+                # This was the previous problematic behavior if preferred wasn't exactly 'gemini-pro'
+                # Now it's a more informed fallback.
+                model_name_to_use = models_found_supporting_generate_content[0]
+                print(
+                    f"WARNING: Preferred models ('{preferred_model_name}', '{alternative_model_name}') not found. Automatically selected first available model: '{model_name_to_use}'.")
         else:
-            # Fallback to the first available model that supports 'generateContent'
-            # This was the previous problematic behavior if preferred wasn't exactly 'gemini-pro'
-            # Now it's a more informed fallback.
-            model_name_to_use = models_found_supporting_generate_content[0]
-            print(
-                f"WARNING: Preferred models ('{preferred_model_name}', '{alternative_model_name}') not found. Automatically selected first available model: '{model_name_to_use}'.")
-    else:
-        # No models support 'generateContent', so model cannot be initialized.
-        print(f"ERROR: No models supporting 'generateContent' are available with your API key. Cannot initialize a model.")
-        raise Exception(
-            "No suitable Gemini model found for 'generateContent'.")
+            # No models support 'generateContent', so model cannot be initialized.
+            print(f"ERROR: No models supporting 'generateContent' are available with your API key. Cannot initialize a model.")
+            raise Exception(
+                "No suitable Gemini model found for 'generateContent'.")
 
-    model = genai.GenerativeModel(model_name_to_use)
-    print(
-        f"INFO: Gemini model '{model_name_to_use}' initialized successfully.")
-    # --- END MODIFICATION ---
+        model = genai.GenerativeModel(model_name_to_use)
+        print(
+            f"INFO: Gemini model '{model_name_to_use}' initialized successfully.")
+        return model  # Return the initialized model
 
-except KeyError as e_key:
-    # model remains None from its initialization at the top of the try block
-    print(f"ERROR (KeyError): {str(e_key)}")
-    print("       The AI features will not work. Example for .env: GEMINI_API_KEY=YOUR_KEY_HERE")
-except Exception as e_gen:
-    # model remains None
-    print(f"ERROR (General Exception during Gemini Setup): {str(e_gen)}")
-    print("       The AI features may not work correctly.")
+    except KeyError as e_key:
+        # model remains None from its initialization at the top of the try block
+        print(f"ERROR (KeyError): {str(e_key)}")
+        print("       The AI features will not work. Example for .env: GEMINI_API_KEY=YOUR_KEY_HERE")
+        return None  # Return None to indicate failure
+    except Exception as e_gen:
+        # model remains None
+        print(f"ERROR (General Exception during Gemini Setup): {str(e_gen)}")
+        print("       The AI features may not work correctly.")
+        return None  # Return None to indicate failure
 
 
 class ChatMessage(BaseModel):
@@ -181,9 +196,6 @@ async def read_root():
 
 @app.post("/api/chat")
 async def handle_chat_message(chat_message: ChatMessage):
-    if model is None:
-        raise HTTPException(
-            status_code=503, detail="AI Service not configured or model not available. Ensure GEMINI_API_KEY is set and valid, and a suitable model is available.")
 
     user_message = chat_message.message.strip()
     response_text = ""
@@ -205,19 +217,27 @@ async def handle_chat_message(chat_message: ChatMessage):
                     f"4. One or two key takeaways or common pitfalls related to '{topic}'.\n"
                     f"Focus on educational value and clarity. Use markdown for formatting if it helps readability (e.g., for lists or code blocks)."
                 )
-                print(f"DEBUG: topic '{topic[:100]}'")  # Print first 100 chars for brevity
+                # Print first 100 chars for brevity
+                print(f"DEBUG: topic '{topic[:100]}'")
 
-                ai_response = await model.generate_content_async(prompt)
-                print(f"DEBUG: AI response received: {ai_response.text[:100]}...")  # Print first 100 chars for brevity
-                response_text = ai_response.text
+                # Ensure model is configured
+                model = configure_gemini(gemini_version="2.0")
+                if model is None:
+                    raise HTTPException(
+                status_code=503, detail="AI Service not configured or model not available. Ensure GEMINI_API_KEY is set and valid, and a suitable model is available.")
+
+            ai_response = await model.generate_content_async(prompt)
+            # Print first 100 chars for brevity
+            print(f"DEBUG: AI response received: {ai_response.text[:100]}...")
+            response_text = ai_response.text
         elif user_message.lower().startswith("/generate "):
             description = user_message[len("/generate "):].strip()
             if not description:
                 response_text = "Please provide a description after /generate. For example: /generate a flowchart for making tea"
             else:
                 prompt = (
-                    f"Generate a complete flowchart solution for: \"${description}\"\n\n"
-                    "RETURN ONLY VALID JSON matching this EXACT schema:\n{\n  \"nodes\": [{\"id\": \"unique_string\", \"type\": \"terminal|process|decision|input|output\", \"label\": \"text\", \"x\": number, \"y\": number}],\n  \"edges\": [{\"id\": \"unique_string\", \"source\": \"node_id\", \"target\": \"node_id\", \"label\": \"Yes|No|empty\"}],\n  \"problemStatement\": \"clear 1-2 sentence description\",\n  \"inputType\": \"single|multiple|array|object\",\n  \"outputType\": \"number|string|boolean|array|object\",\n  \"sampleInputs\": [\"input1\", \"input2\", \"input3\"],\n  \"sampleOutputs\": [\"output1\", \"output2\", \"output3\"]\n}\n\nCONSISTENCY RULES:\n1. STANDARD PATTERNS for common algorithms:\n   - Fibonacci: Start(1400,1200) → Input n → Check \"n <= 1\" → [Yes: Return n] [No: Calculate iteratively] → Output → End\n   - Factorial: Start(1400,1200) → Input n → Check \"i <= n\" →  [Yes: Calculate factorial = i*factorial] [No: Return 1] → Output → End\n   - Prime Check: Start(1400,1200) → Input n → Check \"n <= 1\" → [Yes: Return false] [No: Loop check divisibility] → Output → End\n   - Even/Odd: Start(1400,1200) → Input n → Check \"n % 2 == 0\" → [Yes: Return \"Even\"] [No: Return \"Odd\"] → End\n\n2. POSITIONING: Start at (1400,1200), space nodes 200px vertically, 20px horizontally for branching\n3. NAMING: Use standard variables: n, result, i, temp, a, b. Be specific in process nodes.\n4. DECISIONS: Always use \"Yes\"/\"No\" labels, clear conditions like \"n <= 1\", \"i < n\", \"num % 2 == 0\"\n5. FLOW: Logical sequence - Start → Input → Process/Decision → Output → End\n6. LABELS: Process nodes: \"variable = expression\", Input: \"Read variable\", Output: \"Display result\"\n\nSAMPLE DATA RULES:\n- Provide exactly 3 test cases\n- sampleInputs must match inputType format (single=string/number, array=JSON array, object=JSON object)\n- sampleOutputs must match expected results and outputType\n- Use realistic, diverse test cases including edge cases\n\nEXAMPLE: For \"check if number is even\": inputType=\"single\", outputType=\"boolean\", sampleInputs=[\"4\",\"7\",\"0\"], sampleOutputs=[\"true\",\"false\",\"true\"]"
+                    f"Generate a complete flowchart solution for: \"{description}\"\n\n"
+                    "RETURN ONLY VALID JSON matching this EXACT schema:\n{\n  \"nodes\": [{\"id\": \"unique_string\", \"type\": \"terminal|process|decision|input|output\", \"label\": \"text\", \"x\": number, \"y\": number}],\n  \"edges\": [{\"id\": \"unique_string\", \"source\": \"node_id\", \"target\": \"node_id\", \"label\": \"Yes|No|empty\"}],\n  \"problemStatement\": \"clear 1-2 sentence description\",\n  \"inputType\": \"single|multiple|array|object\",\n  \"outputType\": \"number|string|boolean|array|object\",\n  \"sampleInputs\": [\"input1\", \"input2\", \"input3\"],\n  \"sampleOutputs\": [\"output1\", \"output2\", \"output3\"]\n}\n\nCONSISTENCY RULES:\n1. STANDARD PATTERNS for common algorithms:\n   - Fibonacci: Start(1400,1200) → Input n → Check \"n <= 1\" → [Yes: Return n] [No: Calculate iteratively] → Output → End\n   - Factorial: Start(1400,1200) → Input n → Check \"i <= n\" →  [Yes: Calculate factorial = i*factorial] [No: Return 1] → Output → End\n   - Prime Check: Start(1400,1200) → Input n → Check \"n <= 1\" → [Yes: Return false] [No: Loop check divisibility] → Output → End\n   - Even/Odd: Start(1400,1200) → Input n → Check \"n % 2 == 0\" → [Yes: Return \"Even\"] [No: Return \"Odd\"] → End\n\n2. POSITIONING: Start at (1400,1200), space adjacent nodes 150px vertically, 250px horizontally from each other\n3. NAMING: Use standard variables: n, result, i, temp, a, b. Be specific in process nodes.\n4. DECISIONS: Always use \"Yes\"/\"No\" labels, clear conditions like \"n <= 1\", \"i < n\", \"num % 2 == 0\"\n5. FLOW: Logical sequence - Start → Input → Process/Decision → Output → End\n6. LABELS: Process nodes: \"variable = expression\", Input: \"Read variable\", Output: \"Display result\"\n\nSAMPLE DATA RULES:\n- Provide exactly 3 test cases\n- sampleInputs must match inputType format (single=string/number, array=JSON array, object=JSON object)\n- sampleOutputs must match expected results and outputType\n- Use realistic, diverse test cases including edge cases\n\nEXAMPLE: For \"check if number is even\": inputType=\"single\", outputType=\"boolean\", sampleInputs=[\"4\",\"7\",\"0\"], sampleOutputs=[\"true\",\"false\",\"true\"]"
                 )
                 # Define the JSON schema for flowchart responses
                 response_schema = {
@@ -269,6 +289,11 @@ async def handle_chat_message(chat_message: ChatMessage):
                     response_schema=response_schema,
                     candidate_count=1
                 )
+                model = configure_gemini(gemini_version="2.5")
+                if model is None:
+                    raise HTTPException(
+                        status_code=503, detail="AI Service not configured or model not available. Ensure GEMINI_API_KEY is set and valid, and a suitable model is available."
+                    )
 
                 # Pass the generation config to generate_content_async
                 ai_response = await model.generate_content_async(prompt, generation_config=generation_config)
