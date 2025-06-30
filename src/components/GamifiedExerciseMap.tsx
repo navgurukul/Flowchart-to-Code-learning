@@ -22,90 +22,51 @@ export const GamifiedExerciseMap: React.FC<GamifiedExerciseMapProps> = ({
     return !progress.completedExercises.includes(previousExerciseId);
   };
 
-  const nodeSize = 64; // w-16, h-16
-  const verticalSpacing = 40; // Spacing between rows
-  const horizontalSpacing = 32; // Spacing between nodes in a row
-  const nodesPerRow = 3; // Number of nodes in each row for the snake pattern
-
-  const containerPadding = 24; // p-6 (6 * 4px = 24px)
-  // Effective width for node placement needs to account for padding on one side if map isn't centered
-  // For simplicity, assume mapWidth is the total usable width for the pattern.
-  // Let's make the overall container slightly wider to accommodate 3 nodes comfortably.
-  // If w-80 (320px) is the outer container, and p-6 (24px) is applied, usable width is 320 - 48 = 272px.
-  // This 272px needs to fit `nodesPerRow` nodes and `nodesPerRow - 1` horizontal spacings.
-  // (nodesPerRow * nodeSize) + (nodesPerRow - 1) * horizontalSpacing <= mapWidth
-  // 3 * 64 + 2 * 32 = 192 + 64 = 256px. This fits within 272px.
-  const mapWidth = (nodesPerRow * nodeSize) + ((nodesPerRow > 1 ? nodesPerRow - 1 : 0) * horizontalSpacing);
-  const actualContainerWidth = mapWidth + containerPadding * 2; // For the outer div
-
-  // Calculate positions for all nodes
-  const nodePositions = exercises.map((_, index) => {
-    const rowIndex = Math.floor(index / nodesPerRow);
-    const colIndexInRow = index % nodesPerRow;
-
-    const y = rowIndex * (nodeSize + verticalSpacing);
-
-    let x;
-    if (rowIndex % 2 === 0) { // Left-to-right row
-      x = colIndexInRow * (nodeSize + horizontalSpacing);
-    } else { // Right-to-left row
-      x = (nodesPerRow - 1 - colIndexInRow) * (nodeSize + horizontalSpacing);
-    }
-    return { x, y };
-  });
-
-  const totalRows = Math.ceil(exercises.length / nodesPerRow);
-  const svgHeight = totalRows * nodeSize + (totalRows > 0 ? (totalRows - 1) * verticalSpacing : 0) + nodeSize; // Extra nodeSize for padding
+  const nodeSize = 64; // Corresponds to w-16, h-16 -> 16 * 4px = 64px
+  const verticalSpacing = 16; // Corresponds to space-y-4 -> 4 * 4px = 16px
+  const containerPadding = 24 * 2; // p-6 on each side, 6 * 4px = 24px
+  const mapWidth = 320 - containerPadding; // w-80 is 320px. 320 - 48 = 272px
 
   return (
-    <div
-      className="bg-gray-50 border-r border-gray-200 flex flex-col h-full p-6 overflow-y-auto"
-      style={{ width: `${actualContainerWidth}px` }} // Adjust width based on calculation
-    >
+    <div className="w-80 bg-gray-50 border-r border-gray-200 flex flex-col h-full p-6 overflow-y-auto">
       <h2 className="text-xl font-bold text-gray-900 mb-6 text-center">Exercise Map</h2>
-      <div className="relative" style={{ width: `${mapWidth}px`, margin: '0 auto' }}> {/* Centering the map area */}
+      <div className="relative"> {/* Container for nodes and SVG path */}
         {/* SVG for drawing paths */}
         {exercises.length > 0 && (
           <svg
-            className="absolute top-0 left-0"
+            className="absolute top-0 left-0 w-full h-full"
             style={{
-              width: `${mapWidth}px`,
-              height: `${svgHeight}px`,
               zIndex: 0,
+              // Height of SVG needs to be enough for all nodes and their spacing
+              // Last node doesn't have spacing after it, so subtract one verticalSpacing
+              height: `${exercises.length * nodeSize + (exercises.length > 0 ? (exercises.length - 1) * verticalSpacing : 0)}px`,
             }}
           >
             {exercises.map((exercise, index) => {
               if (index === exercises.length - 1) return null; // No path from the last node
 
-              const currentPos = nodePositions[index];
-              const nextPos = nodePositions[index+1];
+              const isCurrentNodeOnLeft = index % 2 === 0;
 
-              // Center of current node
-              const currentX = currentPos.x + nodeSize / 2;
-              const currentY = currentPos.y + nodeSize / 2;
-              // Center of next node
-              const nextX = nextPos.x + nodeSize / 2;
-              const nextY = nextPos.y + nodeSize / 2;
+              // X coordinates for node centers
+              // We want nodes to be at 25% and 75% of the mapWidth
+              const xPosLeft = mapWidth / 4;
+              const xPosRight = mapWidth * (3/4);
 
-              const rowIndexCurrent = Math.floor(index / nodesPerRow);
-              const rowIndexNext = Math.floor((index + 1) / nodesPerRow);
-              const isSameRow = rowIndexCurrent === rowIndexNext;
+              const currentX = isCurrentNodeOnLeft ? xPosLeft : xPosRight;
+              // Y coordinate for the center of the current node
+              const currentY = (nodeSize / 2) + (index * (nodeSize + verticalSpacing));
 
-              let pathD = '';
-              const curveFactor = verticalSpacing * 0.6; // Adjust for smoother curves
+              const nextX = !isCurrentNodeOnLeft ? xPosLeft : xPosRight;
+              // Y coordinate for the center of the next node
+              const nextY = (nodeSize / 2) + ((index + 1) * (nodeSize + verticalSpacing));
 
-              if (isSameRow) {
-                // Simple horizontal line for nodes in the same row
-                pathD = `M${currentX},${currentY} L${nextX},${nextY}`;
-              } else {
-                // Inter-row connection (end of one row to start of next)
-                // This needs a more S-like curve or a stepped approach.
-                // Path: Move vertically, then horizontally, then vertically.
-                // Control points for a cubic bezier:
-                // c1: (currentX, currentY + curveFactor) - moves vertically down from current
-                // c2: (nextX, nextY - curveFactor) - moves vertically up towards next
-                pathD = `M${currentX},${currentY} C ${currentX},${currentY + curveFactor} ${nextX},${nextY - curveFactor} ${nextX},${nextY}`;
-              }
+              // Control point for Quadratic Bezier Curve
+              // For a smooth "S" curve, the control point should be horizontally in the middle
+              // and vertically halfway between the current and next node.
+              const controlX = mapWidth / 2;
+              const controlY = (currentY + nextY) / 2;
+
+              const pathD = `M${currentX},${currentY} Q${controlX},${controlY} ${nextX},${nextY}`;
 
               return (
                 <path
@@ -120,13 +81,12 @@ export const GamifiedExerciseMap: React.FC<GamifiedExerciseMapProps> = ({
           </svg>
         )}
 
-        {/* Nodes wrapper - using absolute positioning for nodes */}
-        <div className="relative" style={{ width: `${mapWidth}px`, height: `${svgHeight}px` }}>
+        {/* Nodes wrapper - this div will manage the vertical spacing equivalent to space-y-4 */}
+        <div className="flex flex-col" style={{ gap: `${verticalSpacing}px` }}>
           {exercises.map((exercise, index) => {
             const isLocked = isExerciseLocked(exercise.id, index);
             const isCompleted = progress.completedExercises.includes(exercise.id);
             const isCurrent = currentExerciseId === exercise.id;
-            const position = nodePositions[index];
 
             let statusIcon;
             let nodeColor = 'bg-white hover:bg-gray-100';
@@ -167,22 +127,41 @@ export const GamifiedExerciseMap: React.FC<GamifiedExerciseMapProps> = ({
               }
             };
 
+            const isNodeOnLeft = index % 2 === 0;
+            // Use 'items-start' or 'items-end' on the flex container for the node row
+            // The circular node itself is then pushed by a margin.
+            // For a 272px wide area:
+            // Left (25%): target center is 68px. Node (64px wide) left edge at 68 - 32 = 36px.
+            // Right (75%): target center is 204px. Node (64px wide) left edge at 204 - 32 = 172px.
+            const alignmentClass = isNodeOnLeft ? 'justify-start' : 'justify-end';
+
+            // We need to calculate margin to place the node at 25% or 75%
+            // If node is on left (25% mark), its container is justify-start. Margin is needed from left.
+            // Margin = (mapWidth / 4) - (nodeSize / 2)
+            // If node is on right (75% mark), its container is justify-end. Margin is needed from right.
+            // Margin = (mapWidth / 4) - (nodeSize / 2)
+            // This is because 75% from left means 25% from right.
+            const horizontalMargin = (mapWidth / 4) - (nodeSize / 2);
+
+
             return (
               <div
                 key={exercise.id}
                 onClick={handleNodeClick}
-                className={`absolute w-16 h-16 rounded-full border-2 ${borderColor} ${nodeColor} ${cursorStyle} flex flex-col items-center justify-center shadow-md hover:shadow-lg transition-all duration-150`}
-                style={{
-                  left: `${position.x}px`,
-                  top: `${position.y}px`,
-                  zIndex: 1
-                }} // Nodes above SVG
-                title={`${exercise.title}${isLocked ? ' (Locked)' : ''}`}
+                // Each node row is a flex container to allow justify-start/end
+                className={`relative flex ${alignmentClass} w-full`}
+                style={{ zIndex: 1 }} // Nodes above SVG
               >
-                {statusIcon}
-                <span className={`mt-1 text-xs font-medium ${textColor}`}>
-                  Ex {exercise.id}
-                </span>
+                <div
+                  className={`w-16 h-16 rounded-full border-2 ${borderColor} ${nodeColor} ${cursorStyle} flex flex-col items-center justify-center shadow-md hover:shadow-lg transition-all duration-150`}
+                  title={`${exercise.title}${isLocked ? ' (Locked)' : ''}`}
+                  style={ isNodeOnLeft ? { marginLeft: `${horizontalMargin}px` } : { marginRight: `${horizontalMargin}px`} }
+                >
+                  {statusIcon}
+                  <span className={`mt-1 text-xs font-medium ${textColor}`}>
+                    Ex {exercise.id}
+                  </span>
+                </div>
               </div>
             );
           })}
