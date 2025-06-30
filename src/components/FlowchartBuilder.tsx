@@ -547,7 +547,7 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
             onDrop={handleDrop}
             onMouseMove={handleCanvasMouseMove}
             onMouseUp={handleDragEnd}
-            onMouseLeave={handleDragEnd}
+            // onMouseLeave={handleDragEnd} // Removed this line as it might prematurely end drags
           >
             {/* Render Edges */}
             <svg className="absolute inset-0 w-full h-full pointer-events-none">
