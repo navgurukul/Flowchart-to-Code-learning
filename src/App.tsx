@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Confetti from 'react-confetti';
 import { Toaster } from 'react-hot-toast';
 import { getDatabase, ref, get, set } from 'firebase/database'; // Added set
-import { app } from '../firebaseConfig';
+import { app } from "./firebaseConfig";
 import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Bot, X } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext'; // Import useAuth
 import { Header } from './components/Header';
