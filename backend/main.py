@@ -356,14 +356,58 @@ async def auth_google_signin(id_token_body: IdToken):
 
 @app.get("/users/{user_id}/details", response_model=UserDetails)
 async def get_user_details(user_id: str):
-    # Mock data for now
-    # In a real application, you would fetch this from a database based on user_id
-    mock_user_data = {
-        "last_active": datetime(2024, 7, 15, 10, 0, 0),  # Example datetime
-        "points": 100,
-        "tasks_completed": ["Exercise 1", "Exercise 2"]
-    }
-    return UserDetails(**mock_user_data)
+    try:
+        # Ensure Firebase Admin SDK is initialized
+        if not firebase_admin._apps:
+            # This is a fallback, ideally initialization happens at startup
+            cred_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+            if cred_path and os.path.exists(cred_path):
+                cred = credentials.Certificate(cred_path)
+                firebase_admin.initialize_app(cred)
+                print("INFO: Firebase Admin SDK re-initialized in get_user_details (fallback).")
+            else:
+                raise HTTPException(status_code=500, detail="Firebase Admin SDK not initialized and credentials missing.")
+
+        user_progress_ref = db.reference(f'userProgress/{user_id}')
+        progress_data = user_progress_ref.get()
+
+        if progress_data:
+            # Convert tasks_completed from numbers to strings if necessary,
+            # or ensure they are stored as strings if that's what UserDetails expects.
+            # Based on StudentProgress, completedExercises are numbers.
+            # UserDetails expects tasks_completed as List[str].
+            # For now, let's assume we want to return them as strings of numbers.
+
+            # Frontend uses numbers for exercise IDs. Let's keep it consistent.
+            # The UserDetails model expects List[str], but the frontend StudentProgress uses List[number].
+            # This is a mismatch. For now, I will adapt to UserDetails, but this might need further review.
+            tasks_completed_str = [str(ex_id) for ex_id in progress_data.get("completedExercises", [])]
+
+            # Ensure last_active is a datetime object
+            last_active_iso = progress_data.get("lastAccessedAt", datetime.utcnow().isoformat())
+            try:
+                last_active_dt = datetime.fromisoformat(last_active_iso.replace("Z", "+00:00"))
+            except ValueError: # Handle cases where it might not be full ISO format
+                 last_active_dt = datetime.strptime(last_active_iso, "%Y-%m-%dT%H:%M:%S.%fZ") if '.' in last_active_iso else datetime.fromisoformat(last_active_iso)
+
+
+            user_details = UserDetails(
+                last_active=last_active_dt,
+                points=progress_data.get("totalScore", 0),
+                tasks_completed=tasks_completed_str # Store as list of strings of exercise IDs
+            )
+            return user_details
+        else:
+            # Return default UserDetails if no progress found, or raise 404
+            # For consistency with frontend's defaultInitialProgress:
+            return UserDetails(
+                last_active=datetime.utcnow(),
+                points=0,
+                tasks_completed=[]
+            )
+    except Exception as e:
+        print(f"Error fetching user details from Firebase: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve user details: {str(e)}")
 
 
 @app.get("/api/online-users")
