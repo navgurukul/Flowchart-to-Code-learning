@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Confetti from 'react-confetti';
 import { Toaster } from 'react-hot-toast';
-import { getDatabase, ref, get, set } from 'firebase/database'; // Added set
+import { getDatabase, ref, get, set } from 'firebase/database';
 import { app } from "./firebaseConfig";
-import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Bot, X } from 'lucide-react';
-import { useAuth } from './contexts/AuthContext'; // Import useAuth
+import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Bot, X, PlaySquare, StepForward, Square } from 'lucide-react'; // Added Dry Run Icons
+import { useAuth } from './contexts/AuthContext';
 import { Header } from './components/Header';
 import { GamifiedExerciseMap } from './components/GamifiedExerciseMap';
 import { FlowchartBuilder } from './components/FlowchartBuilder';
@@ -15,12 +15,15 @@ import GuideModal from './components/GuideModal'; // Import GuideModal
 import { allExercises } from './data/exercises';
 import { guideSteps } from './data/guideSteps';
 import { SafeCodeExecutor } from './utils/codeExecutor';
-import { StudentProgress, ExecutionResult, FlowchartData } from './types/index';
+import { StudentProgress, ExecutionResult, FlowchartData, Node as FlowchartNode } from './types/index';
+import { DryRunState, DryRunVariableMap } from './types/dryRun';
+import { FlowchartSimulator } from './engine/dryRun/FlowchartSimulator';
+import { DryRunInputModal } from './components/dryRun/DryRunInputModal'; // Import the modal
 
 function App() {
-  const { currentUser, loading: authLoading } = useAuth(); // Get auth state
+  const { currentUser, loading: authLoading } = useAuth();
 
-  // Initial progress state (will be overwritten by loaded data)
+  // --- Standard App State ---
   const defaultInitialProgress: StudentProgress = {
     completedExercises: [],
     currentExercise: null, // Changed: No exercise selected initially
@@ -48,15 +51,26 @@ function App() {
   // Guide State
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [currentGuideStep, setCurrentGuideStep] = useState(0);
-  // No need for hasSeenGuide state, directly use localStorage and setIsGuideOpen
 
-  // If currentExerciseId is null, currentExercise will be null.
-  // Otherwise, it will be the found exercise or undefined if not found (though ExerciseList should prevent invalid IDs).
+  // --- Dry Run State ---
+  const [isDryRunMode, setIsDryRunMode] = useState<boolean>(false);
+  const [dryRunSimulator, setDryRunSimulator] = useState<FlowchartSimulator | null>(null);
+  const [currentDryRunState, setCurrentDryRunState] = useState<DryRunState | null>(null);
+  const [showDryRunInputModal, setShowDryRunInputModal] = useState<boolean>(false);
+  // TODO: Add state for initialInputs for dry run if needed for modal
+
+  // --- Derived State ---
   const currentExercise = currentExerciseId !== null
     ? allExercises.find(ex => ex.id === currentExerciseId)
     : null;
 
+  // --- Event Handlers ---
   const handleSelectExercise = (exerciseId: number) => {
+    if (isDryRunMode) { // Prevent changing exercise during dry run
+      // Optionally, show a toast or alert
+      console.warn("Cannot change exercise while Dry Run mode is active.");
+      return;
+    }
     setCurrentExerciseId(exerciseId);
     setExecutionResult(null);
     setGeneratedCode('');
@@ -159,11 +173,20 @@ function App() {
     setIsRunning(true);
     setExecutionResult(null);
 
+    // Ensure not in dry run mode when running actual code
+    if (isDryRunMode) {
+      console.error("Cannot run code while Dry Run mode is active.");
+      setIsRunning(false);
+      // Optionally, show a toast message to the user.
+      // toast.error("Please end the dry run before running the code.");
+      return;
+    }
+
     try {
       const result = await SafeCodeExecutor.executeCode(
         code,
-        currentExercise.sampleInput,
-        currentExercise.expectedOutput
+        currentExercise!.sampleInput, // currentExercise should exist if we are running code for it
+        currentExercise!.expectedOutput
       );
 
       setExecutionResult(result);
@@ -173,13 +196,13 @@ function App() {
       }
 
       // Update progress if correct and not already completed
-      if (result.isCorrect && !progress.completedExercises.includes(currentExerciseId)) {
-        const points = currentExercise.difficulty === 'beginner' ? 50 : 
-                     currentExercise.difficulty === 'intermediate' ? 75 : 100;
+      if (result.isCorrect && currentExerciseId !== null && !progress.completedExercises.includes(currentExerciseId)) {
+        const points = currentExercise!.difficulty === 'beginner' ? 50 :
+                       currentExercise!.difficulty === 'intermediate' ? 75 : 100;
         
         setProgress(prev => ({
           ...prev,
-          completedExercises: [...prev.completedExercises, currentExerciseId],
+          completedExercises: [...prev.completedExercises, currentExerciseId!],
           totalScore: prev.totalScore + points,
           lastAccessedAt: new Date().toISOString()
         }));
@@ -187,7 +210,7 @@ function App() {
     } catch (error) {
       setExecutionResult({
         output: '',
-        error: 'Failed to execute code',
+        error: 'Failed to execute code: ' + (error instanceof Error ? error.message : String(error)),
         isCorrect: false,
         executionTime: 0
       });
@@ -196,6 +219,75 @@ function App() {
     }
   };
 
+  // --- Dry Run Handlers ---
+  const handleStartDryRunSetup = () => {
+    if (!currentExercise || currentFlowchart.nodes.length === 0) {
+      // toast.error("Please select an exercise and build a flowchart to start a dry run.");
+      console.error("Cannot start dry run: No current exercise or flowchart is empty.");
+      return;
+    }
+    console.log("Setting up dry run...");
+    // In a real scenario, here you'd collect initial inputs, e.g. by opening a modal.
+    // For now, let's assume some dummy inputs or proceed to initialize without specific inputs
+    // if the flowchart doesn't have input nodes or they are handled differently.
+    // setShowDryRunInputModal(true); // This would be the typical next step.
+
+    // setShowDryRunInputModal(true); // This would be the typical next step.
+
+    // For now, let's proceed with dummy initial inputs for testing the simulator initialization
+    // const dummyInitialInputs: DryRunVariableMap = {};
+    // // Example: find input nodes in currentFlowchart and add them to dummyInitialInputs
+    // currentFlowchart.nodes.filter(node => node.type === 'input').forEach((node, index) => {
+    //     // Use node.data.label or a sanitized version as variable name
+    //     const varName = node.data.label?.trim().replace(/\s+/g, '_') || `input${index + 1}`;
+    //     // Prompt or use a default value; for now, using a placeholder
+    //     dummyInitialInputs[varName] = `test_val_${index + 1}`; // Or prompt user
+    // });
+    // console.log("Dummy initial inputs for dry run:", dummyInitialInputs);
+    // handleInitializeDryRun(dummyInitialInputs);
+    setShowDryRunInputModal(true); // Open the modal to collect inputs
+  };
+
+  const handleInitializeDryRun = (initialInputs: DryRunVariableMap) => {
+    if (!currentFlowchart || currentFlowchart.nodes.length === 0) {
+      console.error("Cannot initialize dry run: Flowchart data is missing or empty.");
+      // toast.error("Flowchart is empty. Cannot start dry run.");
+      setShowDryRunInputModal(false);
+      return;
+    }
+    console.log("Initializing dry run with inputs:", initialInputs);
+    const simulator = new FlowchartSimulator(currentFlowchart, initialInputs);
+    setDryRunSimulator(simulator);
+    setCurrentDryRunState(simulator.getState());
+    setIsDryRunMode(true);
+    setShowDryRunInputModal(false);
+    // toast.success("Dry Run mode started!");
+  };
+
+  const handleDryRunNextStep = () => {
+    if (dryRunSimulator) {
+      console.log("Executing next dry run step...");
+      const newState = dryRunSimulator.nextStep();
+      setCurrentDryRunState(newState);
+      if (newState.isComplete) {
+        // toast.info("Dry run complete!");
+        console.log("Dry run complete.");
+      }
+    } else {
+      console.error("Dry run simulator not initialized.");
+    }
+  };
+
+  const handleEndDryRun = () => {
+    console.log("Ending dry run mode...");
+    setIsDryRunMode(false);
+    setDryRunSimulator(null);
+    setCurrentDryRunState(null);
+    // toast.info("Dry Run mode ended.");
+  };
+
+
+  // --- Standard Effects ---
   // Save progress
   useEffect(() => {
     if (currentUser) {
@@ -432,15 +524,25 @@ function App() {
     }
   }, [showConfetti]);
 
+  // Debug log for current exercise state at render time
+  console.log(
+    `App.tsx render: currentExerciseId = ${currentExerciseId}, currentExercise?.id = ${currentExercise?.id}, progress.currentExercise = ${progress.currentExercise}, isDryRunMode = ${isDryRunMode}`
+  );
+  // Further log dry run state if active
+  if (isDryRunMode && currentDryRunState) {
+    console.log("App.tsx Dry Run State:", currentDryRunState);
+  }
+
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col relative"> {/* Added relative */}
-      <Toaster position="top-center" reverseOrder={false} /> {/* Add Toaster here */}
-      {showConfetti && <Confetti width={windowSize.width} height={windowSize.height} recycle={false} />} {/* recycle={false} makes it a one-shot burst */}
+    <div className="min-h-screen bg-gray-50 flex flex-col relative">
+      <Toaster position="top-center" reverseOrder={false} />
+      {showConfetti && <Confetti width={windowSize.width} height={windowSize.height} recycle={false} />}
       <Header progress={progress} onOpenGuide={handleOpenGuide} />
       
-      <div className="flex-1 flex overflow-hidden"> {/* Added overflow-hidden for safety */}
-        {/* Left Panel Toggle & Exercise List */}
-        <div className="flex"> {/* Container for toggle and panel */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Panel: Exercise List */}
+        <div className="flex">
           <button
             onClick={() => setIsExerciseListOpen(!isExerciseListOpen)}
             className="p-2 bg-gray-200 hover:bg-gray-300 h-full flex items-center justify-center"
@@ -454,79 +556,132 @@ function App() {
               progress={progress}
               currentExerciseId={currentExerciseId}
               onSelectExercise={handleSelectExercise}
+              isDryRunMode={isDryRunMode} // Pass dry run mode to disable interactions
             />
           )}
         </div>
 
         {/* Main Content Area */}
         {currentExercise ? (
-          <div className="flex-1 p-6 space-y-6 overflow-y-auto"> {/* Added overflow-y-auto */}
-            {/* Exercise Title */}
+          <div className="flex-1 p-6 space-y-6 overflow-y-auto">
+            {/* Exercise Title & Details */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
               <div className="flex items-center justify-between">
-                <div>
+                <div> {/* Left side: Title, Description, Problem */}
                   <div className="flex items-center mb-2">
                     <span className="text-sm font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full mr-3">
                       Exercise {currentExercise.id}
                     </span>
                     <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                      currentExercise.difficulty === 'beginner'
-                        ? 'text-green-600 bg-green-100'
-                        : currentExercise.difficulty === 'intermediate'
-                        ? 'text-yellow-600 bg-yellow-100'
-                        : 'text-red-600 bg-red-100'
+                      currentExercise.difficulty === 'beginner' ? 'text-green-600 bg-green-100' :
+                      currentExercise.difficulty === 'intermediate' ? 'text-yellow-600 bg-yellow-100' :
+                      'text-red-600 bg-red-100'
                     }`}>
                       {currentExercise.difficulty}
                     </span>
                   </div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                    {currentExercise.title}
-                  </h2>
-                  <p className="text-gray-600 mb-3">
-                    {currentExercise.description}
-                  </p>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">{currentExercise.title}</h2>
+                  <p className="text-gray-600 mb-3">{currentExercise.description}</p>
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <h3 className="text-sm font-semibold text-blue-900 mb-2">Problem Statement</h3>
                     <p className="text-sm text-blue-800">{currentExercise.problemStatement}</p>
                   </div>
                 </div>
-
-                <div className="text-right">
+                <div className="text-right"> {/* Right side: Category, Dry Run Controls */}
                   <div className="text-sm text-gray-500 mb-1">Category</div>
-                  <div className="text-sm font-medium text-gray-900">
-                    {currentExercise.category}
-                  </div>
+                  <div className="text-sm font-medium text-gray-900 mb-4">{currentExercise.category}</div>
+
+                  {/* Dry Run Controls */}
+                  {!isDryRunMode ? (
+                    <button
+                      onClick={handleStartDryRunSetup}
+                      className="mt-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-md flex items-center"
+                      title="Start Dry Run Simulation"
+                    >
+                      <PlaySquare size={18} className="mr-2" /> Dry Run
+                    </button>
+                  ) : (
+                    <div className="flex flex-col space-y-2">
+                      <button
+                        onClick={handleDryRunNextStep}
+                        disabled={currentDryRunState?.isComplete || !currentDryRunState}
+                        className="px-4 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-md flex items-center disabled:opacity-50"
+                        title="Execute Next Step"
+                      >
+                        <StepForward size={18} className="mr-2" /> Next Step
+                      </button>
+                      <button
+                        onClick={handleEndDryRun}
+                        className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md flex items-center"
+                        title="End Dry Run Simulation"
+                      >
+                        <Square size={18} className="mr-2" /> End Dry Run
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
             {/* Toggle for Code Editor */}
-            <button
-              onClick={() => setIsCodeEditorOpen(!isCodeEditorOpen)}
-              className="mb-2 px-3 py-1.5 text-sm bg-gray-200 hover:bg-gray-300 rounded-md"
-            >
-              {isCodeEditorOpen ? 'Hide Code Editor' : 'Show Code Editor'}
-            </button>
+            </div>
 
-            {/* Main Content Grid */}
+            {/* Code Editor Toggle & Main Content Grid */}
+            <div>
+                <button
+                  onClick={() => setIsCodeEditorOpen(!isCodeEditorOpen)}
+                  className="mb-2 px-3 py-1.5 text-sm bg-gray-200 hover:bg-gray-300 rounded-md"
+                >
+                  {isCodeEditorOpen ? 'Hide Code Editor' : 'Show Code Editor'}
+                </button>
+            </div>
+
             <div className={`grid grid-cols-1 ${isCodeEditorOpen ? 'md:grid-cols-2' : 'md:grid-cols-1'} gap-6 h-[750px]`}>
               <FlowchartBuilder
                 exercise={currentExercise}
                 onGenerateCode={handleFlowchartChange}
-                onRunCode={handleRunCode}
-                isRunning={isRunning}
+                onRunCode={handleRunCode} // This is for actual code execution, not dry run steps
+                isRunning={isRunning && !isDryRunMode} // Actual run is only when not in dry run
                 newFlowchartToLoad={aiFlowchartToLoad}
+                highlightedNodeId={isDryRunMode ? currentDryRunState?.currentProcessedNodeId : null} // Highlight current dry run node
               />
-
               {isCodeEditorOpen && (
                 <CodeEditor
                   exercise={currentExercise}
                   generatedCode={generatedCode}
                   onRunCode={handleRunCode}
-                  isRunning={isRunning}
+                  isRunning={isRunning && !isDryRunMode}
+                  isReadOnly={isDryRunMode} // Make code editor read-only during dry run
                 />
               )}
             </div>
+
+            {/* Dry Run Information Panels - Shown when isDryRunMode is true */}
+            {isDryRunMode && currentDryRunState && (
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Dry Run Log Panel Placeholder */}
+                <div className="bg-white p-4 rounded-lg shadow border">
+                  <h3 className="text-lg font-semibold mb-2">Dry Run Log</h3>
+                  <pre className="text-xs bg-gray-50 p-2 rounded max-h-60 overflow-y-auto">
+                    {currentDryRunState.log.map((entry, index) => (
+                      <div key={index} className={`text-${entry.type === 'error' ? 'red' : entry.type === 'info' ? 'blue' : 'black'}-600`}>
+                        [{entry.timestamp.split('T')[1].slice(0,8)}] {entry.nodeId && `[Node: ${entry.nodeId}] `}{entry.message}
+                        {entry.data?.variableName && ` (${entry.data.variableName}: ${entry.data.newValue})`}
+                      </div>
+                    )).join('') || "Log is empty."}
+                  </pre>
+                </div>
+                {/* Dry Run Variables Panel Placeholder */}
+                <div className="bg-white p-4 rounded-lg shadow border">
+                  <h3 className="text-lg font-semibold mb-2">Variables</h3>
+                  <pre className="text-xs bg-gray-50 p-2 rounded max-h-60 overflow-y-auto">
+                    {Object.entries(currentDryRunState.variables).map(([key, value]) => (
+                      <div key={key}>{`${key}: ${JSON.stringify(value)}`}</div>
+                    )).join('') || "No variables."}
+                  </pre>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex-1 p-6 flex items-center justify-center">
@@ -534,14 +689,14 @@ function App() {
           </div>
         )}
 
-        {/* Right Panel Toggle & Input/Output Panel */}
-        {currentExercise && ( // Only show if an exercise is selected
-          <div className="flex h-full sticky top-0"> {/* Apply sticky classes here */}
+        {/* Right Panel: Input/Output */}
+        {currentExercise && (
+          <div className="flex h-full sticky top-0">
             {isInputOutputOpen && (
               <InputOutput
-                exercise={currentExercise} // currentExercise will not be null here
+                exercise={currentExercise}
                 result={executionResult}
-                isRunning={isRunning}
+                isRunning={isRunning && !isDryRunMode}
               />
             )}
             <button
@@ -554,21 +709,26 @@ function App() {
           </div>
         )}
       </div>
-      {/* Chat Window (conditionally rendered) */}
+
+      {/* Chat Window */}
       {isChatOpen && <ChatWindow
                       onClose={() => setIsChatOpen(false)}
-                      onFlowchartGenerated={handleNewFlowchartFromAI} // New prop
+                      onFlowchartGenerated={handleNewFlowchartFromAI}
                    />}
-
-      {/* AI Chat Toggle Button */}
-      <button
-        onClick={() => setIsChatOpen(!isChatOpen)}
-        className="fixed bottom-4 right-4 z-40 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-transform duration-150 ease-in-out hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         title={isChatOpen ? "Close AI Chat" : "Open AI Chat"}
         aria-label={isChatOpen ? "Close AI Chat" : "Open AI Chat"}
       >
         {isChatOpen ? <X size={24} /> : <Bot size={24} />}
       </button>
+
+      {showDryRunInputModal && currentFlowchart && (
+        <DryRunInputModal
+          isOpen={showDryRunInputModal}
+          onClose={() => setShowDryRunInputModal(false)}
+          onSubmit={handleInitializeDryRun}
+          flowchartNodes={currentFlowchart.nodes}
+        />
+      )}
 
       <GuideModal
         isOpen={isGuideOpen}
