@@ -7,6 +7,7 @@ interface GamifiedExerciseMapProps {
   progress: StudentProgress;
   currentExerciseId: number | null;
   onSelectExercise: (exerciseId: number) => void;
+  isDryRunMode?: boolean; // Added to disable clicks during dry run
 }
 
 export const GamifiedExerciseMap: React.FC<GamifiedExerciseMapProps> = ({
@@ -14,8 +15,13 @@ export const GamifiedExerciseMap: React.FC<GamifiedExerciseMapProps> = ({
   progress,
   currentExerciseId,
   onSelectExercise,
+  isDryRunMode = false, // Default to false
 }) => {
   const isExerciseLocked = (exerciseId: number, exerciseIndex: number): boolean => {
+    // In dry run mode, consider all exercises "accessible" for selection for the map's purpose,
+    // but clicks will be globally disabled if needed, or handled by onSelectExercise in App.tsx.
+    // However, the visual "lock" should still reflect actual progress.
+    // The main concern is preventing onSelectExercise if isDryRunMode is true, which App.tsx now handles.
     if (exerciseIndex === 0) return false; // First exercise is never locked
     const previousExerciseId = exercises[exerciseIndex - 1]?.id;
     if (previousExerciseId === undefined) return true; // Should not happen
@@ -94,32 +100,46 @@ export const GamifiedExerciseMap: React.FC<GamifiedExerciseMapProps> = ({
             let borderColor = 'border-gray-300';
             let cursorStyle = 'cursor-pointer';
 
+            if (isDryRunMode) {
+              cursorStyle = 'cursor-default'; // Indicate non-interactive if in dry run mode
+            }
+
             if (isLocked) {
               statusIcon = <Lock size={20} className="text-gray-400" />;
-              nodeColor = 'bg-gray-200';
+              nodeColor = 'bg-gray-200'; // Default locked color
               textColor = 'text-gray-500';
               borderColor = 'border-gray-300';
-              cursorStyle = 'cursor-not-allowed';
+              if (!isDryRunMode) cursorStyle = 'cursor-not-allowed'; // Only "not-allowed" if not in dry run
             } else if (isCompleted) {
               statusIcon = <CheckCircle size={20} className="text-green-500" />;
-              nodeColor = 'bg-green-50 hover:bg-green-100';
+              nodeColor = 'bg-green-50 hover:bg-green-100'; // Default completed color
               textColor = 'text-green-700';
               borderColor = 'border-green-400';
             } else { // Unlocked but not completed
               statusIcon = <Circle size={20} className="text-blue-500" />;
-              nodeColor = 'bg-blue-50 hover:bg-blue-100';
+              nodeColor = 'bg-blue-50 hover:bg-blue-100'; // Default unlocked color
               textColor = 'text-blue-700';
               borderColor = 'border-blue-400';
             }
 
+            // Current exercise highlight overrides other color/status if applicable
             if (isCurrent) {
-              statusIcon = <Zap size={20} className="text-yellow-500" />;
-              nodeColor = 'bg-yellow-100';
-              borderColor = 'border-yellow-500 ring-2 ring-yellow-400';
-              textColor = 'text-yellow-800 font-semibold';
+              statusIcon = <Zap size={20} className="text-yellow-500" />; // Current icon
+              // Keep underlying lock/complete status color but add current indicator
+              nodeColor = isLocked ? 'bg-gray-300' : isCompleted ? 'bg-green-200' : 'bg-blue-200'; // Slightly darker shade for current
+              nodeColor = `${nodeColor} hover:brightness-110`; // General hover for current
+              borderColor = 'border-yellow-500 ring-2 ring-yellow-400'; // Prominent border for current
+              textColor = 'text-yellow-800 font-semibold'; // Special text for current
             }
 
+
             const handleNodeClick = () => {
+              // App.tsx's onSelectExercise already checks for isDryRunMode.
+              // This local check is mostly for the console log and visual cursor.
+              if (isDryRunMode) {
+                console.log("Exercise selection is disabled during Dry Run mode.");
+                return;
+              }
               if (!isLocked) {
                 onSelectExercise(exercise.id);
               } else {
@@ -148,17 +168,18 @@ export const GamifiedExerciseMap: React.FC<GamifiedExerciseMapProps> = ({
               <div
                 key={exercise.id}
                 onClick={handleNodeClick}
-                // Each node row is a flex container to allow justify-start/end
                 className={`relative flex ${alignmentClass} w-full`}
                 style={{ zIndex: 1 }} // Nodes above SVG
               >
                 <div
-                  className={`w-16 h-16 rounded-full border-2 ${borderColor} ${nodeColor} ${cursorStyle} flex flex-col items-center justify-center shadow-md hover:shadow-lg transition-all duration-150`}
-                  title={`${exercise.title}${isLocked ? ' (Locked)' : ''}`}
+                  className={`w-16 h-16 rounded-full border-2 ${borderColor} ${nodeColor} ${cursorStyle}
+                              flex flex-col items-center justify-center shadow-md hover:shadow-lg
+                              transition-all duration-150`}
+                  title={`${exercise.title}${isLocked && !isCurrent ? ' (Locked)' : ''}${isDryRunMode ? ' (Dry Run Active)' : ''}`}
                   style={ isNodeOnLeft ? { marginLeft: `${horizontalMargin}px` } : { marginRight: `${horizontalMargin}px`} }
                 >
                   {statusIcon}
-                  <span className={`mt-1 text-xs font-medium ${textColor}`}>
+                  <span className={`mt-1 text-xs font-medium ${textColor} text-center px-1 truncate w-full`}>
                     Ex {exercise.id}
                   </span>
                 </div>
