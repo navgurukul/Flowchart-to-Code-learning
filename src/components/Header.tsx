@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { StudentProgress } from '../types'; // Ensure this path is correct
-import { User, Trophy, Target, Clock, HelpCircle, Signal } from 'lucide-react'; // Added HelpCircle & Signal
+import { User, Trophy, Target, Clock, HelpCircle, Signal, Eye, EyeOff } from 'lucide-react'; // Added Eye, EyeOff
 import { useAuth } from '../contexts/AuthContext';
-import { getDatabase, ref, onValue, onDisconnect, set } from 'firebase/database';
+import { getDatabase, ref, onValue, onDisconnect, set, serverTimestamp, remove, get } from 'firebase/database'; // Added remove, get
 import { app } from "../firebaseConfig";
 
 interface HeaderProps {
@@ -10,29 +10,109 @@ interface HeaderProps {
   onOpenGuide: () => void; // Added prop for opening guide
 }
 
+// Define the structure for user presence data
+interface UserPresence {
+  uid: string;
+  displayName: string | null;
+  photoURL: string | null;
+  currentFlowchartId: string | null;
+  currentNodeId: string | null;
+  lastSeen: object; // For Firebase ServerValue.TIMESTAMP
+  status: 'online' | 'idle' | 'offline';
+}
+
 export const Header: React.FC<HeaderProps> = ({ progress, onOpenGuide }) => {
-  const { currentUser, signInWithGoogle, signOut, loading } = useAuth();
+  const { currentUser, signInWithGoogle, signOut: authSignOut, loading } = useAuth(); // Renamed signOut to authSignOut
   const [onlineUsersCount, setOnlineUsersCount] = useState(0);
+  const [appearOffline, setAppearOffline] = useState<boolean>(false);
+  const db = getDatabase(app); // db instance
 
+  // Effect to load 'appearOffline' preference
   useEffect(() => {
-    const db = getDatabase(app);
-    const onlineRef = ref(db, "onlineUsers");
+    if (currentUser) {
+      const userSettingsRef = ref(db, `userProfile/${currentUser.uid}/settings/appearOffline`);
+      get(userSettingsRef).then((snapshot) => {
+        if (snapshot.exists()) {
+          setAppearOffline(snapshot.val());
+        } else {
+          setAppearOffline(false); // Default to online
+        }
+      }).catch(error => console.error("Error fetching appearOffline setting:", error));
+    }
+  }, [currentUser, db]);
 
-    // Listen for changes
-    const unsubscribe = onValue(onlineRef, (snapshot) => {
+  // Effect to handle presence updates based on currentUser and appearOffline status
+  useEffect(() => {
+    const onlineUsersOverallRef = ref(db, "onlineUsers"); // Ref for counting all online users
+
+    // Listener for online users count (reads from /onlineUsers directly)
+    const unsubscribeCounter = onValue(onlineUsersOverallRef, (snapshot) => {
       const users = snapshot.val();
       setOnlineUsersCount(users ? Object.keys(users).length : 0);
     });
 
-    // On login, set this user as online
+    let userPresenceRef: any = null; // To store ref for onDisconnect
+
     if (currentUser) {
-      const userRef = ref(db, `onlineUsers/${currentUser.uid}`);
-      set(userRef, true);
-      onDisconnect(userRef).remove();
+      userPresenceRef = ref(db, `onlineUsers/${currentUser.uid}`); // Specific user's presence path
+
+      if (!appearOffline) {
+        // User wants to be online
+        const presenceData: UserPresence = {
+          uid: currentUser.uid,
+          displayName: currentUser.displayName,
+          photoURL: currentUser.photoURL,
+          currentFlowchartId: null, // Will be updated by App.tsx
+          currentNodeId: null,    // Will be updated by FlowchartBuilder.tsx
+          lastSeen: serverTimestamp(),
+          status: 'online',
+        };
+        set(userPresenceRef, presenceData)
+          .then(() => onDisconnect(userPresenceRef!).remove()) // Set onDisconnect after successful write
+          .catch(error => console.error("Error setting presence online:", error));
+      } else {
+        // User wants to be offline, remove their presence data
+        remove(userPresenceRef)
+          .catch(error => console.error("Error setting presence offline:", error));
+        // Crucially, also remove the onDisconnect handler if previously set for this session
+        onDisconnect(userPresenceRef).cancel();
+      }
     }
 
-    return () => unsubscribe();
-  }, [currentUser]); // Re-run if currentUser changes (login/logout)
+    return () => {
+      unsubscribeCounter();
+      // If user logs out while "appear offline" is false, their onDisconnect will fire.
+      // If "appear offline" is true, their record should already be removed.
+      // No specific cleanup needed here for userPresenceRef beyond what onDisconnect handles
+      // or what happens when currentUser becomes null.
+    };
+  }, [currentUser, db, appearOffline]);
+
+
+  const handleToggleAppearOffline = () => {
+    if (!currentUser) return;
+    const newAppearOfflineStatus = !appearOffline;
+    setAppearOffline(newAppearOfflineStatus); // Update local state immediately for UI responsiveness
+
+    const userSettingsRef = ref(db, `userProfile/${currentUser.uid}/settings/appearOffline`);
+    set(userSettingsRef, newAppearOfflineStatus)
+      .catch(error => {
+        console.error("Error saving appearOffline setting:", error);
+        // Optionally, revert local state if Firebase write fails
+        setAppearOffline(!newAppearOfflineStatus);
+      });
+    // The useEffect for presence will handle updating /onlineUsers based on newAppearOfflineStatus
+  };
+
+  const handleSignOut = () => {
+    // Ensure presence is removed if user was online before signing out
+    if (currentUser && !appearOffline) {
+        const userPresenceRef = ref(db, `onlineUsers/${currentUser.uid}`);
+        remove(userPresenceRef).catch(err => console.error("Error removing presence on sign out:", err));
+    }
+    authSignOut(); // Call original signOut from useAuth
+  };
+
 
   return (
     <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3"> {/* Adjusted padding for smaller screens */}
@@ -105,6 +185,16 @@ export const Header: React.FC<HeaderProps> = ({ progress, onOpenGuide }) => {
               <p className="text-xs sm:text-sm text-gray-700">Loading...</p>
             ) : currentUser ? (
               <>
+                <button
+                  onClick={handleToggleAppearOffline}
+                  className={`p-1.5 sm:p-2 rounded-full transition-colors duration-150 mr-1 sm:mr-2
+                              ${appearOffline
+                                ? 'text-gray-400 hover:bg-gray-200'
+                                : 'text-green-600 hover:bg-green-100'}`}
+                  title={appearOffline ? "Appear Online" : "Appear Offline"}
+                >
+                  {appearOffline ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
                 <div className="flex items-center" title={currentUser.displayName || currentUser.email || currentUser.uid}>
                   {currentUser.photoURL ? (
                     <img
@@ -120,7 +210,7 @@ export const Header: React.FC<HeaderProps> = ({ progress, onOpenGuide }) => {
                   </span>
                 </div>
                 <button
-                  onClick={signOut}
+                  onClick={handleSignOut} // Use the new handler
                   className="bg-red-500 hover:bg-red-600 text-white font-semibold py-1.5 px-2 sm:py-2 sm:px-3 rounded text-xs sm:text-sm transition-colors duration-150"
                   title="Sign Out"
                 >

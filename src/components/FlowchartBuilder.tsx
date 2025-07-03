@@ -18,6 +18,21 @@ import {
   Palette, // Added for palette toggle
   X // For the close button on properties panel
 } from 'lucide-react';
+import { getDatabase, ref, update, serverTimestamp, onValue } from 'firebase/database'; // Added onValue
+import { app } from '../firebaseConfig';
+import { useAuth } from '../contexts/AuthContext';
+import { User as UserIcon } from 'lucide-react'; // For default presence bubble avatar
+
+// Define UserPresence structure (can be moved to types/index.ts later)
+interface UserPresence {
+  uid: string;
+  displayName: string | null;
+  photoURL: string | null;
+  currentFlowchartId: string | null;
+  currentNodeId: string | null;
+  lastSeen: number;
+  status: 'online' | 'idle' | 'offline';
+}
 
 interface FlowchartBuilderProps {
   exercise: Exercise;
@@ -92,13 +107,15 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
   onGenerateCode,
   onRunCode,
   isRunning,
-  newFlowchartToLoad
+  newFlowchartToLoad,
+  highlightedNodeId // This prop is from App.tsx for dry run, ensure it's declared in FlowchartBuilderProps if not already
 }) => {
+  const { currentUser } = useAuth(); // Get current user for presence updates
   const [flowchartData, setFlowchartData] = useState<FlowchartData>({
     nodes: [],
     edges: []
   });
-  const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [selectedNodeForProperties, setSelectedNodeForProperties] = useState<string | null>(null); // Renamed for clarity
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStart, setConnectionStart] = useState<string | null>(null);
   const [draggedNodeType, setDraggedNodeType] = useState<FlowchartNodeType | null>(null);
@@ -110,6 +127,40 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
   const didDragNodeRef = useRef(false);
+  const [otherUsersOnFlowchart, setOtherUsersOnFlowchart] = useState<UserPresence[]>([]);
+
+  // Effect to fetch other users' presence on the current flowchart
+  useEffect(() => {
+    if (!currentUser || !exercise) return;
+
+    const db = getDatabase(app);
+    const onlineUsersRef = ref(db, 'onlineUsers');
+    const currentFlowchartIdForPresence = `exercise-${exercise.id}`;
+
+    const unsubscribe = onValue(onlineUsersRef, (snapshot) => {
+      const usersData = snapshot.val();
+      if (usersData) {
+        const usersList: UserPresence[] = Object.values(usersData)
+          .filter((user): user is UserPresence =>
+            user !== null &&
+            typeof user === 'object' &&
+            'uid' in user &&
+            'status' in user &&
+            'currentFlowchartId' in user &&
+            (user as UserPresence).uid !== currentUser.uid &&
+            (user as UserPresence).status === 'online' &&
+            (user as UserPresence).currentFlowchartId === currentFlowchartIdForPresence
+          )
+          .map(user => user as UserPresence); // Map to UserPresence after filtering
+        setOtherUsersOnFlowchart(usersList);
+      } else {
+        setOtherUsersOnFlowchart([]);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [currentUser, exercise]);
+
 
   const handleDragEnd = useCallback(() => {
     if (draggingNodeId) {
@@ -138,7 +189,7 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
     if (newFlowchartToLoad && (newFlowchartToLoad.nodes.length > 0 || newFlowchartToLoad.edges.length > 0)) {
       console.log('FlowchartBuilder: Received new flowchart to load via props:', newFlowchartToLoad);
       setFlowchartData(newFlowchartToLoad);
-      setSelectedNode(null); // Reset selection
+      setSelectedNodeForProperties(null); // Reset selection
       // The existing useEffect that watches flowchartData will call onGenerateCode
     }
   }, [newFlowchartToLoad]); // Dependency array includes newFlowchartToLoad
@@ -331,8 +382,39 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
         setConnectingMousePosition(null); // Reset preview line
       }
     } else {
-      // Not in connecting mode, so select the node
-      setSelectedNode(nodeId);
+    // Not in connecting mode, so select the node for properties panel
+    setSelectedNodeForProperties(nodeId);
+  }
+
+  // Update Firebase with the clicked node ID
+  if (currentUser) {
+    const db = getDatabase(app);
+    const userPresenceRef = ref(db, `onlineUsers/${currentUser.uid}`);
+    update(userPresenceRef, {
+      currentNodeId: nodeId, // Set the currently selected node
+      lastSeen: serverTimestamp()
+    }).catch(error => {
+      console.error("Error updating current node ID in presence:", error);
+    });
+  }
+};
+
+const handleCanvasClick = (event: React.MouseEvent) => {
+  // If the click is on the canvas itself (not on a node or edge UI element)
+  if (event.target === event.currentTarget) {
+    setSelectedNodeForProperties(null); // Deselect node for properties panel
+
+    // Clear current node ID in Firebase presence
+    if (currentUser) {
+      const db = getDatabase(app);
+      const userPresenceRef = ref(db, `onlineUsers/${currentUser.uid}`);
+      update(userPresenceRef, {
+        currentNodeId: null,
+        lastSeen: serverTimestamp()
+      }).catch(error => {
+        console.error("Error clearing current node ID in presence:", error);
+      });
+    }
     }
   };
 
@@ -352,7 +434,29 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
       nodes: prev.nodes.filter(node => node.id !== nodeId),
       edges: prev.edges.filter(edge => edge.source !== nodeId && edge.target !== nodeId)
     }));
-    setSelectedNode(null);
+  setSelectedNodeForProperties(null);
+
+  // If the deleted node was the one the user had selected for presence, clear it
+  if (currentUser) {
+    const db = getDatabase(app);
+    const userPresenceRef = ref(db, `onlineUsers/${currentUser.uid}`);
+    // Check if this node was the one in presence, then clear.
+    // This requires knowing the current presence state or just clearing,
+    // for simplicity, we can just send an update to nullify if it was this node.
+    // A more robust way would be to read the presence state first or ensure App.tsx handles this.
+    // For now, let's assume if a node is deleted, it's no longer the "current" one.
+    // This might conflict if App.tsx also tries to set it based on `currentExerciseId` change.
+    // Let's refine: only clear if the deleted node IS the one in selection.
+    // The selection for properties panel (`selectedNodeForProperties`) is a good client-side proxy.
+    if (selectedNodeForProperties === nodeId) {
+       update(userPresenceRef, {
+        currentNodeId: null,
+        lastSeen: serverTimestamp()
+      }).catch(error => {
+        console.error("Error clearing current node ID in presence after delete:", error);
+      });
+    }
+  }
   };
 
   const handleDeleteEdge = (edgeId: string) => {
@@ -403,9 +507,20 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
 
   const clearCanvas = () => {
     setFlowchartData({ nodes: [], edges: [] });
-    setSelectedNode(null);
+    setSelectedNodeForProperties(null);
     setGeneratedCode('');
     setConnectingMousePosition(null);
+    // Clear current node ID in Firebase presence when canvas is cleared
+    if (currentUser) {
+      const db = getDatabase(app);
+      const userPresenceRef = ref(db, `onlineUsers/${currentUser.uid}`);
+      update(userPresenceRef, {
+        currentNodeId: null,
+        lastSeen: serverTimestamp()
+      }).catch(error => {
+        console.error("Error clearing current node ID on canvas clear:", error);
+      });
+    }
   };
 
   const getNodeStyle = (nodeType: FlowchartNodeType) => {
@@ -413,9 +528,13 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
     return palette?.color || 'bg-gray-100 border-gray-300 text-gray-800';
   };
 
-  const selectedNodeData = selectedNode 
-    ? flowchartData.nodes.find(node => node.id === selectedNode)
+  const selectedNodeDataForProperties = selectedNodeForProperties
+    ? flowchartData.nodes.find(node => node.id === selectedNodeForProperties)
     : null;
+
+  // Props for FlowchartBuilder in App.tsx likely needs to be updated
+  // for onNodeClick, onPaneClick, etc. if we were using ReactFlow directly.
+  // Since this is a custom builder, we add click handler to the canvas div.
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 h-full flex flex-col">
@@ -547,6 +666,7 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
             onDrop={handleDrop}
             onMouseMove={handleCanvasMouseMove}
             onMouseUp={handleDragEnd}
+            onClick={handleCanvasClick} // Added to handle clicks on canvas background
             // onMouseLeave={handleDragEnd} // Removed this line as it might prematurely end drags
           >
             {/* Render Edges */}
@@ -636,7 +756,9 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
                 key={node.id}
                 className={`absolute w-32 h-16 rounded-lg border-2 cursor-pointer transition-all hover:shadow-lg z-20 ${ // Added z-20
                   getNodeStyle(node.type)
-                } ${selectedNode === node.id ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}
+                } ${selectedNodeForProperties === node.id ? 'ring-2 ring-blue-500 ring-offset-2' : ''}
+                   ${highlightedNodeId === node.id ? 'ring-4 ring-purple-500 ring-offset-2' : ''} // Highlight for dry run/presence
+                `}
                 style={{
                   left: node.position.x,
                   top: node.position.y,
@@ -655,13 +777,13 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
                   </span>
                 </div>
                 
-                {selectedNode === node.id && (
+                {selectedNodeForProperties === node.id && (
                   <button
                     onClick={(e) => {
-                      e.stopPropagation();
+                      e.stopPropagation(); // Prevent node click from firing again
                       handleDeleteNode(node.id);
                     }}
-                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors z-30" // Ensure delete button is on top
                     title="Delete node"
                   >
                     <Trash2 className="w-3 h-3" />
@@ -669,6 +791,37 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
                 )}
               </div>
             ))}
+
+            {/* Render Presence Bubbles for other users */}
+            {otherUsersOnFlowchart.map(user => {
+              if (!user.currentNodeId) return null;
+              const targetNode = flowchartData.nodes.find(n => n.id === user.currentNodeId);
+              if (!targetNode) return null;
+
+              // Position bubble slightly offset from the target node (e.g., top-right corner)
+              // Node dimensions: w-32 (128px), h-16 (64px)
+              const bubbleX = targetNode.position.x + 128 - 8; // Node width - half bubble width approx
+              const bubbleY = targetNode.position.y - 8;      // Half bubble height approx above node
+
+              return (
+                <div
+                  key={user.uid}
+                  className="absolute w-7 h-7 rounded-full flex items-center justify-center border-2 border-white shadow-lg z-30"
+                  style={{
+                    left: bubbleX,
+                    top: bubbleY,
+                    backgroundColor: user.photoURL ? undefined : '#A0AEC0', // Default gray if no photo
+                  }}
+                  title={user.displayName || 'User'}
+                >
+                  {user.photoURL ? (
+                    <img src={user.photoURL} alt={user.displayName || ''} className="w-full h-full rounded-full object-cover" />
+                  ) : (
+                    <UserIcon size={14} className="text-white" />
+                  )}
+                </div>
+              );
+            })}
 
             {/* Instructions */}
             {flowchartData.nodes.length === 0 && (
@@ -684,7 +837,7 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
         </div>
 
         {/* Properties Panel */}
-        {selectedNodeData && isPropertiesOpen && (
+        {selectedNodeDataForProperties && isPropertiesOpen && (
           <div
             className={`border-l border-gray-200 p-4 flex-shrink-0 bg-white
                         w-full sm:w-60 md:w-72 lg:w-80
@@ -694,7 +847,18 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
             <div className="flex justify-between items-center mb-4">
               <h4 className="text-sm font-semibold text-gray-900">Node Properties</h4>
               <button
-                onClick={() => setSelectedNode(null)} // Action to close the panel
+                onClick={() => {
+                  setSelectedNodeForProperties(null);
+                  // Also clear from Firebase presence if user explicitly closes properties for a node
+                  if (currentUser) {
+                    const db = getDatabase(app);
+                    const userPresenceRef = ref(db, `onlineUsers/${currentUser.uid}`);
+                    update(userPresenceRef, {
+                      currentNodeId: null,
+                      lastSeen: serverTimestamp()
+                    }).catch(error => console.error("Error clearing node on prop close:", error));
+                  }
+                }}
                 className="p-1 hover:bg-gray-200 rounded-md text-gray-600 hover:text-gray-800"
                 title="Close Properties"
               >
@@ -709,36 +873,36 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
                 </label>
                 <input
                   type="text"
-                  value={selectedNodeData.data.label}
-                  onChange={(e) => handleNodeUpdate(selectedNode!, { label: e.target.value })}
+                  value={selectedNodeDataForProperties.data.label}
+                  onChange={(e) => handleNodeUpdate(selectedNodeForProperties!, { label: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
 
-              {(selectedNodeData.type === 'process' || selectedNodeData.type === 'output') && (
+              {(selectedNodeDataForProperties.type === 'process' || selectedNodeDataForProperties.type === 'output') && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {selectedNodeData.type === 'process' ? 'Expression' : 'Output Value'}
+                    {selectedNodeDataForProperties.type === 'process' ? 'Expression' : 'Output Value'}
                   </label>
                   <textarea
-                    value={selectedNodeData.data.value || ''}
-                    onChange={(e) => handleNodeUpdate(selectedNode!, { value: e.target.value })}
+                    value={selectedNodeDataForProperties.data.value || ''}
+                    onChange={(e) => handleNodeUpdate(selectedNodeForProperties!, { value: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     rows={3}
-                    placeholder={selectedNodeData.type === 'process' ? 'e.g., sum = a + b' : 'e.g., sum'}
+                    placeholder={selectedNodeDataForProperties.type === 'process' ? 'e.g., sum = a + b' : 'e.g., sum'}
                   />
                 </div>
               )}
 
-              {selectedNodeData.type === 'decision' && (
+              {selectedNodeDataForProperties.type === 'decision' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Condition
                   </label>
                   <input
                     type="text"
-                    value={selectedNodeData.data.condition || ''}
-                    onChange={(e) => handleNodeUpdate(selectedNode!, { condition: e.target.value })}
+                    value={selectedNodeDataForProperties.data.condition || ''}
+                    onChange={(e) => handleNodeUpdate(selectedNodeForProperties!, { condition: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="e.g., n % 2 == 0"
                   />
