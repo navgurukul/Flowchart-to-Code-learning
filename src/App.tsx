@@ -663,21 +663,23 @@ function App() {
                 <div className="bg-white p-4 rounded-lg shadow border">
                   <h3 className="text-lg font-semibold mb-2">Dry Run Log</h3>
                   <pre className="text-xs bg-gray-50 p-2 rounded max-h-60 overflow-y-auto">
-                    {currentDryRunState.log.map((entry, index) => (
-                      <div key={index} className={`text-${entry.type === 'error' ? 'red' : entry.type === 'info' ? 'blue' : 'black'}-600`}>
-                        [{entry.timestamp.split('T')[1].slice(0,8)}] {entry.nodeId && `[Node: ${entry.nodeId}] `}{entry.message}
-                        {entry.data?.variableName && ` (${entry.data.variableName}: ${entry.data.newValue})`}
-                      </div>
-                    )).join('') || "Log is empty."}
+                    {currentDryRunState.log.length > 0 ?
+                      currentDryRunState.log.map((entry, index) => (
+                        <div key={index} className={`text-${entry.type === 'error' ? 'red' : entry.type === 'info' ? 'blue' : 'black'}-600`}>
+                          [{entry.timestamp.split('T')[1].slice(0,8)}] {entry.nodeId && `[Node: ${entry.nodeId}] `}{entry.message}
+                          {entry.data?.variableName && ` (${entry.data.variableName}: ${JSON.stringify(entry.data.newValue)})`}
+                        </div>
+                      )) : "Log is empty."}
                   </pre>
                 </div>
                 {/* Dry Run Variables Panel Placeholder */}
                 <div className="bg-white p-4 rounded-lg shadow border">
                   <h3 className="text-lg font-semibold mb-2">Variables</h3>
                   <pre className="text-xs bg-gray-50 p-2 rounded max-h-60 overflow-y-auto">
-                    {Object.entries(currentDryRunState.variables).map(([key, value]) => (
-                      <div key={key}>{`${key}: ${JSON.stringify(value)}`}</div>
-                    )).join('') || "No variables."}
+                    {Object.keys(currentDryRunState.variables).length > 0 ?
+                      Object.entries(currentDryRunState.variables).map(([key, value]) => (
+                        <div key={key}>{`${key}: ${JSON.stringify(value)}`}</div>
+                      )) : "No variables."}
                   </pre>
                 </div>
               </div>
