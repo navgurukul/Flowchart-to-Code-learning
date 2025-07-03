@@ -75,27 +75,11 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         // For now, AppUser is derived from FirebaseUser directly after backend confirmation
         setCurrentUser(mapFirebaseUserToAppUser(firebaseUser));
 
-        // Attempt to sync localStorage progress to Firebase
-        try {
-          const uid = firebaseUser.uid;
-          const localStorageKey = `studentProgress_${uid}`;
-          const localProgressData = localStorage.getItem(localStorageKey);
-
-          if (localProgressData) {
-            const parsedData = JSON.parse(localProgressData);
-            const db = getDatabase(app);
-            const userProgressRef = ref(db, `/userProgress/${uid}`);
-            await set(userProgressRef, parsedData);
-            console.log('Successfully synced local progress to Firebase.');
-            // Optionally, remove the local data after successful sync
-            // localStorage.removeItem(localStorageKey);
-          } else {
-            console.log('No local progress found to sync.');
-          }
-        } catch (syncError) {
-          console.error('Error syncing local progress to Firebase:', syncError);
-          // Log and continue, do not block login
-        }
+        // The following block for syncing localStorage to Firebase has been removed
+        // as it could cause data loss by overwriting newer Firebase data with
+        // potentially stale localStorage data. App.tsx handles loading from and
+        // saving to Firebase as the primary source of truth for logged-in users.
+        // console.log('Local storage to Firebase sync step skipped to prevent data overwriting.');
 
         // Construct welcome message
         const welcomeMessage = firebaseUser.displayName
