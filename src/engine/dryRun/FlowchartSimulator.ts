@@ -16,21 +16,16 @@ export class FlowchartSimulator {
     if (!startNode) {
       this.state = {
         currentProcessedNodeId: null,
-        next предстоящийNodeId: null,
+        nextNodeId: null,
         variables: { ...initialInputs },
         log: [this.createLogEntry('error', 'Dry run error: Start node not found.')],
-        history: [],
-        error: 'Start node not found.',
-        isComplete: true,
-        isPaused: false,
-        loopIterations: {},
       };
       return;
     }
 
     this.state = {
       currentProcessedNodeId: null, // Nothing processed initially
-      next предстоящийNodeId: startNode.id, // Start node is the first to be processed
+      nextNodeId: startNode.id, // Start node is the first to be processed
       variables: { ...initialInputs }, // Initialize variables with provided inputs
       log: [this.createLogEntry('info', 'Dry run initialized. Ready to start.')],
       history: [],
@@ -124,7 +119,7 @@ export class FlowchartSimulator {
    * Processes the `state.next предстоящийNodeId`.
    */
   public nextStep(): DryRunState {
-    if (this.state.isComplete || !this.state.next предстоящийNodeId) {
+    if (this.state.isComplete || !this.state.nextNodeId) {
       this.state.isPaused = true;
       if (!this.state.isComplete) {
           this.state.log.push(this.createLogEntry('info', 'Simulation cannot proceed further. No next node or already complete.'));
@@ -134,7 +129,7 @@ export class FlowchartSimulator {
     }
 
     this.state.isPaused = false;
-    const nodeIdToProcess = this.state.next предстоящийNodeId;
+    const nodeIdToProcess = this.state.nextNodeId;
     const node = this.findNodeById(nodeIdToProcess);
 
     if (!node) {
@@ -143,7 +138,7 @@ export class FlowchartSimulator {
       this.state.isComplete = true;
       this.state.isPaused = true;
       this.state.currentProcessedNodeId = nodeIdToProcess;
-      this.state.next предстоящийNodeId = null;
+      this.state.nextNodeId = null;
       return this.getState();
     }
 
@@ -187,11 +182,11 @@ export class FlowchartSimulator {
       default:
         // For unknown or simple nodes that just pass through
         this.state.log.push(this.createLogEntry('info', `Node type '${node.type}' processed (generic).`, node.id));
-        this.state.next предстоящийNodeId = this.getNextNodeId(node.id);
+        this.state.nextNodeId = this.getNextNodeId(node.id);
         break;
     }
 
-    if (!this.state.next предстоящийNodeId && !this.state.isComplete) {
+    if (!this.state.nextNodeId && !this.state.isComplete) {
         this.state.log.push(this.createLogEntry('info', `Node '${node.data.label || node.type}' has no outgoing path but simulation is not marked complete. Ending.`, node.id));
         this.state.isComplete = true;
     }
@@ -209,13 +204,13 @@ export class FlowchartSimulator {
 
   private processStartNode(node: FlowchartNode): void {
     this.state.log.push(this.createLogEntry('node_process', `Start node '${node.data.label || 'Start'}' executed.`, node.id));
-    this.state.next предстоящийNodeId = this.getNextNodeId(node.id);
+    this.state.nextNodeId = this.getNextNodeId(node.id);
   }
 
   private processEndNode(node: FlowchartNode): void {
     this.state.log.push(this.createLogEntry('node_process', `End node '${node.data.label || 'End'}' reached. Dry run complete.`, node.id));
     this.state.isComplete = true;
-    this.state.next предстоящийNodeId = null;
+    this.state.nextNodeId = null;
   }
 
   private processInputNode(node: FlowchartNode): void {
@@ -236,7 +231,7 @@ export class FlowchartSimulator {
     }
 
     this.state.log.push(this.createLogEntry('node_process', message, node.id, { variableName: varName, newValue: value }));
-    this.state.next предстоящийNodeId = this.getNextNodeId(node.id);
+    this.state.nextNodeId = this.getNextNodeId(node.id);
   }
 
   // TODO: Implement methods for specific node type processing

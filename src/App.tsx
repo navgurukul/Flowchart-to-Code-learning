@@ -3,7 +3,7 @@ import Confetti from 'react-confetti';
 import { Toaster } from 'react-hot-toast';
 import { getDatabase, ref, get, set } from 'firebase/database';
 import { app } from "./firebaseConfig";
-import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Bot, X, PlaySquare, StepForward, Square } from 'lucide-react'; // Added Dry Run Icons
+import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Bot, X, PlaySquare, StepForward, Square } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import { Header } from './components/Header';
 import { GamifiedExerciseMap } from './components/GamifiedExerciseMap';
@@ -11,14 +11,14 @@ import { FlowchartBuilder } from './components/FlowchartBuilder';
 import { CodeEditor } from './components/CodeEditor';
 import { InputOutput } from './components/InputOutput';
 import { ChatWindow } from './components/ChatWindow';
-import GuideModal from './components/GuideModal'; // Import GuideModal
+import GuideModal from './components/GuideModal';
 import { allExercises } from './data/exercises';
 import { guideSteps } from './data/guideSteps';
 import { SafeCodeExecutor } from './utils/codeExecutor';
-import { StudentProgress, ExecutionResult, FlowchartData, Node as FlowchartNode } from './types/index';
+import { StudentProgress, ExecutionResult, FlowchartData } from './types/index';
 import { DryRunState, DryRunVariableMap } from './types/dryRun';
 import { FlowchartSimulator } from './engine/dryRun/FlowchartSimulator';
-import { DryRunInputModal } from './components/dryRun/DryRunInputModal'; // Import the modal
+import { DryRunInputModal } from './components/dryRun/DryRunInputModal';
 
 function App() {
   const { currentUser, loading: authLoading } = useAuth();
@@ -624,16 +624,15 @@ function App() {
             </div>
 
             {/* Toggle for Code Editor */}
-            </div>
 
             {/* Code Editor Toggle & Main Content Grid */}
             <div>
-                <button
-                  onClick={() => setIsCodeEditorOpen(!isCodeEditorOpen)}
-                  className="mb-2 px-3 py-1.5 text-sm bg-gray-200 hover:bg-gray-300 rounded-md"
-                >
-                  {isCodeEditorOpen ? 'Hide Code Editor' : 'Show Code Editor'}
-                </button>
+              <button
+                onClick={() => setIsCodeEditorOpen(!isCodeEditorOpen)}
+                className="mb-2 px-3 py-1.5 text-sm bg-gray-200 hover:bg-gray-300 rounded-md"
+              >
+                {isCodeEditorOpen ? 'Hide Code Editor' : 'Show Code Editor'}
+              </button>
             </div>
 
             <div className={`grid grid-cols-1 ${isCodeEditorOpen ? 'md:grid-cols-2' : 'md:grid-cols-1'} gap-6 h-[750px]`}>
@@ -719,9 +718,8 @@ function App() {
                    />}
         title={isChatOpen ? "Close AI Chat" : "Open AI Chat"}
         aria-label={isChatOpen ? "Close AI Chat" : "Open AI Chat"}
-      >
+      
         {isChatOpen ? <X size={24} /> : <Bot size={24} />}
-      </button>
 
       {showDryRunInputModal && currentFlowchart && (
         <DryRunInputModal
@@ -749,3 +747,4 @@ function App() {
 }
 
 export default App;
+
