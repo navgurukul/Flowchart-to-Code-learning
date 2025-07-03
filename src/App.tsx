@@ -289,17 +289,30 @@ function App() {
           const snapshot = await get(userProgressRef);
 
           if (snapshot.exists()) {
-            const firebaseProgress = snapshot.val() as StudentProgress;
-            // Data integrity check
-            if (firebaseProgress && firebaseProgress.completedExercises && typeof firebaseProgress.totalScore === 'number') {
-              setProgress(firebaseProgress);
-              setCurrentExerciseId(firebaseProgress.currentExercise === 0 ? null : (firebaseProgress.currentExercise || null));
-              console.log("Progress loaded from Firebase Realtime Database:", firebaseProgress);
-              return; // Successfully loaded from Firebase, skip other methods
-            } else {
-              console.warn("Firebase data exists but is not in the expected format:", firebaseProgress);
-              // Fall through to API/localStorage if data is malformed
+            let firebaseProgress = snapshot.val() as Partial<StudentProgress>; // Use Partial to acknowledge fields might be missing
+
+            // Ensure essential fields are present, providing defaults if necessary.
+            if (!firebaseProgress) { // Should not happen if snapshot.exists() is true, but good check
+              firebaseProgress = {};
             }
+
+            const validatedProgress: StudentProgress = {
+              completedExercises: firebaseProgress.completedExercises || [], // Default to empty array if missing
+              currentExercise: firebaseProgress.currentExercise === 0 ? null : (firebaseProgress.currentExercise || null),
+              totalScore: typeof firebaseProgress.totalScore === 'number' ? firebaseProgress.totalScore : 0, // Default to 0 if missing/invalid
+              lastAccessedAt: firebaseProgress.lastAccessedAt || new Date().toISOString(), // Default to now if missing
+            };
+
+            // Now, check if the original data (or defaults) are usable.
+            // The main concern from the log was `completedExercises` being undefined.
+            // The `totalScore` check was `typeof firebaseProgress.totalScore === 'number'`.
+            // With defaults, `validatedProgress` should always be in a usable state.
+
+            setProgress(validatedProgress);
+            setCurrentExerciseId(validatedProgress.currentExercise);
+            console.log("Progress loaded and validated from Firebase Realtime Database:", validatedProgress);
+            return; // Successfully loaded (and potentially corrected) from Firebase
+
           } else {
             console.log("No progress found in Firebase Realtime Database for this user.");
             // Fall through to API/localStorage
