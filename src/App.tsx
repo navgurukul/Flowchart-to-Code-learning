@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import Confetti from 'react-confetti';
 import { Toaster } from 'react-hot-toast';
-import { getDatabase, ref, get, set } from 'firebase/database';
+import { getDatabase, ref, get, set, update, serverTimestamp } from 'firebase/database'; // Added update and serverTimestamp
 import { app } from "./firebaseConfig";
-import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Bot, X, PlaySquare, StepForward, Square } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Bot, X, PlaySquare, StepForward, Square, Users } from 'lucide-react'; // Added Users icon
 import { useAuth } from './contexts/AuthContext';
 import { Header } from './components/Header';
+import { OnlineUsersPanel } from './components/OnlineUsersPanel'; // Import the new panel
 import { GamifiedExerciseMap } from './components/GamifiedExerciseMap';
 import { FlowchartBuilder } from './components/FlowchartBuilder';
 import { CodeEditor } from './components/CodeEditor';
@@ -63,6 +64,9 @@ function App() {
   const currentExercise = currentExerciseId !== null
     ? allExercises.find(ex => ex.id === currentExerciseId)
     : null;
+
+  // --- Online Users Panel State ---
+  const [isOnlineUsersPanelOpen, setIsOnlineUsersPanelOpen] = useState(false);
 
   // --- Event Handlers ---
   const handleSelectExercise = (exerciseId: number) => {
@@ -317,6 +321,23 @@ function App() {
     }
   }, [progress, currentUser]);
 
+  // Effect to update user's current flowchart ID in Firebase presence
+  useEffect(() => {
+    if (currentUser) {
+      const db = getDatabase(app);
+      const userPresenceRef = ref(db, `onlineUsers/${currentUser.uid}`);
+      const newFlowchartId = currentExerciseId !== null ? `exercise-${currentExerciseId}` : null;
+
+      update(userPresenceRef, {
+        currentFlowchartId: newFlowchartId,
+        currentNodeId: null, // Reset current node when flowchart changes
+        lastSeen: serverTimestamp() // Also update lastSeen
+      }).catch(error => {
+        console.error("Error updating current flowchart ID in presence:", error);
+      });
+    }
+  }, [currentExerciseId, currentUser]);
+
   const handleNewFlowchartFromAI = (newFlowchartData: FlowchartData) => {
     console.log("App.tsx: Received new flowchart from AI to load:", newFlowchartData);
     // This will be the data that FlowchartBuilder should render.
@@ -542,10 +563,10 @@ function App() {
       
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel: Exercise List */}
-        <div className="flex">
+        <div className="flex"> {/* Container for button and panel */}
           <button
             onClick={() => setIsExerciseListOpen(!isExerciseListOpen)}
-            className="p-2 bg-gray-200 hover:bg-gray-300 h-full flex items-center justify-center"
+            className="p-2 bg-gray-200 hover:bg-gray-300 h-full flex items-center justify-center z-10"
             title={isExerciseListOpen ? "Collapse Exercise List" : "Expand Exercise List"}
           >
             {isExerciseListOpen ? <ChevronLeft size={20} /> : <PanelLeft size={20} />}
@@ -690,25 +711,45 @@ function App() {
           </div>
         )}
 
-        {/* Right Panel: Input/Output */}
-        {currentExercise && (
-          <div className="flex h-full sticky top-0">
-            {isInputOutputOpen && (
-              <InputOutput
-                exercise={currentExercise}
-                result={executionResult}
-                isRunning={isRunning && !isDryRunMode}
-              />
-            )}
-            <button
-              onClick={() => setIsInputOutputOpen(!isInputOutputOpen)}
-              className="p-2 bg-gray-200 hover:bg-gray-300 h-full flex items-center justify-center"
-              title={isInputOutputOpen ? "Collapse Input/Output Panel" : "Expand Input/Output Panel"}
-            >
-              {isInputOutputOpen ? <ChevronRight size={20} /> : <PanelRight size={20} />}
-            </button>
-          </div>
-        )}
+        {/* Right Panel: Input/Output & Online Users */}
+        {/* This div will act as a container for both panels and their toggle buttons */}
+        <div className="flex h-full sticky top-0">
+          {/* Online Users Panel (New) */}
+          {isOnlineUsersPanelOpen && currentUser && (
+            <div className="w-64 bg-white border-l border-gray-200 overflow-y-auto p-0"> {/* Adjusted padding */}
+              <OnlineUsersPanel currentUserId={currentUser.uid} />
+            </div>
+          )}
+          <button
+            onClick={() => setIsOnlineUsersPanelOpen(!isOnlineUsersPanelOpen)}
+            className="p-2 bg-gray-200 hover:bg-gray-300 h-full flex items-center justify-center z-10"
+            title={isOnlineUsersPanelOpen ? "Hide Online Users" : "Show Online Users"}
+          >
+            {isOnlineUsersPanelOpen ? <ChevronRight size={20} /> : <Users size={20} />}
+          </button>
+
+          {/* Existing Input/Output Panel */}
+          {currentExercise && (
+            <>
+              {isInputOutputOpen && (
+                <div className="w-96 bg-white border-l border-gray-200 overflow-y-auto"> {/* Ensure fixed width */}
+                  <InputOutput
+                    exercise={currentExercise}
+                    result={executionResult}
+                    isRunning={isRunning && !isDryRunMode}
+                  />
+                </div>
+              )}
+              <button
+                onClick={() => setIsInputOutputOpen(!isInputOutputOpen)}
+                className="p-2 bg-gray-200 hover:bg-gray-300 h-full flex items-center justify-center z-10"
+                title={isInputOutputOpen ? "Collapse Input/Output Panel" : "Expand Input/Output Panel"}
+              >
+                {isInputOutputOpen ? <ChevronRight size={20} /> : <PanelRight size={20} />}
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Chat Window */}
