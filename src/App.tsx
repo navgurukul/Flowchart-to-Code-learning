@@ -758,10 +758,16 @@ function App() {
                       onClose={() => setIsChatOpen(false)}
                       onFlowchartGenerated={handleNewFlowchartFromAI}
                    />}
+
+      {/* Chat Toggle Button */}
+      <button
+        onClick={() => setIsChatOpen(!isChatOpen)}
         title={isChatOpen ? "Close AI Chat" : "Open AI Chat"}
         aria-label={isChatOpen ? "Close AI Chat" : "Open AI Chat"}
-      
+        className="fixed bottom-4 right-4 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg z-50"
+      >
         {isChatOpen ? <X size={24} /> : <Bot size={24} />}
+      </button>
 
       {showDryRunInputModal && currentFlowchart && (
         <DryRunInputModal
