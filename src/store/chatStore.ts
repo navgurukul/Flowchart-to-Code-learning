@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import create from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export interface ExerciseContext { // Exporting
@@ -53,17 +53,19 @@ const useChatStore = create<ChatState>()(
       addMessage: (exerciseId, message) =>
         set((state) => {
           if (!exerciseId) return {}; // Do not add message if exerciseId is null
-          const history = state.chatHistory[exerciseId] || [];
+          const currentChatHistory = state.chatHistory || {}; // Ensure chatHistory is an object
+          const history = currentChatHistory[exerciseId] || [];
           return {
             chatHistory: {
-              ...state.chatHistory,
+              ...currentChatHistory,
               [exerciseId]: [...history, message],
             },
           };
         }),
       loadHistory: (exerciseId) => {
         if (!exerciseId) return []; // Return empty history if exerciseId is null
-        return get().chatHistory[exerciseId] || [];
+        const currentChatHistory = get().chatHistory || {}; // Ensure chatHistory is an object
+        return currentChatHistory[exerciseId] || [];
       },
     }),
     {
