@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import useChatStore from '../store/chatStore';
+import { postChatMessage } from '../mocks/api';
 
 const ExerciseChat: React.FC = () => {
   const {
@@ -17,9 +18,6 @@ const ExerciseChat: React.FC = () => {
   const [isBotTyping, setIsBotTyping] = useState(false);
   const messages = currentExerciseId ? loadHistory(currentExerciseId) : [];
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
-
-  // Import the mock API function
-  import { postChatMessage } from '../mocks/api';
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
