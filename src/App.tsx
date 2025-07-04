@@ -295,28 +295,33 @@ function App() {
   // Save progress
   useEffect(() => {
     if (currentUser) {
+      console.log(`Attempting to save progress for user: ${currentUser.uid}`, progress);
       // Save to Firebase Realtime Database
       try {
         const db = getDatabase(app);
         const userProgressRef = ref(db, `userProgress/${currentUser.uid}`);
         set(userProgressRef, progress)
           .then(() => {
-            console.log("Progress saved to Firebase Realtime Database for user:", currentUser.uid);
+            console.log("Progress successfully saved to Firebase Realtime Database for user:", currentUser.uid);
+            // Optionally, show a success toast, but can be noisy.
+            // toast.success("Progress saved!");
           })
           .catch((error) => {
             console.error("Error saving progress to Firebase Realtime Database:", error);
+            toast.error(`Failed to save progress to cloud: ${error.message}`);
           });
       } catch (error) {
         // This catch is for synchronous errors in the setup, though unlikely for db/ref calls
         console.error("Synchronous error setting up Firebase save:", error);
+        toast.error(`Local error before attempting to save progress: ${error.message}`);
       }
 
       // Also save to localStorage as a backup or for quicker local access
-      console.log("Saving progress to localStorage for user:", currentUser.uid);
+      console.log("Saving progress to localStorage for user:", currentUser.uid, progress);
       localStorage.setItem(`studentProgress_${currentUser.uid}`, JSON.stringify(progress));
     } else {
       // Save to anonymous localStorage if no user is logged in
-      console.log("Saving progress to anonymous localStorage.");
+      console.log("Attempting to save progress to anonymous localStorage.", progress);
       localStorage.setItem('studentProgress_anonymous', JSON.stringify(progress));
     }
   }, [progress, currentUser]);
@@ -392,60 +397,55 @@ function App() {
     }
 
     const loadData = async () => {
+      console.log("loadData: Starting to load user progress.");
       if (currentUser) {
-        console.log("User logged in, attempting to fetch progress for UID:", currentUser.uid);
+        console.log(`loadData: User logged in (UID: ${currentUser.uid}). Attempting to fetch progress.`);
 
         // 1. Try loading from Firebase Realtime Database first
+        console.log("loadData: Step 1 - Attempting to load progress directly from Firebase Realtime Database.");
         try {
           const db = getDatabase(app);
           const userProgressRef = ref(db, `userProgress/${currentUser.uid}`);
           const snapshot = await get(userProgressRef);
 
           if (snapshot.exists()) {
-            let firebaseProgress = snapshot.val() as Partial<StudentProgress>; // Use Partial to acknowledge fields might be missing
+            console.log("loadData: Step 1 - Data found in Firebase Realtime Database.", snapshot.val());
+            let firebaseProgress = snapshot.val() as Partial<StudentProgress>;
 
-            // Ensure essential fields are present, providing defaults if necessary.
-            if (!firebaseProgress) { // Should not happen if snapshot.exists() is true, but good check
-              firebaseProgress = {};
+            if (!firebaseProgress) {
+              firebaseProgress = {}; // Should not happen if snapshot.exists() is true
             }
 
             const validatedProgress: StudentProgress = {
-              completedExercises: firebaseProgress.completedExercises || [], // Default to empty array if missing
+              completedExercises: firebaseProgress.completedExercises || [],
               currentExercise: firebaseProgress.currentExercise === 0 ? null : (firebaseProgress.currentExercise || null),
-              totalScore: typeof firebaseProgress.totalScore === 'number' ? firebaseProgress.totalScore : 0, // Default to 0 if missing/invalid
-              lastAccessedAt: firebaseProgress.lastAccessedAt || new Date().toISOString(), // Default to now if missing
+              totalScore: typeof firebaseProgress.totalScore === 'number' ? firebaseProgress.totalScore : 0,
+              lastAccessedAt: firebaseProgress.lastAccessedAt || new Date().toISOString(),
             };
-
-            // Now, check if the original data (or defaults) are usable.
-            // The main concern from the log was `completedExercises` being undefined.
-            // The `totalScore` check was `typeof firebaseProgress.totalScore === 'number'`.
-            // With defaults, `validatedProgress` should always be in a usable state.
 
             setProgress(validatedProgress);
             setCurrentExerciseId(validatedProgress.currentExercise);
-            console.log("Progress loaded and validated from Firebase Realtime Database:", validatedProgress);
-            return; // Successfully loaded (and potentially corrected) from Firebase
-
+            console.log("loadData: Step 1 - Successfully loaded and validated progress from Firebase Realtime Database:", validatedProgress);
+            return;
           } else {
-            console.log("No progress found in Firebase Realtime Database for this user.");
-            // Fall through to API/localStorage
+            console.log("loadData: Step 1 - No progress found in Firebase Realtime Database for this user. Proceeding to next step.");
           }
         } catch (error) {
-          console.error("Error loading progress from Firebase Realtime Database:", error);
+          console.error("loadData: Step 1 - Error loading progress from Firebase Realtime Database:", error);
           // Fall through to API/localStorage on error
         }
 
         // 2. If Firebase load failed or no data, try API
+        console.log("loadData: Step 2 - Attempting to load progress from backend API.");
         try {
-          // TODO: Adjust the fetch URL if your backend is on a different port/domain
           const response = await fetch(`/api/users/${currentUser.uid}/details`);
           if (!response.ok) {
+            console.error(`loadData: Step 2 - API request failed with status: ${response.status}`);
             throw new Error(`Failed to fetch user details: ${response.status}`);
           }
-          const backendData = await response.json(); // This is UserDetails model
-          console.log("Fetched backend data:", backendData);
+          const backendData = await response.json();
+          console.log("loadData: Step 2 - Data fetched from backend API:", backendData);
 
-          // Map UserDetails to StudentProgress
           const completedExercisesNumbers = backendData.tasks_completed.map(Number);
           const latestCompleted = completedExercisesNumbers.length > 0 ? Math.max(0, ...completedExercisesNumbers) : 0;
 
@@ -454,70 +454,71 @@ function App() {
           if (firstIncomplete) {
             nextExerciseId = firstIncomplete.id;
           } else if (allExercises.length > 0) {
-            // If all are complete or no specific next, default to first or last+1 (capped)
             nextExerciseId = completedExercisesNumbers.includes(allExercises[allExercises.length -1].id)
-                              ? allExercises[allExercises.length -1].id // Stay on last if all complete
+                              ? allExercises[allExercises.length -1].id
                               : (latestCompleted < allExercises.length ? latestCompleted + 1 : allExercises[0].id);
           }
-          // Ensure nextExerciseId is not out of bounds if calculated as latestCompleted + 1
           if (nextExerciseId && nextExerciseId > allExercises[allExercises.length -1].id && allExercises.length > 0) {
              nextExerciseId = allExercises[allExercises.length -1].id;
           }
 
-
           const newProgress: StudentProgress = {
             completedExercises: completedExercisesNumbers,
-            currentExercise: nextExerciseId, // Can be null if no exercises or logic determines so
+            currentExercise: nextExerciseId,
             totalScore: backendData.points,
             lastAccessedAt: new Date(backendData.last_active).toISOString(),
           };
           setProgress(newProgress);
-          setCurrentExerciseId(newProgress.currentExercise); // This can be null
-          console.log("Progress updated from backend:", newProgress);
-
+          setCurrentExerciseId(newProgress.currentExercise);
+          console.log("loadData: Step 2 - Successfully loaded and mapped progress from backend API:", newProgress);
+          return; // Successfully loaded from API
         } catch (error) {
-          console.error('Failed to fetch progress from backend, using default:', error);
-          const userSpecificStorageKey = `studentProgress_${currentUser.uid}`;
-          const savedProgressLocal = localStorage.getItem(userSpecificStorageKey);
-          if (savedProgressLocal) {
-            try {
-              const parsed = JSON.parse(savedProgressLocal);
-              setProgress(parsed);
-              // Ensure currentExercise from local storage is valid, default to null if not.
-              setCurrentExerciseId(parsed.currentExercise === 0 ? null : (parsed.currentExercise || null));
-              console.log("Loaded progress from user-specific localStorage:", parsed);
-            } catch (parseError) {
-              console.error('Failed to parse user-specific saved progress:', parseError);
-              setProgress(defaultInitialProgress);
-              setCurrentExerciseId(defaultInitialProgress.currentExercise); // null
-            }
-          } else {
-            setProgress(defaultInitialProgress);
-            setCurrentExerciseId(defaultInitialProgress.currentExercise); // null
-            console.log("No user-specific local progress, set to default (no exercise selected).");
-          }
+          console.error('loadData: Step 2 - Failed to fetch or process progress from backend API. Proceeding to next step.', error);
+          // Fall through to user-specific localStorage
         }
+
+        // 3. Fallback to user-specific localStorage
+        console.log("loadData: Step 3 - Attempting to load progress from user-specific localStorage.");
+        const userSpecificStorageKey = `studentProgress_${currentUser.uid}`;
+        const savedProgressLocal = localStorage.getItem(userSpecificStorageKey);
+        if (savedProgressLocal) {
+          try {
+            const parsed = JSON.parse(savedProgressLocal);
+            setProgress(parsed);
+            setCurrentExerciseId(parsed.currentExercise === 0 ? null : (parsed.currentExercise || null));
+            console.log("loadData: Step 3 - Successfully loaded progress from user-specific localStorage:", parsed);
+          } catch (parseError) {
+            console.error('loadData: Step 3 - Failed to parse user-specific saved progress from localStorage. Using default progress.', parseError);
+            setProgress(defaultInitialProgress);
+            setCurrentExerciseId(defaultInitialProgress.currentExercise);
+          }
+        } else {
+          console.log("loadData: Step 3 - No user-specific progress found in localStorage. Using default progress.");
+          setProgress(defaultInitialProgress);
+          setCurrentExerciseId(defaultInitialProgress.currentExercise);
+        }
+
       } else {
-        console.log("User not logged in, loading progress from anonymous localStorage.");
+        console.log("loadData: User not logged in. Attempting to load progress from anonymous localStorage.");
         const savedProgress = localStorage.getItem('studentProgress_anonymous');
         if (savedProgress) {
           try {
             const parsed = JSON.parse(savedProgress);
             setProgress(parsed);
-             // Ensure currentExercise from local storage is valid, default to null if not.
             setCurrentExerciseId(parsed.currentExercise === 0 ? null : (parsed.currentExercise || null));
-            console.log("Loaded progress from anonymous localStorage:", parsed);
+            console.log("loadData: Successfully loaded progress from anonymous localStorage:", parsed);
           } catch (error) {
-            console.error('Failed to load anonymous saved progress:', error);
+            console.error('loadData: Failed to parse anonymous saved progress from localStorage. Using default progress.', error);
             setProgress(defaultInitialProgress);
-            setCurrentExerciseId(defaultInitialProgress.currentExercise); // null
+            setCurrentExerciseId(defaultInitialProgress.currentExercise);
           }
         } else {
-          console.log("No anonymous local progress, set to default (no exercise selected).");
+          console.log("loadData: No anonymous progress found in localStorage. Using default progress.");
           setProgress(defaultInitialProgress);
-          setCurrentExerciseId(defaultInitialProgress.currentExercise); // null
+          setCurrentExerciseId(defaultInitialProgress.currentExercise);
         }
       }
+      console.log("loadData: Finished loading user progress.");
     };
 
     loadData();
