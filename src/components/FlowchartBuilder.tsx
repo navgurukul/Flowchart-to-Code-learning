@@ -345,18 +345,9 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
       return;
     }
 
-    // Prevent node selection or connection logic if a drag is starting
-    // This check might be redundant if stopPropagation in handleNodeMouseDown works perfectly
-    // but can be a safeguard.
-    // Note: The original check `if (draggingNodeId === nodeId && dragOffset)` is likely
-    // not needed anymore because `handleDragEnd` (which fires on mouseup, triggering click)
-    // clears `draggingNodeId` and `dragOffset`. The `didDragNodeRef.current` check is more robust.
-    // However, keeping it for now to ensure no unintended behavior changes from its removal.
-    if (draggingNodeId === nodeId && dragOffset) {
-      // If a drag is initiated, don't process click for selection/connection
-      // The mouseup event will handle the end of the drag.
-      return;
-    }
+  // Removed the potentially problematic redundant check.
+  // The didDragNodeRef.current check above should be sufficient
+  // to distinguish between a click and a drag-release.
 
     if (isConnecting) {
       if (!connectionStart) {
