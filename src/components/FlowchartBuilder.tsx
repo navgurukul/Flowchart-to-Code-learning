@@ -10,7 +10,7 @@ import {
   RotateCcw,
   Save,
   Download,
-  Upload,
+  //Upload,
   Zap,
   PanelLeft, // Added for palette toggle
   PanelRight, // Added for properties toggle
@@ -417,25 +417,25 @@ const handleCanvasClick = (event: React.MouseEvent) => {
         console.error("Error clearing current node ID in presence:", error);
       });
     }
-    }
-  };
+  }
+};
 
-  const handleNodeUpdate = (nodeId: string, updates: Partial<FlowchartNode['data']>) => {
-    setFlowchartData(prev => ({
-      ...prev,
-      nodes: prev.nodes.map(node =>
-        node.id === nodeId
-          ? { ...node, data: { ...node.data, ...updates } }
-          : node
-      )
-    }));
-  };
+const handleNodeUpdate = (nodeId: string, updates: Partial<FlowchartNode['data']>) => {
+  setFlowchartData(prev => ({
+    ...prev,
+    nodes: prev.nodes.map(node =>
+      node.id === nodeId
+        ? { ...node, data: { ...node.data, ...updates } }
+        : node
+    )
+  }));
+};
 
-  const handleDeleteNode = (nodeId: string) => {
-    setFlowchartData(prev => ({
-      nodes: prev.nodes.filter(node => node.id !== nodeId),
-      edges: prev.edges.filter(edge => edge.source !== nodeId && edge.target !== nodeId)
-    }));
+const handleDeleteNode = (nodeId: string) => {
+  setFlowchartData(prev => ({
+    nodes: prev.nodes.filter(node => node.id !== nodeId),
+    edges: prev.edges.filter(edge => edge.source !== nodeId && edge.target !== nodeId)
+  }));
   setSelectedNodeForProperties(null);
 
   // If the deleted node was the one the user had selected for presence, clear it
@@ -459,121 +459,121 @@ const handleCanvasClick = (event: React.MouseEvent) => {
       });
     }
   }
-  };
+};
 
-  const handleImageFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      console.log("Image file selected:", file.name, file.type);
+const handleImageFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const file = event.target.files?.[0];
+  if (file) {
+    console.log("Image file selected:", file.name, file.type);
 
-      // Placeholder for sending image to ML service and receiving flowchart data
-      console.log("Simulating ML processing for image:", file.name);
-      // Imagine mlService.processImage(file) returns FlowchartData
-      const mockMLOutput: FlowchartData = {
-        nodes: [
-          { id: 'ml-node-1', type: 'start', position: { x: 50, y: 50 }, data: { label: 'Start ML' } },
-          { id: 'ml-node-2', type: 'process', position: { x: 200, y: 50 }, data: { label: 'Process ML Data' } },
-          { id: 'ml-node-3', type: 'end', position: { x: 350, y: 50 }, data: { label: 'End ML' } },
-        ],
-        edges: [
-          { id: 'ml-edge-1', source: 'ml-node-1', target: 'ml-node-2', type: 'default' },
-          { id: 'ml-edge-2', source: 'ml-node-2', target: 'ml-node-3', type: 'default' },
-        ],
-      };
-      console.log("Mock ML service returned:", mockMLOutput);
-      // This function will be implemented in the next step
-      updateFlowchartDataWithMLOutput(mockMLOutput);
+    // Placeholder for sending image to ML service and receiving flowchart data
+    console.log("Simulating ML processing for image:", file.name);
+    // Imagine mlService.processImage(file) returns FlowchartData
+    const mockMLOutput: FlowchartData = {
+      nodes: [
+        { id: 'ml-node-1', type: 'start', position: { x: 50, y: 50 }, data: { label: 'Start ML' } },
+        { id: 'ml-node-2', type: 'process', position: { x: 200, y: 50 }, data: { label: 'Process ML Data' } },
+        { id: 'ml-node-3', type: 'end', position: { x: 350, y: 50 }, data: { label: 'End ML' } },
+      ],
+      edges: [
+        { id: 'ml-edge-1', source: 'ml-node-1', target: 'ml-node-2', type: 'default' },
+        { id: 'ml-edge-2', source: 'ml-node-2', target: 'ml-node-3', type: 'default' },
+      ],
+    };
+    console.log("Mock ML service returned:", mockMLOutput);
+    // This function will be implemented in the next step
+    updateFlowchartDataWithMLOutput(mockMLOutput);
+  }
+  // Reset file input to allow selecting the same file again if needed
+  if (event.target) {
+    event.target.value = '';
+  }
+};
+
+const updateFlowchartDataWithMLOutput = (data: FlowchartData) => {
+  console.log("Updating flowchart with data from ML:", data);
+  setFlowchartData(data);
+  setSelectedNodeForProperties(null); // Deselect any currently selected node
+  // Optionally, trigger code generation if that's desired after import
+  onGenerateCode(data); // This will call handleFlowchartChange in App.tsx
+};
+
+const triggerImageUpload = () => {
+  fileInputRef.current?.click();
+};
+
+const handleDeleteEdge = (edgeId: string) => {
+  setFlowchartData(prev => ({
+    ...prev,
+    edges: prev.edges.filter(edge => edge.id !== edgeId)
+  }));
+};
+
+const generateCodeFromFlowchart = () => {
+  const code = convertFlowchartToCode(flowchartData);
+  setGeneratedCode(code);
+  onGenerateCode(flowchartData);
+};
+
+const convertFlowchartToCode = (data: FlowchartData): string => {
+  // Simple code generation logic
+  let code = 'function solution(';
+  
+  // Find input nodes to determine parameters
+  const inputNodes = data.nodes.filter(node => node.type === 'input');
+  const params = inputNodes.map((_, index) => `input${index + 1}`).join(', ');
+  code += params + ') {\n';
+
+  // Add variable declarations
+  inputNodes.forEach((node, index) => {
+    code += `  let ${node.data.label.toLowerCase().replace(/\s+/g, '')} = input${index + 1};\n`;
+  });
+
+  // Process nodes in order
+  const processNodes = data.nodes.filter(node => node.type === 'process');
+  processNodes.forEach(node => {
+    if (node.data.value) {
+      code += `  ${node.data.value}\n`;
     }
-    // Reset file input to allow selecting the same file again if needed
-    if (event.target) {
-      event.target.value = '';
-    }
-  };
+  });
 
-  const updateFlowchartDataWithMLOutput = (data: FlowchartData) => {
-    console.log("Updating flowchart with data from ML:", data);
-    setFlowchartData(data);
-    setSelectedNodeForProperties(null); // Deselect any currently selected node
-    // Optionally, trigger code generation if that's desired after import
-    onGenerateCode(data); // This will call handleFlowchartChange in App.tsx
-  };
+  // Find output nodes
+  const outputNodes = data.nodes.filter(node => node.type === 'output');
+  if (outputNodes.length > 0) {
+    const outputValue = outputNodes[0].data.value || outputNodes[0].data.label;
+    code += `  return ${outputValue};\n`;
+  }
 
-  const triggerImageUpload = () => {
-    fileInputRef.current?.click();
-  };
+  code += '}';
+  return code;
+};
 
-  const handleDeleteEdge = (edgeId: string) => {
-    setFlowchartData(prev => ({
-      ...prev,
-      edges: prev.edges.filter(edge => edge.id !== edgeId)
-    }));
-  };
-
-  const generateCodeFromFlowchart = () => {
-    const code = convertFlowchartToCode(flowchartData);
-    setGeneratedCode(code);
-    onGenerateCode(flowchartData);
-  };
-
-  const convertFlowchartToCode = (data: FlowchartData): string => {
-    // Simple code generation logic
-    let code = 'function solution(';
-    
-    // Find input nodes to determine parameters
-    const inputNodes = data.nodes.filter(node => node.type === 'input');
-    const params = inputNodes.map((_, index) => `input${index + 1}`).join(', ');
-    code += params + ') {\n';
-
-    // Add variable declarations
-    inputNodes.forEach((node, index) => {
-      code += `  let ${node.data.label.toLowerCase().replace(/\s+/g, '')} = input${index + 1};\n`;
+const clearCanvas = () => {
+  setFlowchartData({ nodes: [], edges: [] });
+  setSelectedNodeForProperties(null);
+  setGeneratedCode('');
+  setConnectingMousePosition(null);
+  // Clear current node ID in Firebase presence when canvas is cleared
+  if (currentUser) {
+    const db = getDatabase(app);
+    const userPresenceRef = ref(db, `onlineUsers/${currentUser.uid}`);
+    update(userPresenceRef, {
+      currentNodeId: null,
+      lastSeen: serverTimestamp()
+    }).catch(error => {
+      console.error("Error clearing current node ID on canvas clear:", error);
     });
+  }
+};
 
-    // Process nodes in order
-    const processNodes = data.nodes.filter(node => node.type === 'process');
-    processNodes.forEach(node => {
-      if (node.data.value) {
-        code += `  ${node.data.value}\n`;
-      }
-    });
+const getNodeStyle = (nodeType: FlowchartNodeType) => {
+  const palette = nodePalette.find(p => p.type === nodeType);
+  return palette?.color || 'bg-gray-100 border-gray-300 text-gray-800';
+};
 
-    // Find output nodes
-    const outputNodes = data.nodes.filter(node => node.type === 'output');
-    if (outputNodes.length > 0) {
-      const outputValue = outputNodes[0].data.value || outputNodes[0].data.label;
-      code += `  return ${outputValue};\n`;
-    }
-
-    code += '}';
-    return code;
-  };
-
-  const clearCanvas = () => {
-    setFlowchartData({ nodes: [], edges: [] });
-    setSelectedNodeForProperties(null);
-    setGeneratedCode('');
-    setConnectingMousePosition(null);
-    // Clear current node ID in Firebase presence when canvas is cleared
-    if (currentUser) {
-      const db = getDatabase(app);
-      const userPresenceRef = ref(db, `onlineUsers/${currentUser.uid}`);
-      update(userPresenceRef, {
-        currentNodeId: null,
-        lastSeen: serverTimestamp()
-      }).catch(error => {
-        console.error("Error clearing current node ID on canvas clear:", error);
-      });
-    }
-  };
-
-  const getNodeStyle = (nodeType: FlowchartNodeType) => {
-    const palette = nodePalette.find(p => p.type === nodeType);
-    return palette?.color || 'bg-gray-100 border-gray-300 text-gray-800';
-  };
-
-  const selectedNodeDataForProperties = selectedNodeForProperties
-    ? flowchartData.nodes.find(node => node.id === selectedNodeForProperties)
-    : null;
+const selectedNodeDataForProperties = selectedNodeForProperties
+  ? flowchartData.nodes.find(node => node.id === selectedNodeForProperties)
+  : null;
 
   // Props for FlowchartBuilder in App.tsx likely needs to be updated
   // for onNodeClick, onPaneClick, etc. if we were using ReactFlow directly.
@@ -934,7 +934,7 @@ const handleCanvasClick = (event: React.MouseEvent) => {
                 <input
                   type="text"
                   value={selectedNodeDataForProperties.data.label}
-                  onChange={(e) => handleNodeUpdate(selectedNodeForProperties!, { label: e.target.value })}
+                  onChange={(e) => handleNodeUpdate(selectedNodeDataForProperties!, { label: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -946,7 +946,7 @@ const handleCanvasClick = (event: React.MouseEvent) => {
                   </label>
                   <textarea
                     value={selectedNodeDataForProperties.data.value || ''}
-                    onChange={(e) => handleNodeUpdate(selectedNodeForProperties!, { value: e.target.value })}
+                    onChange={(e) => handleNodeUpdate(selectedNodeDataForProperties!, { value: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     rows={3}
                     placeholder={selectedNodeDataForProperties.type === 'process' ? 'e.g., sum = a + b' : 'e.g., sum'}
@@ -962,7 +962,7 @@ const handleCanvasClick = (event: React.MouseEvent) => {
                   <input
                     type="text"
                     value={selectedNodeDataForProperties.data.condition || ''}
-                    onChange={(e) => handleNodeUpdate(selectedNodeForProperties!, { condition: e.target.value })}
+                    onChange={(e) => handleNodeUpdate(selectedNodeDataForProperties!, { condition: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="e.g., n % 2 == 0"
                   />
