@@ -16,7 +16,8 @@ import {
   PanelRight, // Added for properties toggle
   Settings2, // Added for properties toggle
   Palette, // Added for palette toggle
-  X // For the close button on properties panel
+  X, // For the close button on properties panel
+  Upload // Added for image upload
 } from 'lucide-react';
 import { getDatabase, ref, update, serverTimestamp, onValue } from 'firebase/database'; // Added onValue
 import { app } from '../firebaseConfig';
@@ -121,6 +122,7 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
   const [draggedNodeType, setDraggedNodeType] = useState<FlowchartNodeType | null>(null);
   const [generatedCode, setGeneratedCode] = useState<string>(''); // This seems to be local state, but generatedCode is also a prop in App.tsx
   const canvasRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null); // Ref for the hidden file input
   const [connectingMousePosition, setConnectingMousePosition] = useState<{ x: number; y: number } | null>(null);
   const [isPaletteOpen, setIsPaletteOpen] = useState(true); // Default open on larger screens
   const [isPropertiesOpen, setIsPropertiesOpen] = useState(true); // Default open on larger screens
@@ -459,6 +461,47 @@ const handleCanvasClick = (event: React.MouseEvent) => {
   }
   };
 
+  const handleImageFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      console.log("Image file selected:", file.name, file.type);
+
+      // Placeholder for sending image to ML service and receiving flowchart data
+      console.log("Simulating ML processing for image:", file.name);
+      // Imagine mlService.processImage(file) returns FlowchartData
+      const mockMLOutput: FlowchartData = {
+        nodes: [
+          { id: 'ml-node-1', type: 'start', position: { x: 50, y: 50 }, data: { label: 'Start ML' } },
+          { id: 'ml-node-2', type: 'process', position: { x: 200, y: 50 }, data: { label: 'Process ML Data' } },
+          { id: 'ml-node-3', type: 'end', position: { x: 350, y: 50 }, data: { label: 'End ML' } },
+        ],
+        edges: [
+          { id: 'ml-edge-1', source: 'ml-node-1', target: 'ml-node-2', type: 'default' },
+          { id: 'ml-edge-2', source: 'ml-node-2', target: 'ml-node-3', type: 'default' },
+        ],
+      };
+      console.log("Mock ML service returned:", mockMLOutput);
+      // This function will be implemented in the next step
+      updateFlowchartDataWithMLOutput(mockMLOutput);
+    }
+    // Reset file input to allow selecting the same file again if needed
+    if (event.target) {
+      event.target.value = '';
+    }
+  };
+
+  const updateFlowchartDataWithMLOutput = (data: FlowchartData) => {
+    console.log("Updating flowchart with data from ML:", data);
+    setFlowchartData(data);
+    setSelectedNodeForProperties(null); // Deselect any currently selected node
+    // Optionally, trigger code generation if that's desired after import
+    onGenerateCode(data); // This will call handleFlowchartChange in App.tsx
+  };
+
+  const triggerImageUpload = () => {
+    fileInputRef.current?.click();
+  };
+
   const handleDeleteEdge = (edgeId: string) => {
     setFlowchartData(prev => ({
       ...prev,
@@ -596,6 +639,23 @@ const handleCanvasClick = (event: React.MouseEvent) => {
             <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
             Clear
           </button>
+          {/* Image Upload Button */}
+          <button
+            onClick={triggerImageUpload}
+            className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-white bg-teal-600 rounded-md hover:bg-teal-700 transition-colors"
+            title="Upload Flowchart Image"
+          >
+            <Upload className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+            Import
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="image/*"
+            onChange={handleImageFileSelect}
+            data-testid="flowchart-image-upload-input"
+            className="hidden"
+          />
           <button
             onClick={() => setIsPropertiesOpen(!isPropertiesOpen)}
             className="p-1.5 hover:bg-gray-200 rounded-md ml-1 sm:ml-2 md:hidden" // Hidden on md and above
