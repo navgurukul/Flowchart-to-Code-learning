@@ -25,10 +25,9 @@ import useChatStore from './store/chatStore'; // Import the chat store
 
 function App() {
   const { currentUser, loading: authLoading, showDomainBlockModal, closeDomainBlockModal } = useAuth();
-  const { setExerciseContext, lastResyncRequested } = useChatStore((state) => ({ // Get lastResyncRequested
-    setExerciseContext: state.setExerciseContext,
-    lastResyncRequested: state.lastResyncRequested,
-  }));
+  const setExerciseContext = useChatStore((s) => s.setExerciseContext);
+  const exerciseContext = useChatStore((s) => s.exerciseContext);
+  const lastResyncRequested = useChatStore((s) => s.lastResyncRequested); // <-- Add this line
 
   // --- Standard App State ---
   const defaultInitialProgress: StudentProgress = {
@@ -558,13 +557,12 @@ function App() {
       setExerciseContext({
         exerciseId: String(currentExercise.id),
         title: currentExercise.title,
-        userCode: generatedCode, // Assuming generatedCode is the user's latest code attempt
+        userCode: generatedCode,
         isCorrect: executionResult?.isCorrect ?? null,
         errorMessage: executionResult?.error ?? null,
-        previousHints: 0, // Placeholder, will need a mechanism to track this
+        previousHints: 0,
       });
     } else {
-      // Clear context if no exercise is selected
       setExerciseContext({
         exerciseId: null,
         title: null,
@@ -574,8 +572,7 @@ function App() {
         previousHints: null,
       });
     }
-    // console.log('Chat context updated due to change in dependencies or resync request.');
-  }, [currentExercise, generatedCode, executionResult, setExerciseContext, lastResyncRequested]); // Added lastResyncRequested
+  }, [currentExercise, generatedCode, executionResult, setExerciseContext, lastResyncRequested]);
 
   // Debug log for current exercise state at render time
   console.log(
