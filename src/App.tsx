@@ -3,7 +3,7 @@ import Confetti from 'react-confetti';
 import { Toaster } from 'react-hot-toast';
 import { getDatabase, ref, get, set, update, serverTimestamp } from 'firebase/database'; // Added update and serverTimestamp
 import { app } from "./firebaseConfig";
-import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Bot, X, PlaySquare, StepForward, Square, Users } from 'lucide-react'; // Added Users icon
+import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, PlaySquare, StepForward, Square, Users } from 'lucide-react'; // Added Users icon, removed Bot, X
 import { useAuth } from './contexts/AuthContext';
 import DomainBlockModal from './components/DomainBlockModal'; // Import the modal
 import { Header } from './components/Header';
@@ -12,7 +12,7 @@ import { GamifiedExerciseMap } from './components/GamifiedExerciseMap';
 import { FlowchartBuilder } from './components/FlowchartBuilder';
 import { CodeEditor } from './components/CodeEditor';
 import { InputOutput } from './components/InputOutput';
-import { ChatWindow } from './components/ChatWindow';
+import ExerciseChat from './components/ExerciseChat'; // Import the new ExerciseChat component
 import GuideModal from './components/GuideModal';
 import { allExercises } from './data/exercises';
 import { guideSteps } from './data/guideSteps';
@@ -21,9 +21,14 @@ import { StudentProgress, ExecutionResult, FlowchartData } from './types/index';
 import { DryRunState, DryRunVariableMap } from './types/dryRun';
 import { FlowchartSimulator } from './engine/dryRun/FlowchartSimulator';
 import { DryRunInputModal } from './components/dryRun/DryRunInputModal';
+import useChatStore from './store/chatStore'; // Import the chat store
 
 function App() {
   const { currentUser, loading: authLoading, showDomainBlockModal, closeDomainBlockModal } = useAuth();
+  const { setExerciseContext, lastResyncRequested } = useChatStore((state) => ({ // Get lastResyncRequested
+    setExerciseContext: state.setExerciseContext,
+    lastResyncRequested: state.lastResyncRequested,
+  }));
 
   // --- Standard App State ---
   const defaultInitialProgress: StudentProgress = {
@@ -42,7 +47,7 @@ function App() {
   const [generatedCode, setGeneratedCode] = useState<string>('');
   const [currentFlowchart, setCurrentFlowchart] = useState<FlowchartData>({ nodes: [], edges: [] });
   const [isCodeEditorOpen, setIsCodeEditorOpen] = useState(true); // New state for CodeEditor visibility
-  const [isChatOpen, setIsChatOpen] = useState(false); // Default to closed
+  // const [isChatOpen, setIsChatOpen] = useState(false); // Removed: Handled by ExerciseChat store
   const [aiFlowchartToLoad, setAiFlowchartToLoad] = useState<FlowchartData | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [windowSize, setWindowSize] = useState({
@@ -547,6 +552,31 @@ function App() {
     }
   }, [showConfetti]);
 
+  // Effect to update chat context when exercise or related states change
+  useEffect(() => {
+    if (currentExercise) {
+      setExerciseContext({
+        exerciseId: String(currentExercise.id),
+        title: currentExercise.title,
+        userCode: generatedCode, // Assuming generatedCode is the user's latest code attempt
+        isCorrect: executionResult?.isCorrect ?? null,
+        errorMessage: executionResult?.error ?? null,
+        previousHints: 0, // Placeholder, will need a mechanism to track this
+      });
+    } else {
+      // Clear context if no exercise is selected
+      setExerciseContext({
+        exerciseId: null,
+        title: null,
+        userCode: null,
+        isCorrect: null,
+        errorMessage: null,
+        previousHints: null,
+      });
+    }
+    // console.log('Chat context updated due to change in dependencies or resync request.');
+  }, [currentExercise, generatedCode, executionResult, setExerciseContext, lastResyncRequested]); // Added lastResyncRequested
+
   // Debug log for current exercise state at render time
   console.log(
     `App.tsx render: currentExerciseId = ${currentExerciseId}, currentExercise?.id = ${currentExercise?.id}, progress.currentExercise = ${progress.currentExercise}, isDryRunMode = ${isDryRunMode}`
@@ -754,21 +784,10 @@ function App() {
         </div>
       </div>
 
-      {/* Chat Window */}
-      {isChatOpen && <ChatWindow
-                      onClose={() => setIsChatOpen(false)}
-                      onFlowchartGenerated={handleNewFlowchartFromAI}
-                   />}
+      {/* New Exercise Chat Component */}
+      <ExerciseChat />
 
-      {/* Chat Toggle Button */}
-      <button
-        onClick={() => setIsChatOpen(!isChatOpen)}
-        title={isChatOpen ? "Close AI Chat" : "Open AI Chat"}
-        aria-label={isChatOpen ? "Close AI Chat" : "Open AI Chat"}
-        className="fixed bottom-4 right-4 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg z-50"
-      >
-        {isChatOpen ? <X size={24} /> : <Bot size={24} />}
-      </button>
+      {/* Removed old chat toggle button and ChatWindow component */}
 
       {showDryRunInputModal && currentFlowchart && (
         <DryRunInputModal
