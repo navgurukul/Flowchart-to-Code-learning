@@ -5,6 +5,7 @@ import { getDatabase, ref, get, set, update, serverTimestamp } from 'firebase/da
 import { app } from "./firebaseConfig";
 import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Bot, X, PlaySquare, StepForward, Square, Users } from 'lucide-react'; // Added Users icon
 import { useAuth } from './contexts/AuthContext';
+import DomainBlockModal from './components/DomainBlockModal'; // Import the modal
 import { Header } from './components/Header';
 import { OnlineUsersPanel } from './components/OnlineUsersPanel'; // Import the new panel
 import { GamifiedExerciseMap } from './components/GamifiedExerciseMap';
@@ -22,7 +23,7 @@ import { FlowchartSimulator } from './engine/dryRun/FlowchartSimulator';
 import { DryRunInputModal } from './components/dryRun/DryRunInputModal';
 
 function App() {
-  const { currentUser, loading: authLoading } = useAuth();
+  const { currentUser, loading: authLoading, showDomainBlockModal, closeDomainBlockModal } = useAuth();
 
   // --- Standard App State ---
   const defaultInitialProgress: StudentProgress = {
@@ -790,6 +791,7 @@ function App() {
         onPrev={handleGuidePrev}
         onClose={handleGuideClose}
       />
+      <DomainBlockModal isOpen={showDomainBlockModal} onClose={closeDomainBlockModal} />
     </div>
   );
 }

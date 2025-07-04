@@ -1,6 +1,7 @@
-from datetime import datetime  # Added import
+from datetime import datetime, timezone # Added import
 from typing import List  # Added import
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware  # Ensure this is imported
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -188,6 +189,48 @@ class FirebaseUser(BaseModel):
     email: Optional[str] = None
 
 
+class AuthenticatedUser(BaseModel):
+    uid: str
+    email: str
+
+# Security scheme for Bearer token
+oauth2_scheme = HTTPBearer()
+ALLOWED_DOMAIN = "navgurukul.org"
+
+async def get_current_user_data(credentials: HTTPAuthorizationCredentials = Depends(oauth2_scheme)) -> AuthenticatedUser:
+    token = credentials.credentials
+    if not token:
+        raise HTTPException(
+            status_code=401,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    try:
+        decoded_token = auth.verify_id_token(token)
+        uid = decoded_token.get("uid")
+        email = decoded_token.get("email")
+        if not email or not uid:
+            raise HTTPException(status_code=401, detail="UID or Email not found in token.")
+        if not email.endswith(f"@{ALLOWED_DOMAIN}"):
+            raise HTTPException(status_code=403, detail=f"Access restricted to {ALLOWED_DOMAIN} domain.")
+        return AuthenticatedUser(uid=uid, email=email)
+    except firebase_admin.auth.InvalidIdTokenError:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except HTTPException as http_exc:
+        raise http_exc # Re-raise HTTPException explicitly
+    except Exception as e:
+        # Log the exception for server-side review
+        print(f"Error during token verification or domain check: {e}")
+        raise HTTPException(
+            status_code=500, # Keep this for genuinely unexpected errors
+            detail="Could not verify authentication credentials."
+        )
+
+
 @app.get("/")
 async def read_root():
     status = "Gemini Configured and Model Initialized" if model else "Gemini NOT Configured or Model Init Failed - Check Logs & .env setup"
@@ -195,8 +238,8 @@ async def read_root():
 
 
 @app.post("/api/chat")
-async def handle_chat_message(chat_message: ChatMessage):
-
+async def handle_chat_message(chat_message: ChatMessage, current_user: AuthenticatedUser = Depends(get_current_user_data)):
+    print(f"User {current_user.email} (UID: {current_user.uid}) accessing chat.")
     user_message = chat_message.message.strip()
     response_text = ""
     is_structured_data = False
@@ -345,17 +388,35 @@ async def auth_google_signin(id_token_body: IdToken):
         decoded_token = auth.verify_id_token(token_string)
         uid = decoded_token['uid']
         email = decoded_token.get('email')
+
+        if not email:
+            raise HTTPException(status_code=400, detail="Email not found in token.")
+
+        if not email.endswith('@navgurukul.org'):
+            raise HTTPException(status_code=403, detail="Access restricted to navgurukul.org domain.")
+
         # Here you would typically create or update the user in your database
         return FirebaseUser(uid=uid, email=email)
     except firebase_admin.auth.InvalidIdTokenError as e:
         raise HTTPException(status_code=401, detail=f"Invalid ID token: {e}")
+    except HTTPException as http_exc: # Re-raise HTTPException
+        raise http_exc
     except Exception as e:  # Catch other potential errors during token verification
         raise HTTPException(
             status_code=401, detail=f"Token verification failed: {e}")
 
 
 @app.get("/users/{user_id}/details", response_model=UserDetails)
-async def get_user_details(user_id: str):
+async def get_user_details(user_id: str, current_user: AuthenticatedUser = Depends(get_current_user_data)):
+    # Now current_user.uid contains the UID of the authenticated user.
+    # And current_user.email contains their email.
+    # The domain check is already handled by get_current_user_data.
+
+    if current_user.uid != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this user's details.")
+
+    print(f"User {current_user.email} (UID: {current_user.uid}) requesting details for {user_id}.")
+
     try:
         # Ensure Firebase Admin SDK is initialized
         if not firebase_admin._apps:
@@ -384,7 +445,7 @@ async def get_user_details(user_id: str):
             tasks_completed_str = [str(ex_id) for ex_id in progress_data.get("completedExercises", [])]
 
             # Ensure last_active is a datetime object
-            last_active_iso = progress_data.get("lastAccessedAt", datetime.utcnow().isoformat())
+            last_active_iso = progress_data.get("lastAccessedAt", datetime.now(timezone.utc).isoformat())
             try:
                 last_active_dt = datetime.fromisoformat(last_active_iso.replace("Z", "+00:00"))
             except ValueError: # Handle cases where it might not be full ISO format
