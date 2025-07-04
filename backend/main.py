@@ -233,8 +233,7 @@ async def get_current_user_data(credentials: HTTPAuthorizationCredentials = Depe
 
 @app.get("/")
 async def read_root():
-    status = "Gemini Configured and Model Initialized" if model else "Gemini NOT Configured or Model Init Failed - Check Logs & .env setup"
-    return {"message": f"Flowchart AI Backend is running! ({status})"}
+    return {"status": "API is running"}
 
 
 @app.post("/api/chat")
