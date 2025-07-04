@@ -124,11 +124,8 @@ export const Header: React.FC<HeaderProps> = ({ progress, onOpenGuide }) => {
           </div>
           <div>
             <h1 className="text-lg sm:text-xl font-bold text-gray-900">
-              Flowchart Academy
+              ProblemSolver Lab
             </h1>
-            <p className="text-xs sm:text-sm text-gray-600 hidden md:block"> {/* Hidden on very small screens */}
-              Visual Logic to Code
-            </p>
           </div>
         </div>
 
