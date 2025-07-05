@@ -244,6 +244,13 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
     return () => window.removeEventListener('resize', debouncedResize);
   }, []);
 
+  // Effect to open properties panel when a node is selected
+  useEffect(() => {
+    if (selectedNodeForProperties) {
+      setIsPropertiesOpen(true);
+    }
+  }, [selectedNodeForProperties]);
+
 
   const handleDragStart = (nodeType: FlowchartNodeType) => {
     setDraggedNodeType(nodeType);
@@ -377,7 +384,6 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
     } else {
     // Not in connecting mode, so select the node for properties panel
     setSelectedNodeForProperties(nodeId);
-    setIsPropertiesOpen(true); // Ensure the properties panel is open
   }
 
   // Update Firebase with the clicked node ID
