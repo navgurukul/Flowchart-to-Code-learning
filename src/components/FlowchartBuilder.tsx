@@ -377,6 +377,7 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
     } else {
     // Not in connecting mode, so select the node for properties panel
     setSelectedNodeForProperties(nodeId);
+    setIsPropertiesOpen(true); // Ensure the properties panel is open
   }
 
   // Update Firebase with the clicked node ID
@@ -925,7 +926,7 @@ const selectedNodeDataForProperties = selectedNodeForProperties
                 <input
                   type="text"
                   value={selectedNodeDataForProperties.data.label}
-                  onChange={(e) => handleNodeUpdate(selectedNodeDataForProperties!, { label: e.target.value })}
+                  onChange={(e) => handleNodeUpdate(selectedNodeDataForProperties!.id, { label: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -937,7 +938,7 @@ const selectedNodeDataForProperties = selectedNodeForProperties
                   </label>
                   <textarea
                     value={selectedNodeDataForProperties.data.value || ''}
-                    onChange={(e) => handleNodeUpdate(selectedNodeDataForProperties!, { value: e.target.value })}
+                    onChange={(e) => handleNodeUpdate(selectedNodeDataForProperties!.id, { value: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     rows={3}
                     placeholder={selectedNodeDataForProperties.type === 'process' ? 'e.g., sum = a + b' : 'e.g., sum'}
@@ -953,7 +954,7 @@ const selectedNodeDataForProperties = selectedNodeForProperties
                   <input
                     type="text"
                     value={selectedNodeDataForProperties.data.condition || ''}
-                    onChange={(e) => handleNodeUpdate(selectedNodeDataForProperties!, { condition: e.target.value })}
+                    onChange={(e) => handleNodeUpdate(selectedNodeDataForProperties!.id, { condition: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="e.g., n % 2 == 0"
                   />
