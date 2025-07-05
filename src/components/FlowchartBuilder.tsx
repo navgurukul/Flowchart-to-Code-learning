@@ -470,8 +470,13 @@ const handleImageFileSelect = async (event: React.ChangeEvent<HTMLInputElement>)
   const formData = new FormData();
   formData.append('file', file);
 
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  const endpoint = `${apiBaseUrl}/api/import-image`;
+
+  console.log(`Attempting to upload image to: ${endpoint}`);
+
   try {
-    const response = await fetch('http://localhost:8000/api/import-image', {
+    const response = await fetch(endpoint, {
       method: 'POST',
       body: formData,
       // Headers like 'Content-Type': 'multipart/form-data' are usually set automatically by the browser with FormData
