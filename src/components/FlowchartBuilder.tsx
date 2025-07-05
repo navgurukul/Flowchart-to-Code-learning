@@ -459,37 +459,83 @@ const handleDeleteNode = (nodeId: string) => {
   }
 };
 
-const handleImageFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+const handleImageFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
   const file = event.target.files?.[0];
-  if (file) {
-    console.log("Image file selected:", file.name, file.type);
-
-    // Placeholder for sending image to ML service and receiving flowchart data
-    console.log("Simulating ML processing for image:", file.name);
-    // Imagine mlService.processImage(file) returns FlowchartData
-    const mockMLOutput: FlowchartData = {
-      nodes: [
-        { id: 'ml-node-1', type: 'start', position: { x: 50, y: 50 }, data: { label: 'Start ML' } },
-        { id: 'ml-node-2', type: 'process', position: { x: 200, y: 50 }, data: { label: 'Process ML Data' } },
-        { id: 'ml-node-3', type: 'end', position: { x: 350, y: 50 }, data: { label: 'End ML' } },
-      ],
-      edges: [
-        { id: 'ml-edge-1', source: 'ml-node-1', target: 'ml-node-2', type: 'default' },
-        { id: 'ml-edge-2', source: 'ml-node-2', target: 'ml-node-3', type: 'default' },
-      ],
-    };
-    console.log("Mock ML service returned:", mockMLOutput);
-    // This function will be implemented in the next step
-    updateFlowchartDataWithMLOutput(mockMLOutput);
+  if (!file) {
+    return;
   }
-  // Reset file input to allow selecting the same file again if needed
-  if (event.target) {
-    event.target.value = '';
+
+  console.log("Image file selected:", file.name, file.type);
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const response = await fetch('http://localhost:8000/api/import-image', {
+      method: 'POST',
+      body: formData,
+      // Headers like 'Content-Type': 'multipart/form-data' are usually set automatically by the browser with FormData
+    });
+
+    if (!response.ok) {
+      // Try to parse error from backend
+      let errorDetail = `Error ${response.status}: ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        errorDetail = errorData.detail || errorDetail;
+      } catch (e) {
+        // Ignore if error response is not JSON
+      }
+      alert(`Failed to import flowchart: ${errorDetail}`);
+      return;
+    }
+
+    const apiResponse: {
+      nodes: Array<{ id: string; type: FlowchartNodeType; label: string; x: number; y: number; width: number; height: number }>; // Backend Node
+      edges: Array<{ id: string; source: string; target: string; label?: string }>; // Backend Edge
+      error?: string;
+      fallback_used?: boolean;
+    } = await response.json();
+
+    if (apiResponse.fallback_used && apiResponse.error) {
+      alert(`Import Alert: ${apiResponse.error}`); // Show fallback toast
+    }
+
+    // Transform API nodes and edges to frontend FlowchartData structure
+    const feNodes: FlowchartNode[] = apiResponse.nodes.map(apiNode => ({
+      id: apiNode.id,
+      type: apiNode.type, // Assuming backend type is already compatible FlowchartNodeType
+      position: { x: apiNode.x, y: apiNode.y },
+      data: { label: apiNode.label },
+      // width and height from apiNode are ignored for now, as frontend nodes have fixed size
+    }));
+
+    const feEdges: FlowchartEdge[] = apiResponse.edges.map(apiEdge => ({
+      id: apiEdge.id,
+      source: apiEdge.source,
+      target: apiEdge.target,
+      label: apiEdge.label,
+      type: 'default', // Defaulting edge type, can be enhanced if API provides it
+    }));
+
+    const newFlowchartData: FlowchartData = { nodes: feNodes, edges: feEdges };
+
+    console.log("Received data from API, transformed for frontend:", newFlowchartData);
+    updateFlowchartDataWithMLOutput(newFlowchartData);
+
+  } catch (error) {
+    console.error("Error importing image:", error);
+    alert(`An unexpected error occurred: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    // Reset file input to allow selecting the same file again if needed
+    if (event.target) {
+      event.target.value = '';
+    }
   }
 };
 
 const updateFlowchartDataWithMLOutput = (data: FlowchartData) => {
-  console.log("Updating flowchart with data from ML:", data);
+  console.log("Updating flowchart with data from API/ML:", data);
   setFlowchartData(data);
   setSelectedNodeForProperties(null); // Deselect any currently selected node
   // Optionally, trigger code generation if that's desired after import
@@ -649,7 +695,7 @@ const selectedNodeDataForProperties = selectedNodeForProperties
           <input
             type="file"
             ref={fileInputRef}
-            accept="image/*"
+            accept="image/jpeg, image/png"
             onChange={handleImageFileSelect}
             data-testid="flowchart-image-upload-input"
             className="hidden"

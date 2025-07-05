@@ -5,3 +5,7 @@ python-dotenv>=0.21.0
 google-auth>=2.0.0
 httpx>=0.20.0 # For TestClient
 firebase-admin>=6.0.0
+ultralytics>=8.0.0 # For YOLOv8
+opencv-python-headless>=4.0.0 # For image processing
+Pillow>=9.0.0 # For image manipulation
+easyocr>=1.7.0 # For OCR
