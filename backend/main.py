@@ -1,6 +1,6 @@
 from datetime import datetime, timezone # Added import
-from typing import List  # Added import
-from fastapi import FastAPI, HTTPException, Request, Depends
+from typing import List, Optional # Added import
+from fastapi import FastAPI, HTTPException, Request, Depends, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware  # Ensure this is imported
 from fastapi.responses import JSONResponse
@@ -234,6 +234,177 @@ async def get_current_user_data(credentials: HTTPAuthorizationCredentials = Depe
 @app.get("/")
 async def read_root():
     return {"status": "API is running"}
+
+# Models for image import response
+class Node(BaseModel):
+    id: str
+    type: str # Should match frontend FlowchartNodeType: 'start', 'end', 'process', 'decision', 'input', 'output', 'loop'
+    label: str
+    x: int
+    y: int
+    width: int
+    height: int
+
+class Edge(BaseModel):
+    id: str
+    source: str
+    target: str
+    label: Optional[str] = None
+
+class FlowchartResponse(BaseModel):
+    nodes: List[Node]
+    edges: List[Edge]
+    error: Optional[str] = None
+    fallback_used: Optional[bool] = False
+
+@app.post("/api/import-image", response_model=FlowchartResponse)
+async def import_image(file: UploadFile = File(...)):
+    """
+    Accepts an image file, processes it (placeholder), and returns flowchart nodes and edges.
+    """
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Invalid image format. Only JPG/PNG accepted for now.")
+
+    # --- CV Model and OCR Processing Placeholder ---
+    # This section will be filled in with actual logic.
+
+    # 1. Save or process the uploaded image in memory
+    # try:
+    #     contents = await file.read()
+    #     # Example: Save to a temporary file (ensure 'temp_images' directory exists or handle creation)
+    #     # temp_file_path = f"temp_images/{file.filename}"
+    #     # with open(temp_file_path, "wb") as f:
+    #     #     f.write(contents)
+    #     # print(f"DEBUG: Image saved temporarily to {temp_file_path}")
+    #
+    #     # Or process directly from memory using Pillow/OpenCV if possible
+    #     # from PIL import Image
+    #     # import io
+    #     # image = Image.open(io.BytesIO(contents))
+    #     # print(f"DEBUG: Image loaded into PIL. Format: {image.format}, Size: {image.size}")
+    #
+    # except Exception as e:
+    #     print(f"Error processing/saving image: {e}")
+    #     raise HTTPException(status_code=500, detail="Error processing uploaded image.")
+
+    # 2. Load the YOLOv8 model (example, actual path and model loading to be implemented)
+    # try:
+    #     # model_path = "path/to/your/yolov8n_flowchart_model.pt" # Replace with actual path
+    #     # yolo_model = YOLO(model_path) # Assuming YOLO class from ultralytics
+    #     # print(f"DEBUG: YOLOv8 model loaded from {model_path}")
+    # except Exception as e:
+    #     print(f"Error loading YOLOv8 model: {e}")
+    #     # This could be a 5xx error indicating the importer is not configured
+    #     raise HTTPException(status_code=503, detail="CV Model not available or failed to load.")
+
+    # 3. Perform shape detection
+    # try:
+    #     # results = yolo_model(temp_file_path) # or yolo_model(image) if using PIL image
+    #     # print(f"DEBUG: YOLOv8 inference completed. Detected objects: {len(results[0].boxes)}")
+    #     # detected_shapes_data = [] # Store {class, confidence, bounding_box}
+    #     # for result in results:
+    #     #     for box in result.boxes:
+    #     #         class_id = int(box.cls[0])
+    #     #         confidence = float(box.conf[0])
+    #     #         # Process if confidence >= 0.7 (as per acceptance criteria)
+    #     #         if confidence >= 0.7:
+    #     #             detected_shapes_data.append({
+    #     #                 "class_name": yolo_model.names[class_id], # Get class name from model
+    #     #                 "confidence": confidence,
+    #     #                 "xyxy": box.xyxy[0].tolist() # Bounding box coordinates
+    #     #             })
+    #     # print(f"DEBUG: Filtered detected shapes: {detected_shapes_data}")
+    # except Exception as e:
+    #     print(f"Error during shape detection: {e}")
+    #     raise HTTPException(status_code=500, detail="Error during flowchart shape detection.")
+
+    # 4. Initialize OCR tool (e.g., EasyOCR) - potentially done once globally or on first request
+    # ocr_reader = None
+    # try:
+    #     # import easyocr
+    #     # ocr_reader = easyocr.Reader(['en']) # Initialize for English
+    #     # print("DEBUG: EasyOCR reader initialized.")
+    # except Exception as e:
+    #     print(f"Error initializing EasyOCR: {e}")
+    #     # Depending on requirements, this might be a critical failure
+    #     raise HTTPException(status_code=503, detail="OCR service not available.")
+
+    # 5. Perform OCR on detected shapes
+    # extracted_node_data = [] # Will store {shape_data, text_label}
+    # if ocr_reader: # Proceed only if OCR reader is available
+    #     for shape_data in detected_shapes_data: # Assuming detected_shapes_data from CV step
+    #         #     # Example: xyxy = shape_data['xyxy']
+    #         #     # cropped_image_for_ocr = image.crop((xyxy[0], xyxy[1], xyxy[2], xyxy[3])) # Using PIL
+    #         #     # Convert PIL cropped_image_for_ocr to bytes or numpy array for EasyOCR
+    #         #     # import numpy as np
+    #         #     # cropped_np_array = np.array(cropped_image_for_ocr)
+    #         #
+    #         #     try:
+    #         #         # text_results = ocr_reader.readtext(cropped_np_array)
+    #         #         # detected_text = " ".join([res[1] for res in text_results]).strip()
+    #         #         # print(f"DEBUG: OCR for shape {shape_data['class_name']}: '{detected_text}'")
+    #         #         # extracted_node_data.append({**shape_data, "label": detected_text})
+    #         #     except Exception as e:
+    #         #         print(f"Error during OCR for a shape: {e}")
+    #         #         # extracted_node_data.append({**shape_data, "label": ""}) # Add with empty label on error
+    #         pass # Placeholder for actual OCR logic on each shape
+    # else:
+    #     # Fallback if OCR reader failed to initialize but we still have shapes
+    #     # for shape_data in detected_shapes_data:
+    #     #    extracted_node_data.append({**shape_data, "label": "OCR Error"})
+    #     print("WARNING: OCR reader not available. Labels will be missing or default.")
+
+
+    # 6. Construct nodes and edges based on detection (placeholder)
+    # actual_nodes = []
+    # actual_edges = []
+    # # ... logic to convert detected_shapes_data and extracted_texts to Node and Edge objects ...
+    # # This will involve mapping class_name to Node.type, using bounding boxes for x,y,width,height
+    # # and determining connections for edges.
+
+    # 6. Implement confidence checks and fallback logic (placeholder)
+    # overall_confidence = 0.0 # Calculate overall confidence based on detections
+    # if overall_confidence < 0.4:
+    #     # Return fallback response (example shown below in original template)
+    #     pass
+
+    # For now, return a hardcoded example response (simulating successful processing)
+    # This matches the structure of the initial 3-node stub, but with more details
+    # and the structure expected by the FlowchartResponse model.
+
+    # Simulate a successful detection for now
+    # Using frontend compatible types: 'start', 'process', 'end'
+    detected_nodes = [
+        Node(id="api-node-1", type="start", label="Start via API", x=70, y=70, width=120, height=50),
+        Node(id="api-node-2", type="process", label="Process Data via API", x=70, y=180, width=150, height=70),
+        Node(id="api-node-3", type="end", label="End via API", x=70, y=290, width=120, height=50),
+    ]
+    detected_edges = [
+        Edge(id="api-edge-1", source="api-node-1", target="api-node-2"),
+        Edge(id="api-edge-2", source="api-node-2", target="api-node-3"),
+    ]
+
+    return FlowchartResponse(nodes=detected_nodes, edges=detected_edges)
+
+    # Example of returning the fallback response (as per Acceptance Criteria 6)
+    # This also uses frontend-compatible types now.
+    # return FlowchartResponse(
+    #     nodes=[
+    #         Node(id="fallback-1", type="start", label="Start ML (Fallback)", x=50, y=50, width=100, height=40),
+    #         Node(id="fallback-2", type="process", label="Process ML Data (Fallback)", x=50, y=150, width=150, height=60),
+    #         Node(id="fallback-3", type="end", label="End ML (Fallback)", x=50, y=250, width=100, height=40),
+    #     ],
+    #     edges=[
+    #         Edge(id="fallback-edge-1", source="fallback-1", target="fallback-2"),
+    #         Edge(id="fallback-edge-2", source="fallback-2", target="fallback-3"),
+    #     ],
+    #     error="Couldn’t recognise that sketch—try a clearer photo.", # Toast message
+    #     fallback_used=True
+    # )
+
+    # Example of returning an error (as per Error Handling section)
+    # raise HTTPException(status_code=400, detail="Invalid image format.") # For 4xx
+    # raise HTTPException(status_code=500, detail="Importer offline, please try again later.") # For 5xx
 
 
 @app.post("/api/chat")
