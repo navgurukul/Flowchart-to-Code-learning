@@ -377,6 +377,7 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
     } else {
     // Not in connecting mode, so select the node for properties panel
     setSelectedNodeForProperties(nodeId);
+    setIsPropertiesOpen(true); // Ensure the properties panel is open
   }
 
   // Update Firebase with the clicked node ID
