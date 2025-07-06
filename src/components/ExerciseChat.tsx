@@ -26,6 +26,21 @@ const ExerciseChat: React.FC = () => {
 
   useEffect(scrollToBottom, [messages]);
 
+  useEffect(() => {
+    if (isVisible && currentExerciseId && exerciseContext?.title) {
+      const currentMessages = loadHistory(currentExerciseId);
+      if (currentMessages.length === 0) {
+        const greetingMessage = {
+          id: Date.now().toString() + '-greeting',
+          sender: 'assistant' as 'assistant',
+          text: `Hi 👋 I’m FlowBot! Ready to help you with "${exerciseContext.title}".`,
+          timestamp: Date.now(),
+        };
+        addMessage(currentExerciseId, greetingMessage);
+      }
+    }
+  }, [isVisible, currentExerciseId, exerciseContext, addMessage, loadHistory]);
+
   if (!isVisible) {
     return (
       <button
