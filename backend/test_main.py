@@ -165,41 +165,23 @@ def test_get_user_details_no_token():
 import pytest # Required for @pytest.mark.asyncio
 
 @patch('main.configure_gemini') # Patch configure_gemini in main.py
+@patch('main.configure_gemini') # Patch configure_gemini in main.py
 @patch('firebase_admin.auth.verify_id_token')
 @pytest.mark.asyncio
-async def test_chat_endpoint_success(mock_verify_id_token, mock_configure_gemini):
+async def test_chat_endpoint_learn_command_success(mock_verify_id_token, mock_configure_gemini):
     user_uid = "chatuser123"
     user_email = "chatuser@navgurukul.org"
     mock_verify_id_token.return_value = {'uid': user_uid, 'email': user_email}
 
-    # Mock the Gemini model and its response
-    mock_gemini_model = mock_configure_gemini.return_value
-    if mock_gemini_model is None: # If configure_gemini returns None
-        mock_gemini_model = mock_configure_gemini.return_value = MagicMock() # Ensure it's a mock
+    mock_gemini_model = MagicMock()
+    mock_configure_gemini.return_value = mock_gemini_model
 
-    # Mock the async method generate_content_async
     mock_ai_response = MagicMock()
-    mock_ai_response.text = "Hello from AI!"
-
-    # If generate_content_async is an async generator or needs await:
+    mock_ai_response.text = "Explanation about loops."
     mock_gemini_model.generate_content_async = AsyncMock(return_value=mock_ai_response)
-    # For a simple return, plain MagicMock with a coroutine works for awaited calls
-    # async def async_generate_content(*args, **kwargs):
-    #     return mock_ai_response
-    # mock_gemini_model.generate_content_async = async_generate_content
-
 
     chat_topic = "loops"
     test_message = f"/learn {chat_topic}"
-    expected_prompt = (
-        f"Explain the programming concept of '{chat_topic}' clearly and concisely, as if to a beginner learning about flowcharts.\n"
-        f"Your explanation should include:\n"
-        f"1. A definition of the concept.\n"
-        f"2. How it is typically represented in a flowchart (mention symbol types if specific).\n"
-        f"3. A very simple pseudo-code or code example (e.g., Python or JavaScript) to illustrate its use.\n"
-        f"4. One or two key takeaways or common pitfalls related to '{chat_topic}'.\n"
-        f"Focus on educational value and clarity. Use markdown for formatting if it helps readability (e.g., for lists or code blocks)."
-    )
 
     response = client.post(
         "/api/chat",
@@ -207,12 +189,98 @@ async def test_chat_endpoint_success(mock_verify_id_token, mock_configure_gemini
         json={"message": test_message}
     )
     assert response.status_code == 200
-    assert response.json() == {"response": "Hello from AI!", "isStructuredData": False}
+    data = response.json()
+    assert data["response"] == "Explanation about loops."
+    assert data["isStructuredData"] == False
     mock_verify_id_token.assert_called_once_with("validtoken")
-    # Check if configure_gemini was called (it's called inside the endpoint)
-    mock_configure_gemini.assert_called()
-    mock_gemini_model.generate_content_async.assert_called_once_with(expected_prompt)
+    mock_configure_gemini.assert_called_with(gemini_version="2.0")
+    mock_gemini_model.generate_content_async.assert_called_once()
+    # We could also assert the prompt content if necessary by inspecting call_args
 
+@patch('main.configure_gemini')
+@patch('firebase_admin.auth.verify_id_token')
+@pytest.mark.asyncio
+async def test_chat_endpoint_generate_command_success(mock_verify_id_token, mock_configure_gemini):
+    user_uid = "genuser456"
+    user_email = "genuser@navgurukul.org"
+    mock_verify_id_token.return_value = {'uid': user_uid, 'email': user_email}
+
+    mock_gemini_model = MagicMock()
+    mock_configure_gemini.return_value = mock_gemini_model
+
+    flowchart_json = {
+        "nodes": [{"id": "1", "type": "start", "label": "Start", "x": 10, "y": 10}],
+        "edges": [],
+        "problemStatement": "A simple start node",
+        "inputType": "single",
+        "outputType": "none",
+        "sampleInputs": ["n/a"],
+        "sampleOutputs": ["n/a"]
+    }
+    mock_ai_response = MagicMock()
+    # Simulate Gemini returning JSON string, potentially wrapped in markdown
+    mock_ai_response.text = f"```json\n{json.dumps(flowchart_json)}\n```"
+    mock_gemini_model.generate_content_async = AsyncMock(return_value=mock_ai_response)
+
+    description = "a simple start node"
+    test_message = f"/generate {description}"
+
+    response = client.post(
+        "/api/chat",
+        headers={"Authorization": "Bearer anothervalidtoken"},
+        json={"message": test_message}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert json.loads(data["response"]) == flowchart_json # Compare parsed JSON
+    assert data["isStructuredData"] == True
+    mock_verify_id_token.assert_called_once_with("anothervalidtoken")
+    mock_configure_gemini.assert_called_with(gemini_version="2.5")
+    mock_gemini_model.generate_content_async.assert_called_once()
+    # We could also assert the prompt content and generation_config used
+
+@patch('main.configure_gemini') # Not strictly needed here as it shouldn't be called
+@patch('firebase_admin.auth.verify_id_token')
+@pytest.mark.asyncio
+async def test_chat_endpoint_unknown_command(mock_verify_id_token, mock_configure_gemini):
+    user_uid = "unknowncmduser"
+    user_email = "unknown@navgurukul.org"
+    mock_verify_id_token.return_value = {'uid': user_uid, 'email': user_email}
+
+    test_message = "/unknown_command test"
+    response = client.post(
+        "/api/chat",
+        headers={"Authorization": "Bearer unktok"},
+        json={"message": test_message}
+    )
+    assert response.status_code == 200 # Fallback is a normal response
+    data = response.json()
+    assert data["response"] == "Sorry, I can only respond to `/learn <topic>` and `/generate <description>` commands at the moment."
+    assert data["isStructuredData"] == False
+    mock_verify_id_token.assert_called_once_with("unktok")
+    mock_configure_gemini.assert_not_called() # Gemini should not be called for unknown commands
+
+@patch('main.configure_gemini')
+@patch('firebase_admin.auth.verify_id_token')
+@pytest.mark.asyncio
+async def test_chat_endpoint_gemini_not_configured(mock_verify_id_token, mock_configure_gemini):
+    user_uid = "erroruser"
+    user_email = "error@navgurukul.org"
+    mock_verify_id_token.return_value = {'uid': user_uid, 'email': user_email}
+
+    mock_configure_gemini.return_value = None # Simulate Gemini not being configured
+
+    test_message = "/learn topic"
+    response = client.post(
+        "/api/chat",
+        headers={"Authorization": "Bearer errtoken"},
+        json={"message": test_message}
+    )
+    assert response.status_code == 503
+    data = response.json()
+    assert "AI Service not configured" in data["detail"]
+    mock_verify_id_token.assert_called_once_with("errtoken")
+    mock_configure_gemini.assert_called_with(gemini_version="2.0")
 
 @patch('firebase_admin.auth.verify_id_token')
 def test_chat_endpoint_forbidden_other_domain(mock_verify_id_token):
@@ -230,3 +298,7 @@ def test_chat_endpoint_no_token():
     response = client.post("/api/chat", json={"message": "Hi"})
     assert response.status_code == 403 # HTTPBearer returns 403
     assert response.json() == {"detail": "Not authenticated"}
+
+
+# Need to import json for the test_chat_endpoint_generate_command_success
+import json
