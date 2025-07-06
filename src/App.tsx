@@ -38,6 +38,7 @@ function App() {
   };
 
   const [progress, setProgress] = useState<StudentProgress>(defaultInitialProgress);
+  const [progressLoaded, setProgressLoaded] = useState(false); // Added: Flag to track if initial progress load is complete
   const [currentExerciseId, setCurrentExerciseId] = useState<number | null>(null); // Changed: No exercise selected initially
   const [isExerciseListOpen, setIsExerciseListOpen] = useState(true);
   const [isInputOutputOpen, setIsInputOutputOpen] = useState(true);
@@ -299,6 +300,11 @@ function App() {
   // --- Standard Effects ---
   // Save progress
   useEffect(() => {
+    if (!progressLoaded) { // Added: Guard to prevent saving before initial load
+      console.log("Progress not yet loaded. Skipping saveProgress.");
+      return;
+    }
+
     if (currentUser) {
       console.log(`Attempting to save progress for user: ${currentUser.uid}`, progress);
       // Save to Firebase Realtime Database
@@ -526,7 +532,10 @@ function App() {
       console.log("loadData: Finished loading user progress.");
     };
 
-    loadData();
+    loadData().then(() => {
+      setProgressLoaded(true);
+      console.log("Initial progress loaded. progressLoaded set to true.");
+    });
   }, [currentUser, authLoading]); // Re-run when auth state is confirmed or user changes
 
   useEffect(() => {
