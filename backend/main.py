@@ -2,7 +2,10 @@ from datetime import datetime, timezone # Added import
 from typing import List, Optional # Added import
 from fastapi import FastAPI, HTTPException, Request, Depends, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi.middleware.cors import CORSMiddleware  # Ensure this is imported
+from fastapi.middleware.cors import CORSMiddleware
+from ultralytics import YOLO
+from PIL import Image
+import io
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import os
@@ -265,126 +268,185 @@ async def import_image(file: UploadFile = File(...)):
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Invalid image format. Only JPG/PNG accepted for now.")
 
-    # --- CV Model and OCR Processing Placeholder ---
-    # This section will be filled in with actual logic.
+    # --- CV Model and OCR Processing ---
 
-    # 1. Save or process the uploaded image in memory
-    # try:
-    #     contents = await file.read()
-    #     # Example: Save to a temporary file (ensure 'temp_images' directory exists or handle creation)
-    #     # temp_file_path = f"temp_images/{file.filename}"
-    #     # with open(temp_file_path, "wb") as f:
-    #     #     f.write(contents)
-    #     # print(f"DEBUG: Image saved temporarily to {temp_file_path}")
-    #
-    #     # Or process directly from memory using Pillow/OpenCV if possible
-    #     # from PIL import Image
-    #     # import io
-    #     # image = Image.open(io.BytesIO(contents))
-    #     # print(f"DEBUG: Image loaded into PIL. Format: {image.format}, Size: {image.size}")
-    #
-    # except Exception as e:
-    #     print(f"Error processing/saving image: {e}")
-    #     raise HTTPException(status_code=500, detail="Error processing uploaded image.")
+    # Configuration - User must update MODEL_CLASS_NAMES
+    # Assumes 'flowcharts.pt' will be placed in the 'backend/' directory by the user.
+    MODEL_PATH = "flowcharts.pt"
+    # !!! IMPORTANT: User MUST replace this with their actual class names in the correct order !!!
+    # Example: MODEL_CLASS_NAMES = ['rectangle', 'diamond', 'oval_start', 'oval_end', 'arrow']
+    MODEL_CLASS_NAMES = ['start', 'end', 'process', 'decision', 'input', 'output', 'arrow'] # Placeholder
+    CONFIDENCE_THRESHOLD = 0.7 # As per acceptance criteria
 
-    # 2. Load the YOLOv8 model (example, actual path and model loading to be implemented)
-    # try:
-    #     # model_path = "path/to/your/yolov8n_flowchart_model.pt" # Replace with actual path
-    #     # yolo_model = YOLO(model_path) # Assuming YOLO class from ultralytics
-    #     # print(f"DEBUG: YOLOv8 model loaded from {model_path}")
-    # except Exception as e:
-    #     print(f"Error loading YOLOv8 model: {e}")
-    #     # This could be a 5xx error indicating the importer is not configured
-    #     raise HTTPException(status_code=503, detail="CV Model not available or failed to load.")
+    # 1. Load YOLO Model
+    try:
+        # Check if model file exists
+        if not os.path.exists(MODEL_PATH):
+            print(f"ERROR: Model file not found at {MODEL_PATH}. Please ensure 'flowcharts.pt' is in the 'backend/' directory.")
+            raise HTTPException(status_code=503, detail=f"CV Model file not found at {MODEL_PATH}. Please ensure it is uploaded.")
 
-    # 3. Perform shape detection
-    # try:
-    #     # results = yolo_model(temp_file_path) # or yolo_model(image) if using PIL image
-    #     # print(f"DEBUG: YOLOv8 inference completed. Detected objects: {len(results[0].boxes)}")
-    #     # detected_shapes_data = [] # Store {class, confidence, bounding_box}
-    #     # for result in results:
-    #     #     for box in result.boxes:
-    #     #         class_id = int(box.cls[0])
-    #     #         confidence = float(box.conf[0])
-    #     #         # Process if confidence >= 0.7 (as per acceptance criteria)
-    #     #         if confidence >= 0.7:
-    #     #             detected_shapes_data.append({
-    #     #                 "class_name": yolo_model.names[class_id], # Get class name from model
-    #     #                 "confidence": confidence,
-    #     #                 "xyxy": box.xyxy[0].tolist() # Bounding box coordinates
-    #     #             })
-    #     # print(f"DEBUG: Filtered detected shapes: {detected_shapes_data}")
-    # except Exception as e:
-    #     print(f"Error during shape detection: {e}")
-    #     raise HTTPException(status_code=500, detail="Error during flowchart shape detection.")
+        yolo_model = YOLO(MODEL_PATH)
+        # Override class names if yolo_model.names is different or to ensure consistency
+        # yolo_model.names = {i: name for i, name in enumerate(MODEL_CLASS_NAMES)} # This might be needed if model has internal names
+        print(f"DEBUG: YOLOv8 model loaded from {MODEL_PATH}. Model classes (from yolo_model.names): {yolo_model.names if hasattr(yolo_model, 'names') else 'Not available'}")
+        print(f"DEBUG: Using configured MODEL_CLASS_NAMES for mapping: {MODEL_CLASS_NAMES}")
 
-    # 4. Initialize OCR tool (e.g., EasyOCR) - potentially done once globally or on first request
-    # ocr_reader = None
-    # try:
-    #     # import easyocr
-    #     # ocr_reader = easyocr.Reader(['en']) # Initialize for English
-    #     # print("DEBUG: EasyOCR reader initialized.")
-    # except Exception as e:
-    #     print(f"Error initializing EasyOCR: {e}")
-    #     # Depending on requirements, this might be a critical failure
-    #     raise HTTPException(status_code=503, detail="OCR service not available.")
+    except Exception as e:
+        print(f"Error loading YOLOv8 model from {MODEL_PATH}: {e}")
+        # Log the full exception for more details if needed
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=503, detail=f"CV Model not available or failed to load: {str(e)}")
 
-    # 5. Perform OCR on detected shapes
-    # extracted_node_data = [] # Will store {shape_data, text_label}
-    # if ocr_reader: # Proceed only if OCR reader is available
-    #     for shape_data in detected_shapes_data: # Assuming detected_shapes_data from CV step
-    #         #     # Example: xyxy = shape_data['xyxy']
-    #         #     # cropped_image_for_ocr = image.crop((xyxy[0], xyxy[1], xyxy[2], xyxy[3])) # Using PIL
-    #         #     # Convert PIL cropped_image_for_ocr to bytes or numpy array for EasyOCR
-    #         #     # import numpy as np
-    #         #     # cropped_np_array = np.array(cropped_image_for_ocr)
-    #         #
-    #         #     try:
-    #         #         # text_results = ocr_reader.readtext(cropped_np_array)
-    #         #         # detected_text = " ".join([res[1] for res in text_results]).strip()
-    #         #         # print(f"DEBUG: OCR for shape {shape_data['class_name']}: '{detected_text}'")
-    #         #         # extracted_node_data.append({**shape_data, "label": detected_text})
-    #         #     except Exception as e:
-    #         #         print(f"Error during OCR for a shape: {e}")
-    #         #         # extracted_node_data.append({**shape_data, "label": ""}) # Add with empty label on error
-    #         pass # Placeholder for actual OCR logic on each shape
-    # else:
-    #     # Fallback if OCR reader failed to initialize but we still have shapes
-    #     # for shape_data in detected_shapes_data:
-    #     #    extracted_node_data.append({**shape_data, "label": "OCR Error"})
-    #     print("WARNING: OCR reader not available. Labels will be missing or default.")
+    # 2. Process Uploaded Image
+    try:
+        contents = await file.read()
+        pil_image = Image.open(io.BytesIO(contents))
+        print(f"DEBUG: Image loaded into PIL. Format: {pil_image.format}, Size: {pil_image.size}, Mode: {pil_image.mode}")
+        # Convert to RGB if it's RGBA or P (palette) to avoid issues with some models/libraries
+        if pil_image.mode in ('RGBA', 'P'):
+            pil_image = pil_image.convert('RGB')
+            print(f"DEBUG: Image converted to RGB.")
+
+    except Exception as e:
+        print(f"Error processing/reading image: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid or corrupted image file: {str(e)}")
+
+    # 3. Perform Inference
+    try:
+        results = yolo_model(pil_image) # Returns a list of Results objects
+        print(f"DEBUG: YOLOv8 inference completed. Number of result sets: {len(results)}")
+    except Exception as e:
+        print(f"Error during YOLOv8 inference: {e}")
+        raise HTTPException(status_code=500, detail=f"Error during CV model inference: {str(e)}")
+
+    # 4. Extract and Filter Detections
+    processed_nodes: List[Node] = []
+    # detected_arrows_info = [] # For later edge creation
+
+    if results and len(results) > 0:
+        # Assuming results[0] contains the detections for the single image
+        detections = results[0].boxes
+        print(f"DEBUG: Detections object type: {type(detections)}")
+        print(f"DEBUG: Number of raw boxes found: {len(detections.xyxy)}")
+
+        for i in range(len(detections.xyxy)):
+            box = detections.xyxy[i].tolist() # [x1, y1, x2, y2]
+            conf = float(detections.conf[i])
+            cls_id = int(detections.cls[i])
+
+            if conf >= CONFIDENCE_THRESHOLD:
+                try:
+                    # Use the model's internal class names if available and map, otherwise use configured list directly
+                    # This depends on how yolo_model.names is structured and if it matches MODEL_CLASS_NAMES indices
+                    # Safest is to rely on MODEL_CLASS_NAMES index if yolo_model.names isn't directly usable or is just numbers
+                    class_name = MODEL_CLASS_NAMES[cls_id] if cls_id < len(MODEL_CLASS_NAMES) else f"class_{cls_id}"
+
+                    # If yolo_model.names is a dict like {0: 'class_a', 1: 'class_b'}, use it:
+                    # if hasattr(yolo_model, 'names') and isinstance(yolo_model.names, dict) and cls_id in yolo_model.names:
+                    #    class_name = yolo_model.names[cls_id]
+                    # else: # Fallback to list if dict access fails or names not a dict
+                    #    class_name = MODEL_CLASS_NAMES[cls_id] if cls_id < len(MODEL_CLASS_NAMES) else f"class_{cls_id}"
+
+                    print(f"DEBUG: Detected: class_id={cls_id}, class_name='{class_name}', conf={conf:.2f}, box={box}")
+                except IndexError:
+                    print(f"WARNING: class_id {cls_id} is out of range for MODEL_CLASS_NAMES (len: {len(MODEL_CLASS_NAMES)}). Skipping.")
+                    continue
+
+                # For now, we only create nodes from non-arrow shapes. OCR will provide better labels later.
+                # The 'type' field for the Node should be a FlowchartNodeType (e.g., 'start', 'process')
+                # This requires mapping from model's detected class_name to FlowchartNodeType
+                # Example mapping (NEEDS TO BE ADJUSTED BASED ON YOUR ACTUAL MODEL_CLASS_NAMES)
+                node_type_mapping = {
+                    'start': 'start', 'oval_start': 'start', # Example model class name -> frontend type
+                    'end': 'end', 'oval_end': 'end',
+                    'process': 'process', 'rectangle': 'process',
+                    'decision': 'decision', 'diamond': 'decision',
+                    'input': 'input', 'parallelogram_input': 'input', 'io': 'input', # if 'io' is generic
+                    'output': 'output', 'parallelogram_output': 'output',
+                    # 'arrow' type shapes are handled separately for edges, not as nodes here
+                }
+
+                # For now, directly use class_name if it's a valid FlowchartNodeType, otherwise map or skip
+                # This assumes your MODEL_CLASS_NAMES are already the frontend types or you have a mapping
+                # For this step, we'll assume direct mapping for simplicity if class_name is not 'arrow'.
+
+                if class_name.lower() != 'arrow': # Or however your arrow class is named
+                    # TODO: Implement robust mapping from `class_name` to `FlowchartNodeType`
+                    # For now, let's assume class_name IS the FlowchartNodeType if it's not an arrow
+                    # This is a placeholder and needs refinement based on actual class names.
+                    node_type_candidate = class_name.lower()
+
+                    # A more robust mapping based on common patterns:
+                    if "start" in node_type_candidate: current_node_type = "start"
+                    elif "end" in node_type_candidate: current_node_type = "end"
+                    elif "process" in node_type_candidate or "rect" in node_type_candidate: current_node_type = "process"
+                    elif "decision" in node_type_candidate or "diamond" in node_type_candidate: current_node_type = "decision"
+                    elif "input" in node_type_candidate or "parallelogram" in node_type_candidate: current_node_type = "input" # Default "io" to input
+                    elif "output" in node_type_candidate: current_node_type = "output" # More specific output
+                    else:
+                        print(f"WARNING: Class name '{class_name}' not directly mappable to a standard FlowchartNodeType for creating a node. Skipping this shape as a node.")
+                        continue # Skip if not a recognized shape for a node
+
+                    x1, y1, x2, y2 = box
+                    node = Node(
+                        id=f"cv-node-{len(processed_nodes)}",
+                        type=current_node_type, # This needs to be a valid FlowchartNodeType
+                        label=f"Detected: {class_name}", # Placeholder label, OCR will replace
+                        x=int(x1),
+                        y=int(y1),
+                        width=int(x2 - x1),
+                        height=int(y2 - y1)
+                    )
+                    processed_nodes.append(node)
+                # else:
+                #     detected_arrows_info.append({'box': box, 'class_name': class_name, 'conf': conf})
+            else:
+                print(f"DEBUG: Skipped low confidence detection: class_id={cls_id}, conf={conf:.2f}")
+
+        print(f"DEBUG: Total processed nodes (shapes) after CV: {len(processed_nodes)}")
+    else:
+        print("DEBUG: No results from YOLO model or results list is empty.")
 
 
-    # 6. Construct nodes and edges based on detection (placeholder)
-    # actual_nodes = []
-    # actual_edges = []
-    # # ... logic to convert detected_shapes_data and extracted_texts to Node and Edge objects ...
-    # # This will involve mapping class_name to Node.type, using bounding boxes for x,y,width,height
-    # # and determining connections for edges.
+    # 5. Placeholder for OCR (to be implemented in next step)
+    # For each node in processed_nodes, crop image and run OCR to update label.
 
-    # 6. Implement confidence checks and fallback logic (placeholder)
-    # overall_confidence = 0.0 # Calculate overall confidence based on detections
-    # if overall_confidence < 0.4:
-    #     # Return fallback response (example shown below in original template)
-    #     pass
+    # 6. Placeholder for Edge Creation (to be implemented after node finalization and arrow processing)
+    processed_edges: List[Edge] = []
 
-    # For now, return a hardcoded example response (simulating successful processing)
-    # This matches the structure of the initial 3-node stub, but with more details
-    # and the structure expected by the FlowchartResponse model.
+    # 7. Implement Fallback Logic (placeholder)
+    # overall_confidence = calculate_overall_confidence(processed_nodes) # Needs implementation
+    # MIN_SHAPE_DETECT_THRESHOLD = 1 # Example: if less than 1 shape, consider it low confidence
+    # if not processed_nodes or len(processed_nodes) < MIN_SHAPE_DETECT_THRESHOLD: # or overall_confidence < 0.4:
+    #     print("DEBUG: Fallback triggered due to low confidence or too few shapes detected.")
+    #     fallback_nodes = [
+    #         Node(id="fallback-1", type="start", label="Start ML (Fallback)", x=50, y=50, width=100, height=40),
+    #         Node(id="fallback-2", type="process", label="Process ML Data (Fallback)", x=50, y=150, width=150, height=60),
+    #         Node(id="fallback-3", type="end", label="End ML (Fallback)", x=50, y=250, width=100, height=40),
+    #     ]
+    #     fallback_edges = [
+    #         Edge(id="fallback-edge-1", source="fallback-1", target="fallback-2"),
+    #         Edge(id="fallback-edge-2", source="fallback-2", target="fallback-3"),
+    #     ]
+    #     return FlowchartResponse(
+    #         nodes=fallback_nodes,
+    #         edges=fallback_edges,
+    #         error="Couldn’t recognise that sketch—try a clearer photo.",
+    #         fallback_used=True
+    #     )
 
-    # Simulate a successful detection for now
-    # Using frontend compatible types: 'start', 'process', 'end'
-    detected_nodes = [
-        Node(id="api-node-1", type="start", label="Start via API", x=70, y=70, width=120, height=50),
-        Node(id="api-node-2", type="process", label="Process Data via API", x=70, y=180, width=150, height=70),
-        Node(id="api-node-3", type="end", label="End via API", x=70, y=290, width=120, height=50),
-    ]
-    detected_edges = [
-        Edge(id="api-edge-1", source="api-node-1", target="api-node-2"),
-        Edge(id="api-edge-2", source="api-node-2", target="api-node-3"),
-    ]
+    # Return detected nodes (edges are empty for now)
+    if not processed_nodes: # If no nodes were processed (e.g. only arrows detected or all low conf)
+         return FlowchartResponse(
+            nodes=[Node(id="empty-1", type="process", label="No shapes detected clearly.", x=50, y=50, width=200, height=40)],
+            edges=[],
+            error="No flowchart shapes were detected with sufficient confidence.",
+            fallback_used=True # Consider this a type of fallback
+        )
 
-    return FlowchartResponse(nodes=detected_nodes, edges=detected_edges)
+    return FlowchartResponse(nodes=processed_nodes, edges=processed_edges)
+
 
     # Example of returning the fallback response (as per Acceptance Criteria 6)
     # This also uses frontend-compatible types now.
