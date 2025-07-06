@@ -470,8 +470,8 @@ async def import_image(file: UploadFile = File(...)):
 
 
 @app.post("/api/chat")
-async def handle_chat_message(chat_message: ChatMessage, current_user: AuthenticatedUser = Depends(get_current_user_data)):
-    print(f"User {current_user.email} (UID: {current_user.uid}) accessing chat.")
+async def handle_chat_message(chat_message: ChatMessage): # Removed current_user dependency
+    # print(f"User {current_user.email} (UID: {current_user.uid}) accessing chat.") # Commented out as current_user is removed
     user_message = chat_message.message.strip()
     response_text = ""
     is_structured_data = False
