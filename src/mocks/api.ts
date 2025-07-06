@@ -1,3 +1,7 @@
+// THIS IS A MOCK API IMPLEMENTATION INTENDED FOR TESTING (E.G., JEST, STORYBOOK)
+// AND SHOULD NOT BE USED IN PRODUCTION OR DEVELOPMENT BUILDS THAT TARGET A LIVE BACKEND.
+// Application code should use services from 'src/services/api.ts' or similar.
+
 import { ChatMessage, ExerciseContext } from '../store/chatStore'; // Assuming ExerciseContext and ChatMessage are exported from chatStore
 
 interface ApiChatRequest {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import useChatStore from '../store/chatStore';
-import { postChatMessage } from '../mocks/api';
+import { postRealChatMessage } from '../services/api'; // UPDATED IMPORT
 import './ExerciseChat.css'; // Import the CSS file
 
 const ExerciseChat: React.FC = () => {
@@ -65,9 +65,12 @@ const ExerciseChat: React.FC = () => {
       setIsBotTyping(true);
 
       try {
-        const apiResponse = await postChatMessage({
+        // Ensure the context being sent matches what postRealChatMessage expects,
+        // currently it only sends data.message. The backend /api/chat also only expects "message".
+        // If exerciseContext is needed by the real API, postRealChatMessage and backend must be updated.
+        const apiResponse = await postRealChatMessage({
           message: userMessage.text,
-          exerciseContext: storeExerciseContext,
+          exerciseContext: storeExerciseContext, // This context is not used by postRealChatMessage's fetch body currently
         });
 
         if (currentExerciseId) {
