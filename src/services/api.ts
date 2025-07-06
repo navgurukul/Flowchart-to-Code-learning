@@ -45,8 +45,7 @@ export const postRealChatMessage = async (data: ApiChatRequest): Promise<Backend
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      // TODO: Add Authorization header if needed by the real API
-      // 'Authorization': `Bearer ${your_auth_token_retrieval_logic}`
+      // Authorization header comment removed as /api/chat is now public
     },
     body: JSON.stringify({ message: data.message }), // Backend expects { "message": "..." }
                                                     // It does not expect exerciseContext in the body for /api/chat
