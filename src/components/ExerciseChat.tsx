@@ -65,16 +65,24 @@ const ExerciseChat: React.FC = () => {
       setInputValue('');
       setIsBotTyping(true);
 
+      let messageToSend = userMessage.text;
+      const isGenerateCommand = userMessage.text.toLowerCase().startsWith('/generate ');
+
+      if (isGenerateCommand) {
+        messageToSend = userMessage.text.substring('/generate '.length).trim();
+      }
+
       try {
-        // Ensure the context being sent matches what postRealChatMessage expects,
-        // currently it only sends data.message. The backend /api/chat also only expects "message".
-        // If exerciseContext is needed by the real API, postRealChatMessage and backend must be updated.
+        // Ensure the context being sent matches what postRealChatMessage expects.
+        // The message field will now be the extracted prompt if it's a /generate command.
         const apiResponse = await postRealChatMessage({
-          message: userMessage.text,
+          message: messageToSend, // Use the potentially modified message
           exerciseContext: storeExerciseContext ? {
             currentExerciseId: storeExerciseContext.exerciseId, // Map from store's structure
             title: storeExerciseContext.title,
           } : null,
+          // We could add an explicit flag for the backend if it helps differentiate /generate calls
+          // isGenerateFlowchartRequest: isGenerateCommand
         });
 
         if (currentExerciseId) {

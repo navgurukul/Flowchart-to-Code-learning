@@ -97,100 +97,90 @@ function App() {
 
   // Moved generateCodeFromFlowchart before handleFlowchartChange
   const generateCodeFromFlowchart = React.useCallback((flowchart: FlowchartData): string => {
-  const handleFlowchartChange = (flowchart: FlowchartData) => {
-    setCurrentFlowchart(flowchart);
-    
-    // Generate code from flowchart
-    const code = generateCodeFromFlowchart(flowchart);
-    setGeneratedCode(code);
-  };
+  if (flowchart.nodes.length === 0) return '';
 
-  const generateCodeFromFlowchart = (flowchart: FlowchartData): string => {
-    if (flowchart.nodes.length === 0) return '';
+  // Validate flowchart structure
+  const errors = SafeCodeExecutor.validateFlowchartLogic(flowchart.nodes, flowchart.edges);
+  if (errors.length > 0) {
+    return `// Flowchart validation errors:\n// ${errors.join('\n// ')}\n\nfunction solution() {\n  // Fix the flowchart structure first\n  return "error";\n}`;
+  }
 
-    // Validate flowchart structure
-    const errors = SafeCodeExecutor.validateFlowchartLogic(flowchart.nodes, flowchart.edges);
-    if (errors.length > 0) {
-      return `// Flowchart validation errors:\n// ${errors.join('\n// ')}\n\nfunction solution() {\n  // Fix the flowchart structure first\n  return "error";\n}`;
-    }
+  // Simple code generation based on flowchart structure
+  let code = 'function solution(';
 
-    // Simple code generation based on flowchart structure
-    let code = 'function solution(';
-    
-    // Find input nodes to determine parameters
-    const inputNodes = flowchart.nodes.filter(node => node.type === 'input');
-    if (inputNodes.length > 0) {
-      const params = inputNodes.map((node, index) => {
-        const paramName = node.data.label.toLowerCase().replace(/[^a-z0-9]/g, '') || `input${index + 1}`;
-        return paramName;
-      }).join(', ');
-      code += params;
-    }
-    code += ') {\n';
+  // Find input nodes to determine parameters
+  const inputNodes = flowchart.nodes.filter(node => node.type === 'input');
+  if (inputNodes.length > 0) {
+    const params = inputNodes.map((node, index) => {
+      const paramName = node.data.label.toLowerCase().replace(/[^a-z0-9]/g, '') || `input${index + 1}`;
+      return paramName;
+    }).join(', ');
+    code += params;
+  }
+  code += ') {\n';
 
-    // Add variable declarations for inputs
-    inputNodes.forEach((node, index) => {
-      const varName = node.data.label.toLowerCase().replace(/[^a-z0-9]/g, '') || `input${index + 1}`;
-      code += `  // Input: ${node.data.label}\n`;
-    });
+  // Add variable declarations for inputs
+  inputNodes.forEach((node, index) => {
+    const varName = node.data.label.toLowerCase().replace(/[^a-z0-9]/g, '') || `input${index + 1}`;
+    code += `  // Input: ${node.data.label}\n`;
+  });
 
-    // Process nodes in a simple sequential manner
-    const processNodes = flowchart.nodes.filter(node => node.type === 'process');
-    processNodes.forEach(node => {
-      if (node.data.value && node.data.value.trim()) {
-        code += `  ${node.data.value.endsWith(';') ? node.data.value : node.data.value + ';'}\n`;
-      } else {
-        code += `  // Process: ${node.data.label}\n`;
-      }
-    });
-
-    // Handle decision nodes
-    const decisionNodes = flowchart.nodes.filter(node => node.type === 'decision');
-    decisionNodes.forEach(node => {
-      if (node.data.condition && node.data.condition.trim()) {
-        code += `  if (${node.data.condition}) {\n`;
-        code += `    // Yes path\n`;
-        code += `  } else {\n`;
-        code += `    // No path\n`;
-        code += `  }\n`;
-      }
-    });
-
-    // Handle loop nodes
-    const loopNodes = flowchart.nodes.filter(node => node.type === 'loop');
-    loopNodes.forEach(node => {
-      code += `  // Loop: ${node.data.label}\n`;
-      if (node.data.condition) {
-        code += `  while (${node.data.condition}) {\n`;
-        code += `    // Loop body\n`;
-        code += `  }\n`;
-      }
-    });
-
-    // Find output nodes for return statement
-    const outputNodes = flowchart.nodes.filter(node => node.type === 'output');
-    if (outputNodes.length > 0) {
-      const outputValue = outputNodes[0].data.value || outputNodes[0].data.label.toLowerCase().replace(/[^a-z0-9]/g, '');
-      if (outputValue && !outputValue.includes('display') && !outputValue.includes('print')) {
-        code += `  return ${outputValue};\n`;
-      } else {
-        code += `  return "${outputNodes[0].data.label}";\n`;
-      }
+  // Process nodes in a simple sequential manner
+  const processNodes = flowchart.nodes.filter(node => node.type === 'process');
+  processNodes.forEach(node => {
+    if (node.data.value && node.data.value.trim()) {
+      code += `  ${node.data.value.endsWith(';') ? node.data.value : node.data.value + ';'}\n`;
     } else {
-      code += `  return "result";\n`;
+      code += `  // Process: ${node.data.label}\n`;
     }
+  });
 
-    code += '}';
-    return code;
-  };
+  // Handle decision nodes
+  const decisionNodes = flowchart.nodes.filter(node => node.type === 'decision');
+  decisionNodes.forEach(node => {
+    if (node.data.condition && node.data.condition.trim()) {
+      code += `  if (${node.data.condition}) {\n`;
+      code += `    // Yes path\n`;
+      code += `  } else {\n`;
+      code += `    // No path\n`;
+      code += `  }\n`;
+    }
+  });
+
+  // Handle loop nodes
+  const loopNodes = flowchart.nodes.filter(node => node.type === 'loop');
+  loopNodes.forEach(node => {
+    code += `  // Loop: ${node.data.label}\n`;
+    if (node.data.condition) {
+      code += `  while (${node.data.condition}) {\n`;
+      code += `    // Loop body\n`;
+      code += `  }\n`;
+    }
+  });
+
+  // Find output nodes for return statement
+  const outputNodes = flowchart.nodes.filter(node => node.type === 'output');
+  if (outputNodes.length > 0) {
+    const outputValue = outputNodes[0].data.value || outputNodes[0].data.label.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (outputValue && !outputValue.includes('display') && !outputValue.includes('print')) {
+      code += `  return ${outputValue};\n`;
+    } else {
+      code += `  return "${outputNodes[0].data.label}";\n`;
+    }
+  } else {
+    code += `  return "result";\n`;
+  }
+
+  code += '}';
+  return code;
+}, []);
 
   const handleFlowchartChange = React.useCallback((flowchart: FlowchartData) => {
     setCurrentFlowchart(flowchart);
-
     // Generate code from flowchart
     const code = generateCodeFromFlowchart(flowchart);
     setGeneratedCode(code);
-  }, [setGeneratedCode, generateCodeFromFlowchart]);
+  }, [generateCodeFromFlowchart]);
 
   const handleRunCode = async (code: string) => {
     setIsRunning(true);
