@@ -180,7 +180,7 @@ function App() {
 
     code += '}';
     return code;
-  };
+  }, []); // Added empty dependency array
 
   const handleRunCode = async (code: string) => {
     setIsRunning(true);
