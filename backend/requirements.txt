@@ -10,5 +10,3 @@ opencv-python-headless>=4.0.0 # For image processing
 Pillow>=9.0.0 # For image manipulation
 easyocr>=1.7.0 # For OCR
 python-multipart>=0.0.5 # For FastAPI file uploads
-langchain>=0.1.0
-langchain-google-genai>=0.1.0

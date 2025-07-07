@@ -16,14 +16,6 @@ import firebase_admin
 from firebase_admin import credentials, auth, db
 from typing import Optional  # Added for Optional email in FirebaseUser
 
-# LangChain imports
-from langchain.prompts import PromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.chains import LLMChain
-# Using standard Pydantic for API data models
-from pydantic import BaseModel, Field
-import json # Ensure json is imported for potential parsing later
-
 # --- .env DEBUG START ---
 print("DEBUG: Script starting. Attempting to load .env file...")
 # Construct explicit path, assuming main.py is in 'backend' and .env is also in 'backend'
@@ -184,116 +176,12 @@ def configure_gemini(gemini_version: str = "2.0") -> Optional[genai.GenerativeMo
         print("       The AI features may not work correctly.")
         return None  # Return None to indicate failure
 
-# --- LangChain Error Tutor Chain Definition ---
-
-# Define the Pydantic models for the API response structure (used by /api/diagnose-flowchart-error)
-# These will be populated from the LLM's JSON output.
-class FlowchartPatch(BaseModel):
-    nodes_to_add: List[dict] = Field(default_factory=list, description="List of new nodes (JSON objects) to add to the flowchart")
-    edges_to_add: List[dict] = Field(default_factory=list, description="List of new edges (JSON objects) to add to the flowchart")
-
-class TutorResponse(BaseModel):
-    friendly_explanation: str = Field(description="Plain language explanation of the error for a student")
-    suggested_fix: str = Field(description="One-liner suggestion for how to fix the error")
-    flowchart_patch: Optional[FlowchartPatch] = Field(description="JSON object with nodes_to_add and edges_to_add to fix the flowchart. Set to null if no direct patch is possible.")
-
-ERROR_TUTOR_TEMPLATE = """
-You are a helpful teaching assistant for a flowchart programming application.
-Given a flowchart (in JSON format) and a Python traceback that occurred when trying to run or simulate this flowchart,
-your goal is to explain the error to a beginner student and suggest a fix.
-
-You MUST return a JSON object matching the following schema:
-{{
-  "friendly_explanation": "string (explain the error in simple terms, relating it to the flowchart)",
-  "suggested_fix": "string (a concise, actionable suggestion for the student to fix the flowchart)",
-  "flowchart_patch": {{
-    "nodes_to_add": [{{ "id": "new_node_1", "type": "NodeType", "label": "Node Label", "x": 0, "y": 0, ... }}],
-    "edges_to_add": [{{ "id": "new_edge_1", "source": "node_id_1", "target": "node_id_2", "label": "optional_label" }}]
-  }}
-  OR null if no direct patch is possible or appropriate.
-}}
-
-Consider the context: The student is learning programming concepts through flowcharts.
-The error might be due to missing nodes (e.g., an input variable used before declaration),
-incorrect connections, or logical flaws that manifest as runtime errors.
-
-Flowchart JSON:
-{flowchart}
-
-Python Traceback:
-{traceback}
-
-If the traceback is a NameError (e.g., "name 'input1' is not defined"), it likely means an Input node for 'input1' is missing,
-or a variable was used before it was assigned a value in a Process node.
-- For a missing Input:
-  - friendly_explanation: "It looks like you're trying to use a variable, for example 'input1', in your flowchart, possibly in a Process or Decision node. However, I can't find where 'input1' gets its value. Variables need to be defined, usually by adding an Input node, before they can be used."
-  - suggested_fix: "Add an Input node for the missing variable (e.g., 'input1') and connect it before the node where the error occurs."
-  - flowchart_patch: {{ "nodes_to_add": [{{ "id": "new_input_node_for_variable", "type": "input", "label": "Input [variable_name]", "x": 100, "y": 100 }}], "edges_to_add": [] }} (Note: Edge patching can be complex, you might simplify or omit if too hard to determine programmatically from traceback alone. Focus on adding the node first.)
-
-If the traceback is a ZeroDivisionError:
-- friendly_explanation: "It seems your flowchart tried to divide a number by zero. This isn't mathematically possible and causes an error. This usually happens in a Process node where you have an expression like 'result = x / y', and 'y' was zero at that time."
-- suggested_fix: "Check the Process node performing division. Ensure the variable you're dividing by (the denominator) cannot be zero. You might need to add a Decision node before it to check if the denominator is zero."
-- flowchart_patch: null (Patching this might require adding a decision and new paths, which is complex. Explaining is better here.)
-
-If no specific patch can be confidently generated (e.g., complex logical error, or if edge connections for a new node are ambiguous without more context), set flowchart_patch to null.
-Prioritize a clear explanation and a general suggestion if a precise patch is too complex.
-
-Return ONLY the JSON object.
-"""
-
-error_tutor_chain = None # Will be initialized after Gemini model
-
-def get_error_tutor_chain():
-    global error_tutor_chain
-    if error_tutor_chain is None:
-        # Ensure Gemini model is configured and available
-        # Assuming 'model' is the global genai.GenerativeModel initialized by configure_gemini()
-        # We need a Langchain compatible model instance.
-        gemini_api_key = os.environ.get("GEMINI_API_KEY")
-        if not gemini_api_key:
-            print("ERROR: GEMINI_API_KEY not found, cannot initialize error_tutor_chain.")
-            return None
-
-        try:
-            # Using gemini-pro as it's generally available and good for structured output.
-            # Adjust model name if needed, e.g. to a specific version like "gemini-1.5-flash-latest"
-            # Ensure the model used here supports JSON mode if we want to enforce it strictly,
-            # though the prompt itself requests JSON.
-            llm = ChatGoogleGenerativeAI(model="gemini-pro", google_api_key=gemini_api_key,
-                                         temperature=0.1, convert_system_message_to_human=True)
-
-            prompt_template = PromptTemplate(
-                input_variables=["flowchart", "traceback"],
-                template=ERROR_TUTOR_TEMPLATE
-            )
-            error_tutor_chain = LLMChain(
-                llm=llm,
-                prompt=prompt_template,
-                output_key="tutor_response_json_str" # Output will be a JSON string
-            )
-            print("INFO: LangChain error_tutor_chain initialized successfully.")
-        except Exception as e:
-            print(f"ERROR: Failed to initialize LangChain error_tutor_chain: {e}")
-            return None
-    return error_tutor_chain
-
-# --- End LangChain Error Tutor Chain Definition ---
-
 
 class ChatMessage(BaseModel):
     message: str
     exercise_id: Optional[str] = None
     exercise_title: Optional[str] = None
 
-# Model for the new /api/diagnose-flowchart-error endpoint
-class DiagnoseFlowchartErrorRequest(BaseModel):
-    flowchart_json: dict # Expecting a parsed JSON object (dictionary)
-    traceback: str
-
-# Model for the /api/flowchart/patch endpoint
-class ApplyFlowchartPatchRequest(BaseModel):
-    current_flowchart: dict # The current flowchart state {"nodes": [...], "edges": [...]}
-    patch: FlowchartPatch       # The patch object from TutorResponse
 
 class UserDetails(BaseModel):
     last_active: datetime
@@ -726,101 +614,6 @@ async def handle_chat_message(chat_message: ChatMessage): # Removed current_user
             status_code=500, detail=f"An error occurred while processing your request with the AI: {str(e)}")
 
     return {"response": response_text, "isStructuredData": is_structured_data}
-
-@app.post("/api/diagnose-flowchart-error", response_model=Optional[TutorResponse])
-async def diagnose_flowchart_error(error_data: DiagnoseFlowchartErrorRequest):
-    """
-    Receives flowchart JSON and a traceback string, then uses the LLM tutor chain
-    to generate an explanation, a suggested fix, and a potential patch.
-    """
-    tutor_chain = get_error_tutor_chain()
-    if not tutor_chain:
-        raise HTTPException(status_code=503, detail="Error tutor service is not available.")
-
-    try:
-        # Convert flowchart_json from dict to string for the chain
-        flowchart_str = json.dumps(error_data.flowchart_json, indent=2)
-
-        # Invoke the chain
-        # The chain is expected to return a dictionary with the key "tutor_response_json_str"
-        chain_result = await tutor_chain.arun(flowchart=flowchart_str, traceback=error_data.traceback)
-
-        if not chain_result:
-            raise HTTPException(status_code=500, detail="Error tutor chain returned an empty result.")
-
-        # The result from arun with a single output key is directly the value of that key
-        tutor_response_json_str = chain_result
-
-        print(f"DEBUG: Tutor chain raw JSON string response: {tutor_response_json_str}")
-
-        # Parse the JSON string response into our Pydantic model
-        parsed_response_data = json.loads(tutor_response_json_str)
-        tutor_response_obj = TutorResponse(**parsed_response_data)
-
-        return tutor_response_obj
-
-    except json.JSONDecodeError as e:
-        print(f"ERROR: Failed to parse JSON response from tutor chain: {e}")
-        print(f"Raw response was: {tutor_response_json_str}")
-        # Return a structured error or re-raise, maybe provide the raw string if helpful for debugging
-        raise HTTPException(status_code=500, detail=f"Failed to parse JSON response from tutor chain. Raw response: {tutor_response_json_str}")
-    except Exception as e:
-        print(f"Error during error diagnosis: {e}")
-        # Log the full traceback for server-side debugging
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"An error occurred during error diagnosis: {str(e)}")
-
-
-@app.post("/api/flowchart/patch")
-async def patch_flowchart(request_data: ApplyFlowchartPatchRequest):
-    """
-    Applies a patch (nodes_to_add, edges_to_add) to a given flowchart.
-    Returns the modified flowchart.
-    """
-    current_flowchart = request_data.current_flowchart
-    patch = request_data.patch
-
-    # Ensure current_flowchart has 'nodes' and 'edges' keys
-    if "nodes" not in current_flowchart or not isinstance(current_flowchart["nodes"], list):
-        current_flowchart["nodes"] = []
-    if "edges" not in current_flowchart or not isinstance(current_flowchart["edges"], list):
-        current_flowchart["edges"] = []
-
-    # Add new nodes
-    if patch.nodes_to_add:
-        # Basic validation: check for required fields in nodes to add (id, type, label, x, y)
-        for node in patch.nodes_to_add:
-            if not all(k in node for k in ("id", "type", "label", "x", "y")):
-                raise HTTPException(status_code=400, detail=f"Invalid node structure in patch: {node}. Missing required keys.")
-            # Check for duplicate node IDs before adding
-            if any(existing_node["id"] == node["id"] for existing_node in current_flowchart["nodes"]):
-                raise HTTPException(status_code=400, detail=f"Duplicate node ID '{node['id']}' found in patch when trying to add to existing nodes.")
-        current_flowchart["nodes"].extend(patch.nodes_to_add)
-
-    # Add new edges
-    if patch.edges_to_add:
-        # Basic validation: check for required fields in edges to add (id, source, target)
-        for edge in patch.edges_to_add:
-            if not all(k in edge for k in ("id", "source", "target")):
-                raise HTTPException(status_code=400, detail=f"Invalid edge structure in patch: {edge}. Missing required keys.")
-            # Check for duplicate edge IDs before adding
-            if any(existing_edge["id"] == edge["id"] for existing_edge in current_flowchart["edges"]):
-                raise HTTPException(status_code=400, detail=f"Duplicate edge ID '{edge['id']}' found in patch when trying to add to existing edges.")
-
-            # Optional: Check if source and target nodes for new edges exist
-            node_ids = {node["id"] for node in current_flowchart["nodes"]}
-            if edge["source"] not in node_ids:
-                raise HTTPException(status_code=400, detail=f"Source node '{edge['source']}' for new edge '{edge['id']}' not found in flowchart.")
-            if edge["target"] not in node_ids:
-                raise HTTPException(status_code=400, detail=f"Target node '{edge['target']}' for new edge '{edge['id']}' not found in flowchart.")
-
-        current_flowchart["edges"].extend(patch.edges_to_add)
-
-    # TODO: Consider more sophisticated patch operations if needed (e.g., modify, delete nodes/edges)
-    # For now, only additive patches are handled as per the design document's `FlowchartPatch` spec.
-
-    return current_flowchart
 
 
 @app.post("/api/auth/google")
