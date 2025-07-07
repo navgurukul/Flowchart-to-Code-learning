@@ -578,10 +578,10 @@ async def handle_chat_message(chat_message: ChatMessage): # Removed current_user
                     response_schema=response_schema,
                     candidate_count=1
                 )
-                print("DEBUG: Attempting to configure Gemini model for '/generate' command...")
-                model = configure_gemini(gemini_version="2.5")
+                print("DEBUG: Attempting to configure Gemini model for '/generate' command with version 2.0 (e.g., gemini-2.0-flash)...")
+                model = configure_gemini(gemini_version="2.0") # Changed from "2.5" to "2.0"
                 if model is None:
-                    print("ERROR: Gemini model is None after configuration attempt in '/generate'.")
+                    print("ERROR: Gemini model is None after configuration attempt in '/generate' with version 2.0.")
                     raise HTTPException(
                         status_code=503, detail="AI Service not configured or model not available. Critical: GEMINI_API_KEY might be missing or invalid in the deployment environment (e.g., Render settings). Also, check model availability for your key."
                     )
