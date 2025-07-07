@@ -11,24 +11,13 @@ export interface ExerciseContext { // Exporting
 }
 
 import { FlowchartData } from '../types'; // Import FlowchartData
-// Import FlowchartPatchPayload, assuming its definition is moved to a shared types file or ../services/api
-// For now, let's assume it's accessible or we'll define it here if not importing.
-// If FlowchartPatchPayload is kept in api.ts, this import might need adjustment based on project structure rules.
-import { FlowchartPatchPayload } from '../services/api';
-
 
 export interface ChatMessage { // Exporting
   id: string;
   sender: 'user' | 'assistant';
-  text: string; // Main textual content, could be the original error for diagnosed messages
+  text: string;
   timestamp: number;
-  isStructuredData?: boolean; // For /generate command's JSON flowchart output
-
-  // Fields for error diagnosis and "Fix It" functionality
-  originalError?: string;        // e.g., "NameError: input1 is not defined"
-  friendlyExplanation?: string;  // LLM's explanation
-  suggestedFix?: string;         // LLM's suggested fix
-  flowchartPatch?: FlowchartPatchPayload | null; // The actual patch object from TutorResponse
+  isStructuredData?: boolean; // Added to indicate if 'text' is JSON for flowchart
 }
 
 interface ChatState {
