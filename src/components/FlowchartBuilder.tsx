@@ -920,7 +920,8 @@ const selectedNodeDataForProperties = selectedNodeForProperties
                   </button>
                 )}
               </div>
-            ))}
+            )})}
+
 
             {/* Render Presence Bubbles for other users */}
             {otherUsersOnFlowchart.map(user => {
