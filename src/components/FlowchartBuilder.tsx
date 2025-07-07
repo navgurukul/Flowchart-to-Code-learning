@@ -791,9 +791,9 @@ const selectedNodeDataForProperties = selectedNodeForProperties
             <svg className="absolute inset-0 w-full h-full pointer-events-none">
               {isConnecting && connectionStart && connectingMousePosition && (() => {
                 const sourceNode = flowchartData.nodes.find(n => n.id === connectionStart);
-                if (!sourceNode) return null;
-                const x1 = sourceNode.position.x + 64; // Adjusted for new center
-                const y1 = sourceNode.position.y + 32; // Adjusted for new center
+                if (!sourceNode || !sourceNode.position) return null; // Guard against missing position
+                const x1 = sourceNode.position.x + 64;
+                const y1 = sourceNode.position.y + 32;
                 return (
                   <line
                     x1={x1}
@@ -810,12 +810,16 @@ const selectedNodeDataForProperties = selectedNodeForProperties
                 const sourceNode = flowchartData.nodes.find(n => n.id === edge.source);
                 const targetNode = flowchartData.nodes.find(n => n.id === edge.target);
                 
-                if (!sourceNode || !targetNode) return null;
+                // Guard against missing nodes or their positions
+                if (!sourceNode || !sourceNode.position || !targetNode || !targetNode.position) {
+                  console.error("FlowchartBuilder: Skipping edge render due to missing source/target node or position", edge, sourceNode, targetNode);
+                  return null;
+                }
 
-                const x1 = sourceNode.position.x + 64; // Adjusted for new center (assuming this was intended from previous task)
-                const y1 = sourceNode.position.y + 32; // Adjusted for new center
-                const x2 = targetNode.position.x + 64; // Adjusted for new center
-                const y2 = targetNode.position.y + 32; // Adjusted for new center
+                const x1 = sourceNode.position.x + 64;
+                const y1 = sourceNode.position.y + 32;
+                const x2 = targetNode.position.x + 64;
+                const y2 = targetNode.position.y + 32;
 
                 return (
                   <g key={edge.id}>
@@ -869,7 +873,15 @@ const selectedNodeDataForProperties = selectedNodeForProperties
             </svg>
 
             {/* Render Nodes */}
-            {flowchartData.nodes.map((node) => (
+            {flowchartData.nodes.map((node) => {
+              // Guard against missing position and provide defaults
+              const positionX = typeof node.position?.x === 'number' ? node.position.x : 0;
+              const positionY = typeof node.position?.y === 'number' ? node.position.y : 0;
+              if (typeof node.position?.x !== 'number' || typeof node.position?.y !== 'number') {
+                console.error("FlowchartBuilder: Node missing valid position, defaulting to (0,0). Node data:", node);
+              }
+
+              return (
               <div
                 key={node.id}
                 className={`absolute w-32 h-16 rounded-lg border-2 cursor-pointer transition-all hover:shadow-lg z-20 ${ // Added z-20
@@ -878,8 +890,8 @@ const selectedNodeDataForProperties = selectedNodeForProperties
                    ${highlightedNodeId === node.id ? 'ring-4 ring-purple-500 ring-offset-2' : ''} // Highlight for dry run/presence
                 `}
                 style={{
-                  left: node.position.x,
-                  top: node.position.y,
+                  left: positionX,
+                  top: positionY,
                   transform: node.type === 'decision' ? 'rotate(45deg)' : 'none',
                   cursor: draggingNodeId === node.id ? 'grabbing' : 'grab' // Visual feedback for dragging
                 }}
@@ -908,18 +920,24 @@ const selectedNodeDataForProperties = selectedNodeForProperties
                   </button>
                 )}
               </div>
-            ))}
+               );
+            })}
+
 
             {/* Render Presence Bubbles for other users */}
             {otherUsersOnFlowchart.map(user => {
               if (!user.currentNodeId) return null;
               const targetNode = flowchartData.nodes.find(n => n.id === user.currentNodeId);
-              if (!targetNode) return null;
+              // Guard against missing targetNode or its position
+              if (!targetNode || !targetNode.position) return null;
+
+              const positionX = typeof targetNode.position?.x === 'number' ? targetNode.position.x : 0;
+              const positionY = typeof targetNode.position?.y === 'number' ? targetNode.position.y : 0;
 
               // Position bubble slightly offset from the target node (e.g., top-right corner)
               // Node dimensions: w-32 (128px), h-16 (64px)
-              const bubbleX = targetNode.position.x + 128 - 8; // Node width - half bubble width approx
-              const bubbleY = targetNode.position.y - 8;      // Half bubble height approx above node
+              const bubbleX = positionX + 128 - 8; // Node width - half bubble width approx
+              const bubbleY = positionY - 8;      // Half bubble height approx above node
 
               return (
                 <div
