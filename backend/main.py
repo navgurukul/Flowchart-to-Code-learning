@@ -686,6 +686,10 @@ async def get_user_details(user_id: str, current_user: AuthenticatedUser = Depen
             # or ensure they are stored as strings if that's what UserDetails expects.
             # Based on StudentProgress, completedExercises are numbers.
             # UserDetails expects tasks_completed as List[str].
+            # For now, let's assume we want to return them as strings of numbers.
+
+            # Frontend uses numbers for exercise IDs. Let's keep it consistent.
+            # The UserDetails model expects List[str], but the frontend StudentProgress uses List[number].
             # This is a mismatch. For now, I will adapt to UserDetails, but this might need further review.
             tasks_completed_str = [str(ex_id) for ex_id in progress_data.get("completedExercises", [])]
 
