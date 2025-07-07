@@ -1,20 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
-import useChatStore from '../store/chatStore';
-import { postRealChatMessage } from '../services/api'; // UPDATED IMPORT
+import useChatStore, { ChatMessage } from '../store/chatStore'; // Import ChatMessage type
+import { postRealChatMessage, applyFlowchartPatch, FlowchartPatchPayload } from '../services/api'; // UPDATED IMPORT
 import './ExerciseChat.css'; // Import the CSS file
+import { FlowchartData, FlowchartNode, FlowchartNodeType } from '../types'; // For data transformation
 
 const ExerciseChat: React.FC = () => {
   const {
     isVisible,
     toggleVisibility,
     currentExerciseId,
-    exerciseContext,
+    // exerciseContext, // storeExerciseContext is used directly
     addMessage,
     loadHistory,
     requestResync,
-    setGeneratedFlowchartData, // Added for AI flowchart generation
+    setGeneratedFlowchartData,
+    generatedFlowchartData, // Need to read current flowchart for patching
   } = useChatStore();
-  const storeExerciseContext = useChatStore((state) => state.exerciseContext);
+  const storeExerciseContext = useChatStore((state) => state.exerciseContext); // For /generate context
 
   const [inputValue, setInputValue] = useState('');
   const [isBotTyping, setIsBotTyping] = useState(false);
@@ -28,19 +30,86 @@ const ExerciseChat: React.FC = () => {
   useEffect(scrollToBottom, [messages]);
 
   useEffect(() => {
-    if (isVisible && currentExerciseId && exerciseContext?.title) {
+    if (isVisible && currentExerciseId && storeExerciseContext?.title) { // use storeExerciseContext
       const currentMessages = loadHistory(currentExerciseId);
       if (currentMessages.length === 0) {
-        const greetingMessage = {
+        const greetingMessage: ChatMessage = { // Ensure type ChatMessage
           id: Date.now().toString() + '-greeting',
           sender: 'assistant' as 'assistant',
-          text: `Hi 👋 I’m FlowBot! Ready to help you with "${exerciseContext.title}".`,
+          text: `Hi 👋 I’m FlowBot! Ready to help you with "${storeExerciseContext.title}".`,
           timestamp: Date.now(),
         };
         addMessage(currentExerciseId, greetingMessage);
       }
     }
-  }, [isVisible, currentExerciseId, exerciseContext, addMessage, loadHistory]);
+  }, [isVisible, currentExerciseId, storeExerciseContext, addMessage, loadHistory]); // use storeExerciseContext
+
+  const handleFixIt = async (patch: FlowchartPatchPayload) => {
+    if (!currentExerciseId || !generatedFlowchartData) {
+      console.error("Cannot apply patch: missing exerciseId or current flowchart data.");
+      addMessage(currentExerciseId, {
+        id: Date.now().toString() + '-patch-error',
+        sender: 'assistant',
+        text: "I tried to apply the fix, but something went wrong. I couldn't find the current flowchart data.",
+        timestamp: Date.now(),
+      });
+      return;
+    }
+
+    setIsBotTyping(true);
+    try {
+      const patchedFlowchartFlat = await applyFlowchartPatch({
+        current_flowchart: generatedFlowchartData, // This is FlowchartData (nested)
+        patch: patch,
+      });
+
+      // Transform flat backend response to frontend's nested FlowchartData structure
+      const newNodes: FlowchartNode[] = patchedFlowchartFlat.nodes.map(flatNode => ({
+        id: flatNode.id,
+        type: flatNode.type as FlowchartNodeType, // Assuming type is valid FlowchartNodeType
+        position: { x: flatNode.x, y: flatNode.y },
+        data: { label: flatNode.label },
+        // width and height can be mapped to ReactFlow node styles if needed, or stored in data
+      }));
+
+      const newFlowchartData: FlowchartData = {
+        nodes: newNodes,
+        edges: patchedFlowchartFlat.edges, // Edges are already in the correct format
+      };
+
+      setGeneratedFlowchartData(newFlowchartData);
+
+      addMessage(currentExerciseId, {
+        id: Date.now().toString() + '-patch-applied',
+        sender: 'assistant',
+        text: "✅ Fix applied! The flowchart has been updated. Try running it again.",
+        timestamp: Date.now(),
+      });
+
+      // TODO: Trigger "re-run" of the flowchart as per design doc's `await runFlowchart()`
+      // This might involve:
+      // 1. Signaling to FlowchartBuilder.tsx to re-initialize its internal state if it doesn't auto-react to `generatedFlowchartData`
+      // 2. If there's a global run function/button, programmatically triggering it.
+      // 3. Or, if simulation is managed here or nearby, re-init and run FlowchartSimulator.
+      console.log("Flowchart patched. Next step would be to 'runFlowchart()'.");
+
+    } catch (error) {
+      console.error("Error applying flowchart patch:", error);
+      let errorMessage = "Sorry, I couldn't apply the fix. An unexpected error occurred.";
+      if (error instanceof Error) {
+        errorMessage = `Failed to apply fix: ${error.message}`;
+      }
+      addMessage(currentExerciseId, {
+        id: Date.now().toString() + '-patch-fail',
+        sender: 'assistant',
+        text: errorMessage,
+        timestamp: Date.now(),
+      });
+    } finally {
+      setIsBotTyping(false);
+    }
+  };
+
 
   if (!isVisible) {
     return (
@@ -144,7 +213,24 @@ const ExerciseChat: React.FC = () => {
               msg.sender === 'user' ? 'chat-message-user' : 'chat-message-assistant'
             }`}
           >
-            {msg.text}
+            {/* Render structured error message if fields are present */}
+            {msg.sender === 'assistant' && msg.originalError && (
+              <div className="error-explanation-message">
+                <p>❌ <strong>Error</strong>: {msg.originalError}</p>
+                {msg.friendlyExplanation && <p>ℹ️ {msg.friendlyExplanation}</p>}
+                {msg.suggestedFix && <p><strong>Fix suggestion:</strong> {msg.suggestedFix}</p>}
+                {msg.flowchartPatch && (
+                  <button
+                    onClick={() => handleFixIt(msg.flowchartPatch!)}
+                    className="fix-it-button"
+                  >
+                    Fix It 🪄
+                  </button>
+                )}
+              </div>
+            )}
+            {/* Fallback to simple text if not a structured error message, or for user messages */}
+            {(!msg.originalError || msg.sender === 'user') && msg.text}
           </div>
         ))}
          {isBotTyping && (
