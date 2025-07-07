@@ -27,7 +27,10 @@ function App() {
   const { currentUser, loading: authLoading, showDomainBlockModal, closeDomainBlockModal } = useAuth();
   const setExerciseContext = useChatStore((s) => s.setExerciseContext);
   const exerciseContext = useChatStore((s) => s.exerciseContext);
-  const lastResyncRequested = useChatStore((s) => s.lastResyncRequested); // <-- Add this line
+  const lastResyncRequested = useChatStore((s) => s.lastResyncRequested);
+  const generatedFlowchartDataFromChat = useChatStore((s) => s.generatedFlowchartData);
+  const setGeneratedFlowchartDataInChatStore = useChatStore((s) => s.setGeneratedFlowchartData);
+
 
   // --- Standard App State ---
   const defaultInitialProgress: StudentProgress = {
@@ -582,6 +585,20 @@ function App() {
       });
     }
   }, [currentExercise, generatedCode, executionResult, setExerciseContext, lastResyncRequested]);
+
+  // Effect to load flowchart data generated from chat
+  useEffect(() => {
+    if (generatedFlowchartDataFromChat) {
+      console.log("App.tsx: Detected new flowchart data from chat store:", generatedFlowchartDataFromChat);
+      setAiFlowchartToLoad(generatedFlowchartDataFromChat); // This will pass it as a prop to FlowchartBuilder
+      // Optionally, also update currentFlowchart directly if FlowchartBuilder doesn't fully manage it via prop change
+      // setCurrentFlowchart(generatedFlowchartDataFromChat);
+      // handleFlowchartChange(generatedFlowchartDataFromChat); // This also generates code, might be desired
+
+      setGeneratedFlowchartDataInChatStore(null); // Reset in store after processing
+    }
+  }, [generatedFlowchartDataFromChat, setAiFlowchartToLoad, setGeneratedFlowchartDataInChatStore, handleFlowchartChange]);
+
 
   // Debug log for current exercise state at render time
   console.log(

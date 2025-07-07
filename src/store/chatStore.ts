@@ -10,11 +10,14 @@ export interface ExerciseContext { // Exporting
   previousHints: number | null;
 }
 
+import { FlowchartData } from '../types'; // Import FlowchartData
+
 export interface ChatMessage { // Exporting
   id: string;
   sender: 'user' | 'assistant';
   text: string;
   timestamp: number;
+  isStructuredData?: boolean; // Added to indicate if 'text' is JSON for flowchart
 }
 
 interface ChatState {
@@ -22,10 +25,12 @@ interface ChatState {
   currentExerciseId: string | null;
   exerciseContext: ExerciseContext | null;
   chatHistory: Record<string, ChatMessage[]>; // ExerciseId -> Messages
+  generatedFlowchartData: FlowchartData | null; // For AI generated flowcharts
   toggleVisibility: () => void;
   setExerciseContext: (context: ExerciseContext) => void;
   addMessage: (exerciseId: string | null, message: ChatMessage) => void;
   loadHistory: (exerciseId: string | null) => ChatMessage[];
+  setGeneratedFlowchartData: (data: FlowchartData | null) => void; // Setter for AI flowchart
   lastResyncRequested: number | null;
   requestResync: () => void;
 }
@@ -37,9 +42,11 @@ const useChatStore = create<ChatState>()(
       currentExerciseId: null,
       exerciseContext: null,
       chatHistory: {},
+      generatedFlowchartData: null, // Initialize
       lastResyncRequested: null,
       toggleVisibility: () => set((state) => ({ isVisible: !state.isVisible })),
       requestResync: () => set({ lastResyncRequested: Date.now() }),
+      setGeneratedFlowchartData: (data) => set({ generatedFlowchartData: data }), // Implement setter
       setExerciseContext: (context) =>
         set((state) => {
           // When context changes, update currentExerciseId

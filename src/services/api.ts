@@ -76,7 +76,7 @@ export const postRealChatMessage = async (data: ApiChatRequest): Promise<Backend
     sender: 'assistant',
     text: responseData.response, // This is the raw string, could be plain text or stringified JSON
     timestamp: Date.now(),
-    // isStructuredData: responseData.isStructuredData, // Add this if ChatMessage type is extended
+    isStructuredData: responseData.isStructuredData, // Populate from backend response
   };
 
   return { reply: replyMessage };

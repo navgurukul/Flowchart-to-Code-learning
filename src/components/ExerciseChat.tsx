@@ -12,6 +12,7 @@ const ExerciseChat: React.FC = () => {
     addMessage,
     loadHistory,
     requestResync,
+    setGeneratedFlowchartData, // Added for AI flowchart generation
   } = useChatStore();
   const storeExerciseContext = useChatStore((state) => state.exerciseContext);
 
@@ -77,7 +78,27 @@ const ExerciseChat: React.FC = () => {
         });
 
         if (currentExerciseId) {
-            addMessage(currentExerciseId, apiResponse.reply);
+          let messageToStore = apiResponse.reply;
+          if (messageToStore.isStructuredData && messageToStore.text) {
+            try {
+              const flowchartData = JSON.parse(messageToStore.text);
+              if (flowchartData.nodes && flowchartData.edges) {
+                setGeneratedFlowchartData(flowchartData); // Update store
+                // Optionally, change the text displayed in chat:
+                // messageToStore = {
+                //   ...messageToStore,
+                //   text: "Flowchart generated! It should appear in the builder.",
+                // };
+                // For now, we'll keep the original JSON text in chat for debugging,
+                // but also signal that it has been processed.
+                console.log("Flowchart data parsed and set to store from chat message.");
+              }
+            } catch (e) {
+              console.error("Failed to parse structured data from chat message:", e);
+              // Keep original message text if parsing fails
+            }
+          }
+          addMessage(currentExerciseId, messageToStore);
         }
       } catch (error) {
         console.error("Error sending message to API:", error);
