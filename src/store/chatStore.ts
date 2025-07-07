@@ -33,6 +33,10 @@ interface ChatState {
   setGeneratedFlowchartData: (data: FlowchartData | null) => void; // Setter for AI flowchart
   lastResyncRequested: number | null;
   requestResync: () => void;
+  isCheatModeSource: boolean; // Added for cheat mode tracking
+  setIsCheatModeSource: (isCheat: boolean) => void; // Added for cheat mode tracking
+  isGeneratingFlowchart: boolean; // For spinner
+  setIsGeneratingFlowchart: (isLoading: boolean) => void; // For spinner
 }
 
 const useChatStore = create<ChatState>()(
@@ -44,9 +48,13 @@ const useChatStore = create<ChatState>()(
       chatHistory: {},
       generatedFlowchartData: null, // Initialize
       lastResyncRequested: null,
+      isCheatModeSource: false, // Initialize cheat mode flag
+      isGeneratingFlowchart: false, // Initialize loading flag
       toggleVisibility: () => set((state) => ({ isVisible: !state.isVisible })),
       requestResync: () => set({ lastResyncRequested: Date.now() }),
       setGeneratedFlowchartData: (data) => set({ generatedFlowchartData: data }), // Implement setter
+      setIsCheatModeSource: (isCheat) => set({ isCheatModeSource: isCheat }), // Implement cheat mode setter
+      setIsGeneratingFlowchart: (isLoading) => set({ isGeneratingFlowchart: isLoading }), // Implement loading setter
       setExerciseContext: (context) =>
         set((state) => {
           // When context changes, update currentExerciseId

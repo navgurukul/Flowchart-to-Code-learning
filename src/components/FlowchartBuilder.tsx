@@ -41,6 +41,8 @@ interface FlowchartBuilderProps {
   onRunCode: (code: string) => void;
   isRunning: boolean;
   newFlowchartToLoad?: FlowchartData | null; // New prop for AI generated flowcharts
+  isGeneratingFlowchart?: boolean; // For spinner display
+  highlightedNodeId?: string | null; // Added from previous context, ensure it's used or removed if not
 }
 
 interface NodePalette {
@@ -109,7 +111,8 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
   onRunCode,
   isRunning,
   newFlowchartToLoad,
-  highlightedNodeId // This prop is from App.tsx for dry run, ensure it's declared in FlowchartBuilderProps if not already
+  isGeneratingFlowchart, // Destructure the new prop
+  highlightedNodeId
 }) => {
   const { currentUser } = useAuth(); // Get current user for presence updates
   const [flowchartData, setFlowchartData] = useState<FlowchartData>({
@@ -778,6 +781,12 @@ const selectedNodeDataForProperties = selectedNodeForProperties
             onClick={handleCanvasClick} // Added to handle clicks on canvas background
             // onMouseLeave={handleDragEnd} // Removed this line as it might prematurely end drags
           >
+            {isGeneratingFlowchart && (
+              <div className="absolute inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-50">
+                <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
+                <p className="ml-3 text-white font-semibold">Generating Flowchart...</p>
+              </div>
+            )}
             {/* Render Edges */}
             <svg className="absolute inset-0 w-full h-full pointer-events-none">
               {isConnecting && connectionStart && connectingMousePosition && (() => {
