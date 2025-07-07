@@ -333,15 +333,8 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
     const mouseXInCanvas = event.clientX - canvasRect.left;
     const mouseYInCanvas = event.clientY - canvasRect.top;
 
-    // Ensure node.position exists before accessing x and y
-    const nodePositionX = node.position?.x || 0;
-    const nodePositionY = node.position?.y || 0;
-    if (!node.position) {
-        console.error("Node position is undefined during MouseDown:", node);
-    }
-
-    const offsetX = mouseXInCanvas - nodePositionX;
-    const offsetY = mouseYInCanvas - nodePositionY;
+    const offsetX = mouseXInCanvas - node.position.x;
+    const offsetY = mouseYInCanvas - node.position.y;
 
     setDraggingNodeId(nodeId);
     setDragOffset({ x: offsetX, y: offsetY });
@@ -888,47 +881,48 @@ const selectedNodeDataForProperties = selectedNodeForProperties
                 console.error("FlowchartBuilder: Node missing valid position, defaulting to (0,0). Node data:", node);
               }
 
-              return ( // Explicit return statement
-                <div
-                  key={node.id}
-                  className={`absolute w-32 h-16 rounded-lg border-2 cursor-pointer transition-all hover:shadow-lg z-20 ${
-                    getNodeStyle(node.type)
-                  } ${selectedNodeForProperties === node.id ? 'ring-2 ring-blue-500 ring-offset-2' : ''}
-                     ${highlightedNodeId === node.id ? 'ring-4 ring-purple-500 ring-offset-2' : ''}
-                  `}
-                  style={{
-                    left: positionX,
-                    top: positionY,
-                    transform: node.type === 'decision' ? 'rotate(45deg)' : 'none',
-                    cursor: draggingNodeId === node.id ? 'grabbing' : 'grab'
-                  }}
-                  onClick={() => handleNodeClick(node.id)}
-                  onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
+              return (
+              <div
+                key={node.id}
+                className={`absolute w-32 h-16 rounded-lg border-2 cursor-pointer transition-all hover:shadow-lg z-20 ${ // Added z-20
+                  getNodeStyle(node.type)
+                } ${selectedNodeForProperties === node.id ? 'ring-2 ring-blue-500 ring-offset-2' : ''}
+                   ${highlightedNodeId === node.id ? 'ring-4 ring-purple-500 ring-offset-2' : ''} // Highlight for dry run/presence
+                `}
+                style={{
+                  left: positionX,
+                  top: positionY,
+                  transform: node.type === 'decision' ? 'rotate(45deg)' : 'none',
+                  cursor: draggingNodeId === node.id ? 'grabbing' : 'grab' // Visual feedback for dragging
+                }}
+                onClick={() => handleNodeClick(node.id)}
+                onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
+              >
+                <div className={`w-full h-full flex items-center justify-center p-2 ${
+                  node.type === 'decision' ? 'transform -rotate-45' : ''
+                }`} title={node.data.label} // Show full label on hover
                 >
-                  <div className={`w-full h-full flex items-center justify-center p-2 ${
-                    node.type === 'decision' ? 'transform -rotate-45' : ''
-                  }`} title={node.data.label}
-                  >
-                    <span className="text-xs font-medium text-center leading-tight block truncate overflow-hidden text-ellipsis">
-                      {node.data.label}
-                    </span>
-                  </div>
-
-                  {selectedNodeForProperties === node.id && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteNode(node.id);
-                      }}
-                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors z-30"
-                      title="Delete node"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  )}
+                  <span className="text-xs font-medium text-center leading-tight block truncate overflow-hidden text-ellipsis">
+                    {node.data.label}
+                  </span>
                 </div>
-              ); // Closing parenthesis of return
-            })} {/* Closing curly brace and parenthesis for map */}
+                
+                {selectedNodeForProperties === node.id && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent node click from firing again
+                      handleDeleteNode(node.id);
+                    }}
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors z-30" // Ensure delete button is on top
+                    title="Delete node"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+               );
+            })}
+
 
             {/* Render Presence Bubbles for other users */}
             {otherUsersOnFlowchart.map(user => {
@@ -937,16 +931,13 @@ const selectedNodeDataForProperties = selectedNodeForProperties
               // Guard against missing targetNode or its position
               if (!targetNode || !targetNode.position) return null;
 
-              const positionXBubble = typeof targetNode.position?.x === 'number' ? targetNode.position.x : 0;
-              const positionYBubble = typeof targetNode.position?.y === 'number' ? targetNode.position.y : 0;
-              if (typeof targetNode.position?.x !== 'number' || typeof targetNode.position?.y !== 'number') {
-                console.error("FlowchartBuilder: Presence bubble target node missing valid position. User:", user.uid, "Node:", targetNode);
-              }
+              const positionX = typeof targetNode.position?.x === 'number' ? targetNode.position.x : 0;
+              const positionY = typeof targetNode.position?.y === 'number' ? targetNode.position.y : 0;
 
               // Position bubble slightly offset from the target node (e.g., top-right corner)
               // Node dimensions: w-32 (128px), h-16 (64px)
-              const bubbleX = positionXBubble + 128 - 8; // Node width - half bubble width approx
-              const bubbleY = positionYBubble - 8;      // Half bubble height approx above node
+              const bubbleX = positionX + 128 - 8; // Node width - half bubble width approx
+              const bubbleY = positionY - 8;      // Half bubble height approx above node
 
               return (
                 <div
