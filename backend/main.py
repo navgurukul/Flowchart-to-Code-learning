@@ -507,17 +507,17 @@ async def handle_chat_message(chat_message: ChatMessage): # Removed current_user
                 print(f"DEBUG: topic '{topic[:100]}' with context prefix: '{context_prefix[:100]}'")
 
                 # Ensure model is configured
-        print("DEBUG: Attempting to configure Gemini model for '/learn' command...")
+                print("DEBUG: Attempting to configure Gemini model for '/learn' command...")
                 model = configure_gemini(gemini_version="2.0")
                 if model is None:
-            print("ERROR: Gemini model is None after configuration attempt in '/learn'.")
+                    print("ERROR: Gemini model is None after configuration attempt in '/learn'.")
                     raise HTTPException(
-                status_code=503, detail="AI Service not configured or model not available. Critical: GEMINI_API_KEY might be missing or invalid in the deployment environment (e.g., Render settings). Also, check model availability for your key.")
+                        status_code=503, detail="AI Service not configured or model not available. Critical: GEMINI_API_KEY might be missing or invalid in the deployment environment (e.g., Render settings). Also, check model availability for your key.")
 
-            print(f"DEBUG: Gemini model object before calling generate_content_async: {model}")
-            ai_response = await model.generate_content_async(prompt)
-            # Print first 100 chars for brevity
-            print(f"DEBUG: AI response received: {ai_response.text[:100]}...")
+                print(f"DEBUG: Gemini model object before calling generate_content_async: {model}")
+                ai_response = await model.generate_content_async(prompt)
+                # Print first 100 chars for brevity
+                print(f"DEBUG: AI response received: {ai_response.text[:100]}...")
             response_text = ai_response.text
         elif user_message.lower().startswith("/generate "):
             description = user_message[len("/generate "):].strip()
