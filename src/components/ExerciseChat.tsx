@@ -67,8 +67,6 @@ const ExerciseChat: React.FC = () => {
       setInputValue('');
       setIsBotTyping(true);
 
-      console.log("[DEBUG] User message text at start of handleSendMessage:", userMessage.text); // DEBUG LOG
-
       let command: 'chat' | 'learn' | 'generate' = 'chat';
       let messageContent = userMessage.text;
 
