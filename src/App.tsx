@@ -97,6 +97,15 @@ function App() {
 
   // Moved generateCodeFromFlowchart before handleFlowchartChange
   const generateCodeFromFlowchart = React.useCallback((flowchart: FlowchartData): string => {
+  const handleFlowchartChange = (flowchart: FlowchartData) => {
+    setCurrentFlowchart(flowchart);
+    
+    // Generate code from flowchart
+    const code = generateCodeFromFlowchart(flowchart);
+    setGeneratedCode(code);
+  };
+
+  const generateCodeFromFlowchart = (flowchart: FlowchartData): string => {
     if (flowchart.nodes.length === 0) return '';
 
     // Validate flowchart structure
@@ -173,7 +182,7 @@ function App() {
 
     code += '}';
     return code;
-  }, []); // Added empty dependency array
+  };
 
   const handleFlowchartChange = React.useCallback((flowchart: FlowchartData) => {
     setCurrentFlowchart(flowchart);
@@ -589,33 +598,16 @@ function App() {
 
   // Effect to load flowchart data generated from chat
   useEffect(() => {
-    if (generatedFlowchartDataFromChat && generatedFlowchartDataFromChat.nodes) {
+    if (generatedFlowchartDataFromChat) {
       console.log("App.tsx: Detected new flowchart data from chat store:", generatedFlowchartDataFromChat);
-      console.log("App.tsx: Nodes before transformation:", JSON.stringify(generatedFlowchartDataFromChat.nodes, null, 2));
-
-      // Transform nodes to match FlowchartNode structure expected by FlowchartBuilder
-      const transformedNodes = generatedFlowchartDataFromChat.nodes.map((node: any) => ({
-        id: node.id,
-        type: node.type,
-        position: { x: node.x, y: node.y },
-        data: { label: node.label },
-        // Other properties like 'value' or 'condition' for 'process' or 'decision' nodes
-        // would need to be handled here if the AI provides them and they are flat.
-        // For now, assuming AI provides 'label', 'x', 'y', 'id', 'type'.
-      }));
-
-      const transformedFlowchartData: FlowchartData = {
-        ...generatedFlowchartDataFromChat, // Spread to keep edges and other top-level properties
-        nodes: transformedNodes,
-      };
-
-      console.log("App.tsx: Transformed flowchart data:", transformedFlowchartData);
-      setAiFlowchartToLoad(transformedFlowchartData);
-      // handleFlowchartChange(transformedFlowchartData); // This also generates code, might be desired
+      setAiFlowchartToLoad(generatedFlowchartDataFromChat); // This will pass it as a prop to FlowchartBuilder
+      // Optionally, also update currentFlowchart directly if FlowchartBuilder doesn't fully manage it via prop change
+      // setCurrentFlowchart(generatedFlowchartDataFromChat);
+      // handleFlowchartChange(generatedFlowchartDataFromChat); // This also generates code, might be desired
 
       setGeneratedFlowchartDataInChatStore(null); // Reset in store after processing
     }
-  }, [generatedFlowchartDataFromChat]); // Simplified dependency array
+  }, [generatedFlowchartDataFromChat, setAiFlowchartToLoad, setGeneratedFlowchartDataInChatStore, handleFlowchartChange]);
 
 
   // Debug log for current exercise state at render time
