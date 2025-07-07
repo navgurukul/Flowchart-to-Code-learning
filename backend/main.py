@@ -95,12 +95,16 @@ def configure_gemini(gemini_version: str = "2.0") -> Optional[genai.GenerativeMo
     try:
         gemini_api_key = os.environ.get("GEMINI_API_KEY")
         # This debug print is crucial
-        print(
-            f"DEBUG: Inside Gemini config try block, value of 'gemini_api_key' variable is: {{gemini_api_key[:5] + '...' if gemini_api_key else 'None'}}")
+        if gemini_api_key:
+            print(
+                f"DEBUG: GEMINI_API_KEY FOUND in environment. Value: '{gemini_api_key[:5]}...' (partially shown)")
+        else:
+            print(
+                "DEBUG: GEMINI_API_KEY NOT FOUND in os.environ during Gemini configuration.")
 
         if not gemini_api_key:
             raise KeyError(
-                "GEMINI_API_KEY not found in environment. Please ensure it is set in your system environment or in a 'backend/.env' file.")
+                "GEMINI_API_KEY not found in environment. Please ensure it is set in your system environment (e.g., Render service environment variables) or in a 'backend/.env' file for local development.")
 
         genai.configure(api_key=gemini_api_key)
         print("INFO: Gemini SDK configured with API key.")
@@ -496,11 +500,14 @@ async def handle_chat_message(chat_message: ChatMessage): # Removed current_user
                 print(f"DEBUG: topic '{topic[:100]}'")
 
                 # Ensure model is configured
+        print("DEBUG: Attempting to configure Gemini model for '/learn' command...")
                 model = configure_gemini(gemini_version="2.0")
                 if model is None:
+            print("ERROR: Gemini model is None after configuration attempt in '/learn'.")
                     raise HTTPException(
-                status_code=503, detail="AI Service not configured or model not available. Ensure GEMINI_API_KEY is set and valid, and a suitable model is available.")
+                status_code=503, detail="AI Service not configured or model not available. Critical: GEMINI_API_KEY might be missing or invalid in the deployment environment (e.g., Render settings). Also, check model availability for your key.")
 
+            print(f"DEBUG: Gemini model object before calling generate_content_async: {model}")
             ai_response = await model.generate_content_async(prompt)
             # Print first 100 chars for brevity
             print(f"DEBUG: AI response received: {ai_response.text[:100]}...")
@@ -564,12 +571,15 @@ async def handle_chat_message(chat_message: ChatMessage): # Removed current_user
                     response_schema=response_schema,
                     candidate_count=1
                 )
+                print("DEBUG: Attempting to configure Gemini model for '/generate' command...")
                 model = configure_gemini(gemini_version="2.5")
                 if model is None:
+                    print("ERROR: Gemini model is None after configuration attempt in '/generate'.")
                     raise HTTPException(
-                        status_code=503, detail="AI Service not configured or model not available. Ensure GEMINI_API_KEY is set and valid, and a suitable model is available."
+                        status_code=503, detail="AI Service not configured or model not available. Critical: GEMINI_API_KEY might be missing or invalid in the deployment environment (e.g., Render settings). Also, check model availability for your key."
                     )
 
+                print(f"DEBUG: Gemini model object before calling generate_content_async: {model}")
                 # Pass the generation config to generate_content_async
                 ai_response = await model.generate_content_async(prompt, generation_config=generation_config)
                 try:

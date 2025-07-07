@@ -20,19 +20,22 @@ interface BackendApiResponse { // This is what the actual backend /api/chat retu
 
 // Helper to get the API base URL
 const getApiBaseUrl = (): string => {
-  const apiUrl = import.meta.env.VITE_API_URL;
+  // Using VITE_API_BASE_URL as per the new requirement
+  const apiUrl = import.meta.env.VITE_API_BASE_URL;
   if (!apiUrl) {
-    console.error("VITE_API_URL is not defined. Falling back to relative path /api. This may not work in all environments.");
-    // Fallback for local development if .env is not set up, assuming backend is on same host/port under /api
-    // In production, VITE_API_URL should definitely be set.
-    return ""; // Use relative path for /api/chat
+    // Fallback for local development, pointing to the typical local backend port
+    console.warn("VITE_API_BASE_URL is not defined. Falling back to http://localhost:8000. Ensure your local backend is running there or set VITE_API_BASE_URL.");
+    return "http://localhost:8000"; // Default to local backend URL
   }
   return apiUrl;
 };
 
 export const postRealChatMessage = async (data: ApiChatRequest): Promise<BackendApiResponse> => {
   const baseUrl = getApiBaseUrl();
-  const targetUrl = `${baseUrl}/api/chat`; // Construct the target URL
+  // Ensure targetUrl does not result in double slashes if baseUrl is empty or just "/"
+  const targetPath = "/api/chat";
+  const targetUrl = baseUrl.endsWith('/') ? `${baseUrl.slice(0, -1)}${targetPath}` : `${baseUrl}${targetPath}`;
+
 
   // If backend returns { response: string, isStructuredData: boolean } directly,
   // then the transformation to ChatMessage structure happens here.
