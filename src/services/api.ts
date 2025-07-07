@@ -2,6 +2,7 @@ import { ChatMessage, ExerciseContext } from '../store/chatStore';
 
 interface ApiChatRequest {
   message: string;
+  command?: 'chat' | 'learn' | 'generate'; // Added command field
   exerciseContext: { // Be more specific about what's needed from ExerciseContext
     currentExerciseId?: number | string | null; // Allow for flexible ID types
     title?: string | null;
@@ -55,6 +56,7 @@ export const postRealChatMessage = async (data: ApiChatRequest): Promise<Backend
     },
     body: JSON.stringify({
       message: data.message,
+      command: data.command || 'chat', // Pass the command, default to 'chat'
       exercise_id: data.exerciseContext?.currentExerciseId?.toString(), // Ensure it's a string for backend
       exercise_title: data.exerciseContext?.title,
     }),

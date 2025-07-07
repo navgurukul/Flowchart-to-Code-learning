@@ -30,6 +30,7 @@ function App() {
   const lastResyncRequested = useChatStore((s) => s.lastResyncRequested);
   const generatedFlowchartDataFromChat = useChatStore((s) => s.generatedFlowchartData);
   const setGeneratedFlowchartDataInChatStore = useChatStore((s) => s.setGeneratedFlowchartData);
+  const isGeneratingFlowchart = useChatStore((s) => s.isGeneratingFlowchart); // Get loading state
 
 
   // --- Standard App State ---
@@ -209,16 +210,30 @@ function App() {
       }
 
       // Update progress if correct and not already completed
+      const isCheatMode = useChatStore.getState().isCheatModeSource;
+      if (isCheatMode) {
+        useChatStore.getState().setIsCheatModeSource(false); // Reset flag
+        console.log("Cheat mode was active. Progress not awarded.");
+        // Toast notification for cheat mode will be handled in ExerciseChat.tsx or a global toast service
+      }
+
       if (result.isCorrect && currentExerciseId !== null && !progress.completedExercises.includes(currentExerciseId)) {
-        const points = currentExercise!.difficulty === 'beginner' ? 50 :
-                       currentExercise!.difficulty === 'intermediate' ? 75 : 100;
-        
-        setProgress(prev => ({
-          ...prev,
-          completedExercises: [...prev.completedExercises, currentExerciseId!],
-          totalScore: prev.totalScore + points,
-          lastAccessedAt: new Date().toISOString()
-        }));
+        if (!isCheatMode) {
+          const points = currentExercise!.difficulty === 'beginner' ? 50 :
+                         currentExercise!.difficulty === 'intermediate' ? 75 : 100;
+
+          setProgress(prev => ({
+            ...prev,
+            completedExercises: [...prev.completedExercises, currentExerciseId!],
+            totalScore: prev.totalScore + points,
+            lastAccessedAt: new Date().toISOString()
+          }));
+          console.log("Progress awarded for completing exercise.");
+        } else {
+          // If it was cheat mode, and the solution is correct,
+          // we still might want to acknowledge it, but not give points.
+          // For now, the console log above handles the notification.
+        }
       }
     } catch (error) {
       setExecutionResult({
@@ -718,6 +733,7 @@ function App() {
                 onRunCode={handleRunCode} // This is for actual code execution, not dry run steps
                 isRunning={isRunning && !isDryRunMode} // Actual run is only when not in dry run
                 newFlowchartToLoad={aiFlowchartToLoad}
+                isGeneratingFlowchart={isGeneratingFlowchart} // Pass loading state for spinner
                 highlightedNodeId={isDryRunMode ? currentDryRunState?.currentProcessedNodeId : null} // Highlight current dry run node
               />
               {isCodeEditorOpen && (

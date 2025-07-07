@@ -3,6 +3,10 @@ import useChatStore, { ChatMessage } from '../store/chatStore'; // Import ChatMe
 import { postRealChatMessage, applyFlowchartPatch, FlowchartPatchPayload } from '../services/api'; // UPDATED IMPORT
 import './ExerciseChat.css'; // Import the CSS file
 import { FlowchartData, FlowchartNode, FlowchartNodeType } from '../types'; // For data transformation
+import toast from 'react-hot-toast'; // Import toast
+import useChatStore from '../store/chatStore';
+import { postRealChatMessage } from '../services/api';
+import './ExerciseChat.css';
 
 const ExerciseChat: React.FC = () => {
   const {
@@ -15,6 +19,7 @@ const ExerciseChat: React.FC = () => {
     requestResync,
     setGeneratedFlowchartData,
     generatedFlowchartData, // Need to read current flowchart for patching
+    setIsGeneratingFlowchart, // Get the setter for loading state
   } = useChatStore();
   const storeExerciseContext = useChatStore((state) => state.exerciseContext); // For /generate context
 
@@ -134,61 +139,96 @@ const ExerciseChat: React.FC = () => {
       setInputValue('');
       setIsBotTyping(true);
 
-      let messageToSend = userMessage.text;
-      const isGenerateCommand = userMessage.text.toLowerCase().startsWith('/generate ');
+      console.log("[DEBUG] User message text at start of handleSendMessage:", userMessage.text); // DEBUG LOG
 
-      if (isGenerateCommand) {
-        messageToSend = userMessage.text.substring('/generate '.length).trim();
+      let command: 'chat' | 'learn' | 'generate' = 'chat';
+      let messageContent = userMessage.text;
+
+      if (userMessage.text.toLowerCase().startsWith('/generate ')) {
+        command = 'generate';
+        messageContent = userMessage.text.substring('/generate '.length).trim();
+        setIsGeneratingFlowchart(true); // Start loading before API call
+      } else if (userMessage.text.toLowerCase().startsWith('/learn ')) {
+        command = 'learn';
+        messageContent = userMessage.text.substring('/learn '.length).trim();
       }
 
       try {
-        // Ensure the context being sent matches what postRealChatMessage expects.
-        // The message field will now be the extracted prompt if it's a /generate command.
         const apiResponse = await postRealChatMessage({
-          message: messageToSend, // Use the potentially modified message
+          message: messageContent,
+          command: command,
           exerciseContext: storeExerciseContext ? {
-            currentExerciseId: storeExerciseContext.exerciseId, // Map from store's structure
+            currentExerciseId: storeExerciseContext.exerciseId,
             title: storeExerciseContext.title,
           } : null,
-          // We could add an explicit flag for the backend if it helps differentiate /generate calls
-          // isGenerateFlowchartRequest: isGenerateCommand
         });
 
         if (currentExerciseId) {
-          let messageToStore = apiResponse.reply;
-          if (messageToStore.isStructuredData && messageToStore.text) {
+          const botReply = apiResponse.reply;
+          if (command === 'generate' && botReply.isStructuredData && botReply.text) {
             try {
-              const flowchartData = JSON.parse(messageToStore.text);
+              const flowchartData = JSON.parse(botReply.text);
               if (flowchartData.nodes && flowchartData.edges) {
-                setGeneratedFlowchartData(flowchartData); // Update store
-                // Optionally, change the text displayed in chat:
-                // messageToStore = {
-                //   ...messageToStore,
-                //   text: "Flowchart generated! It should appear in the builder.",
-                // };
-                // For now, we'll keep the original JSON text in chat for debugging,
-                // but also signal that it has been processed.
+                setGeneratedFlowchartData(flowchartData);
+                useChatStore.getState().setIsCheatModeSource(true); // Set cheat mode source
+                 addMessage(currentExerciseId, {
+                   id: Date.now().toString() + '-flowchart-generated',
+                   sender: 'assistant',
+                   text: "Flowchart generated. You can see it on the canvas.",
+                   timestamp: Date.now(),
+                 });
+                toast.success("Flowchart generated in cheat mode – progress not counted.");
                 console.log("Flowchart data parsed and set to store from chat message.");
+              } else {
+                // Structured data was expected but not in the correct format
+                const formatError = "Flowchart data is missing nodes or edges.";
+                toast.error(`Error: ${formatError}`);
+                throw new Error(formatError);
               }
             } catch (e) {
-              console.error("Failed to parse structured data from chat message:", e);
-              // Keep original message text if parsing fails
+              const parseError = `Error processing flowchart: ${e instanceof Error ? e.message : 'Invalid format.'}`;
+              toast.error(parseError);
+              console.error("Failed to parse structured flowchart data:", e);
+              addMessage(currentExerciseId, {
+                id: Date.now().toString() + '-error',
+                sender: 'assistant',
+                text: parseError,
+                timestamp: Date.now(),
+              });
             }
+          } else if (command === 'generate') {
+            // Handle cases where /generate was called but response was not structured or failed
+            const generateError = "Failed to generate flowchart. The response was not as expected.";
+            toast.error(generateError);
+             addMessage(currentExerciseId, {
+                id: Date.now().toString() + '-generate-error',
+                sender: 'assistant',
+                text: botReply.text || generateError, // Show bot's text or a generic error
+                timestamp: Date.now(),
+            });
           }
-          addMessage(currentExerciseId, messageToStore);
+          else {
+            // Regular message or /learn response
+            addMessage(currentExerciseId, botReply);
+          }
         }
       } catch (error) {
+        const apiError = `API Error: ${error instanceof Error ? error.message : "Sorry, I couldn't connect to the assistant."}`;
+        toast.error(apiError);
         console.error("Error sending message to API:", error);
         if (currentExerciseId) {
             addMessage(currentExerciseId, {
                 id: Date.now().toString() + '-error',
                 sender: 'assistant',
-                text: "Sorry, I couldn't connect to the assistant. Please try again.",
+                text: apiError,
                 timestamp: Date.now(),
             });
         }
       } finally {
         setIsBotTyping(false);
+        if (command === 'generate') {
+          setIsGeneratingFlowchart(false); // Stop loading after API call attempt for /generate
+        }
       }
     }
   };
