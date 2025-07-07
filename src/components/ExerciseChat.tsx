@@ -70,7 +70,10 @@ const ExerciseChat: React.FC = () => {
         // If exerciseContext is needed by the real API, postRealChatMessage and backend must be updated.
         const apiResponse = await postRealChatMessage({
           message: userMessage.text,
-          exerciseContext: storeExerciseContext, // This context is not used by postRealChatMessage's fetch body currently
+          exerciseContext: storeExerciseContext ? {
+            currentExerciseId: storeExerciseContext.exerciseId, // Map from store's structure
+            title: storeExerciseContext.title,
+          } : null,
         });
 
         if (currentExerciseId) {

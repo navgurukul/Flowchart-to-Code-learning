@@ -2,7 +2,10 @@ import { ChatMessage, ExerciseContext } from '../store/chatStore';
 
 interface ApiChatRequest {
   message: string;
-  exerciseContext: ExerciseContext | null;
+  exerciseContext: { // Be more specific about what's needed from ExerciseContext
+    currentExerciseId?: number | string | null; // Allow for flexible ID types
+    title?: string | null;
+  } | null;
 }
 
 interface ApiChatResponseData { // Renamed to avoid conflict if we use the same name for the function's return type
@@ -50,8 +53,11 @@ export const postRealChatMessage = async (data: ApiChatRequest): Promise<Backend
       'Content-Type': 'application/json',
       // Authorization header comment removed as /api/chat is now public
     },
-    body: JSON.stringify({ message: data.message }), // Backend expects { "message": "..." }
-                                                    // It does not expect exerciseContext in the body for /api/chat
+    body: JSON.stringify({
+      message: data.message,
+      exercise_id: data.exerciseContext?.currentExerciseId?.toString(), // Ensure it's a string for backend
+      exercise_title: data.exerciseContext?.title,
+    }),
   });
 
   if (!response.ok) {

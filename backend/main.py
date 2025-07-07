@@ -179,6 +179,8 @@ def configure_gemini(gemini_version: str = "2.0") -> Optional[genai.GenerativeMo
 
 class ChatMessage(BaseModel):
     message: str
+    exercise_id: Optional[str] = None
+    exercise_title: Optional[str] = None
 
 
 class UserDetails(BaseModel):
@@ -487,8 +489,13 @@ async def handle_chat_message(chat_message: ChatMessage): # Removed current_user
             if not topic:
                 response_text = "Please specify a topic after /learn. For example: /learn loops"
             else:
+                context_prefix = ""
+                if chat_message.exercise_title:
+                    context_prefix = f"Within the context of the exercise titled '{chat_message.exercise_title}', "
+                    print(f"DEBUG: Received exercise context: ID='{chat_message.exercise_id}', Title='{chat_message.exercise_title}'")
+
                 prompt = (
-                    f"Explain the programming concept of '{topic}' clearly and concisely, as if to a beginner learning about flowcharts.\n"
+                    f"{context_prefix}Explain the programming concept of '{topic}' clearly and concisely, as if to a beginner learning about flowcharts.\n"
                     f"Your explanation should include:\n"
                     f"1. A definition of the concept.\n"
                     f"2. How it is typically represented in a flowchart (mention symbol types if specific).\n"
@@ -497,7 +504,7 @@ async def handle_chat_message(chat_message: ChatMessage): # Removed current_user
                     f"Focus on educational value and clarity. Use markdown for formatting if it helps readability (e.g., for lists or code blocks)."
                 )
                 # Print first 100 chars for brevity
-                print(f"DEBUG: topic '{topic[:100]}'")
+                print(f"DEBUG: topic '{topic[:100]}' with context prefix: '{context_prefix[:100]}'")
 
                 # Ensure model is configured
         print("DEBUG: Attempting to configure Gemini model for '/learn' command...")
