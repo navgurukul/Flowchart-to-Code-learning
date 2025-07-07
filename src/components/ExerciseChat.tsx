@@ -71,31 +71,14 @@ const ExerciseChat: React.FC = () => {
 
       let command: 'chat' | 'learn' | 'generate' = 'chat';
       let messageContent = userMessage.text;
-      let isValidCommand = true; // Flag to check if the command is valid to proceed
 
       if (userMessage.text.toLowerCase().startsWith('/generate ')) {
         command = 'generate';
         messageContent = userMessage.text.substring('/generate '.length).trim();
-        if (!messageContent || messageContent.toLowerCase() === '/generate') {
-          // If after stripping /generate, the content is empty or another /generate, it's likely an error or the double command issue
-          toast.error("Please provide a description after /generate.");
-          isValidCommand = false; // Mark as invalid to prevent API call
-        } else {
-          setIsGeneratingFlowchart(true); // Start loading before API call
-        }
+        setIsGeneratingFlowchart(true); // Start loading before API call
       } else if (userMessage.text.toLowerCase().startsWith('/learn ')) {
         command = 'learn';
         messageContent = userMessage.text.substring('/learn '.length).trim();
-        if (!messageContent) {
-          toast.error("Please provide a topic after /learn.");
-          isValidCommand = false; // Mark as invalid
-        }
-      }
-
-      if (!isValidCommand) {
-        setIsBotTyping(false); // Ensure bot typing indicator is turned off
-        setIsGeneratingFlowchart(false); // Ensure loading state is turned off
-        return; // Stop processing if the command is not valid
       }
 
       try {
@@ -112,8 +95,6 @@ const ExerciseChat: React.FC = () => {
           const botReply = apiResponse.reply;
           if (command === 'generate' && botReply.isStructuredData && botReply.text) {
             try {
-              // Log the raw JSON string before parsing
-              console.log("ExerciseChat: Raw flowchart JSON string from backend:", botReply.text);
               const flowchartData = JSON.parse(botReply.text);
               if (flowchartData.nodes && flowchartData.edges) {
                 setGeneratedFlowchartData(flowchartData);
@@ -125,7 +106,7 @@ const ExerciseChat: React.FC = () => {
                    timestamp: Date.now(),
                  });
                 toast.success("Flowchart generated in cheat mode – progress not counted.");
-                console.log("ExerciseChat: Flowchart data parsed and set to store:", flowchartData);
+                console.log("Flowchart data parsed and set to store from chat message.");
               } else {
                 // Structured data was expected but not in the correct format
                 const formatError = "Flowchart data is missing nodes or edges.";

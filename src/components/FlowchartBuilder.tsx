@@ -190,118 +190,12 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
     };
   }, [draggingNodeId, handleDragEnd]);
 
-  // Helper function to validate and sanitize incoming flowchart data
-  const validateAndSanitizeFlowchartData = (data: FlowchartData | null | undefined): { validatedData: FlowchartData, warnings: string[] } => {
-    const warnings: string[] = [];
-    if (!data || !data.nodes) {
-      warnings.push("Received no flowchart data or nodes were missing; displaying an empty canvas.");
-      return { validatedData: { nodes: [], edges: [] }, warnings };
-    }
-
-    const sanitizedNodes = (data.nodes || []).map((node, index) => {
-      if (typeof node !== 'object' || node === null) {
-        warnings.push(`Node at index ${index} was not a valid object and was skipped.`);
-        return null; // Skip this node
-      }
-
-      const { id, type, position, data: nodeData } = node;
-      let validatedType = type;
-      let originalType = type;
-
-      if (!id) warnings.push(`Node ${index + 1} was missing an ID; a new one was generated.`);
-      if (!type) {
-        warnings.push(`Node ${id || `(new ID for index ${index})`} was missing a type; defaulted to 'process'.`);
-        validatedType = 'process';
-      } else if (!nodePalette.some(p => p.type === type)) {
-        warnings.push(`Node ${id || `(new ID for index ${index})`} had an invalid type '${type}'; defaulted to 'process'.`);
-        validatedType = 'process';
-      }
-      if (!position || typeof position.x !== 'number' || typeof position.y !== 'number') {
-        warnings.push(`Node ${id || type || `index ${index}`} was missing a valid position; defaulted to a random position.`);
-      }
-      if (!nodeData) {
-        warnings.push(`Node ${id || type || `index ${index}`} was missing 'data' object; default data used.`);
-      } else if (!nodeData.label) {
-        warnings.push(`Node ${id || type || `index ${index}`} was missing a label; a default label was provided.`);
-      }
-
-
-      const validatedNode: FlowchartNode = {
-        id: id || `node-validated-${Date.now()}-${index}`,
-        type: validatedType as FlowchartNodeType,
-        position: {
-          x: typeof position?.x === 'number' ? position.x : Math.random() * 400,
-          y: typeof position?.y === 'number' ? position.y : Math.random() * 300,
-        },
-        data: {
-          label: nodeData?.label || `Node '${originalType || validatedType}' ${index + 1}`,
-          value: nodeData?.value || '',
-          condition: nodeData?.condition || '',
-        },
-        isDragging: false,
-      };
-      return validatedNode;
-    }).filter(Boolean) as FlowchartNode[]; // Filter out null (skipped) nodes
-
-    const nodeIds = new Set(sanitizedNodes.map(n => n.id));
-    const sanitizedEdges = (data.edges || []).filter(edge => {
-      if (typeof edge !== 'object' || edge === null) {
-        warnings.push("An edge entry was not a valid object and was skipped.");
-        return false;
-      }
-      if (!edge.id) warnings.push(`Edge was missing an ID; a new one will be generated if edge is kept.`);
-      if (!edge.source || !nodeIds.has(edge.source)) {
-        warnings.push(`Edge '${edge.id || 'unknown ID'}' removed: source node '${edge.source || 'missing'}' not found or invalid.`);
-        return false;
-      }
-      if (!edge.target || !nodeIds.has(edge.target)) {
-        warnings.push(`Edge '${edge.id || 'unknown ID'}' removed: target node '${edge.target || 'missing'}' not found or invalid.`);
-        return false;
-      }
-      return true;
-    }).map((edge, index) => ({
-      id: edge.id || `edge-validated-${Date.now()}-${index}`,
-      source: edge.source,
-      target: edge.target,
-      type: edge.type || 'default',
-      label: edge.label || '',
-    }));
-
-    if (data.nodes.length > 0 && sanitizedNodes.length === 0) {
-        warnings.push("All nodes in the provided flowchart data were invalid or unsupported.");
-    }
-
-
-    return { validatedData: { nodes: sanitizedNodes, edges: sanitizedEdges }, warnings };
-  };
-
   useEffect(() => {
-    if (newFlowchartToLoad !== undefined) { // Check if the prop is actually passed
+    if (newFlowchartToLoad && (newFlowchartToLoad.nodes.length > 0 || newFlowchartToLoad.edges.length > 0)) {
       console.log('FlowchartBuilder: Received new flowchart to load via props:', newFlowchartToLoad);
-      const { validatedData, warnings } = validateAndSanitizeFlowchartData(newFlowchartToLoad);
-
-      console.log('FlowchartBuilder: Validated flowchart data:', validatedData);
-      if (warnings.length > 0) {
-        console.warn('FlowchartBuilder: Warnings during flowchart data validation:', warnings);
-        warnings.forEach(warning => toast.warn(warning, { duration: 4000 }));
-        if (validatedData.nodes.length === 0 && newFlowchartToLoad && newFlowchartToLoad.nodes && newFlowchartToLoad.nodes.length > 0) {
-          toast.error("Failed to load any valid nodes from the generated flowchart.", { duration: 5000});
-        } else if (newFlowchartToLoad === null || (newFlowchartToLoad && !newFlowchartToLoad.nodes)) {
-           // This case is handled by the initial check in validateAndSanitizeFlowchartData
-           // but we can add a specific toast if needed.
-           // toast.error("Received empty or invalid flowchart data.", { duration: 5000 });
-        }
-      }
-
-      setFlowchartData(validatedData);
+      setFlowchartData(newFlowchartToLoad);
       setSelectedNodeForProperties(null); // Reset selection
-
-      // If, after validation, there are no nodes, but the original attempt had nodes,
-      // it implies all nodes were invalid.
-      if (validatedData.nodes.length === 0 && newFlowchartToLoad?.nodes && newFlowchartToLoad.nodes.length > 0) {
-        // This message is now covered by the toast.error above.
-        // addMessage for chat could be an option here if direct chat interaction is needed.
-      }
+      // The existing useEffect that watches flowchartData will call onGenerateCode
     }
   }, [newFlowchartToLoad]); // Dependency array includes newFlowchartToLoad
 
@@ -1006,10 +900,10 @@ const selectedNodeDataForProperties = selectedNodeForProperties
               >
                 <div className={`w-full h-full flex items-center justify-center p-2 ${
                   node.type === 'decision' ? 'transform -rotate-45' : ''
-                }`} title={node.data?.label || 'Untitled Node'} // Show full label on hover, with fallback
+                }`} title={node.data.label} // Show full label on hover
                 >
                   <span className="text-xs font-medium text-center leading-tight block truncate overflow-hidden text-ellipsis">
-                    {node.data?.label || 'Untitled Node'} {/* Fallback for display */}
+                    {node.data.label}
                   </span>
                 </div>
                 
