@@ -95,6 +95,8 @@ function App() {
     }));
   };
 
+  // Moved generateCodeFromFlowchart before handleFlowchartChange
+  const generateCodeFromFlowchart = React.useCallback((flowchart: FlowchartData): string => {
   const handleFlowchartChange = (flowchart: FlowchartData) => {
     setCurrentFlowchart(flowchart);
     
@@ -181,6 +183,14 @@ function App() {
     code += '}';
     return code;
   };
+
+  const handleFlowchartChange = React.useCallback((flowchart: FlowchartData) => {
+    setCurrentFlowchart(flowchart);
+
+    // Generate code from flowchart
+    const code = generateCodeFromFlowchart(flowchart);
+    setGeneratedCode(code);
+  }, [setGeneratedCode, generateCodeFromFlowchart]);
 
   const handleRunCode = async (code: string) => {
     setIsRunning(true);
