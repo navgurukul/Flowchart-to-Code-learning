@@ -95,14 +95,7 @@ function App() {
     }));
   };
 
-  const handleFlowchartChange = React.useCallback((flowchart: FlowchartData) => {
-    setCurrentFlowchart(flowchart);
-    
-    // Generate code from flowchart
-    const code = generateCodeFromFlowchart(flowchart);
-    setGeneratedCode(code);
-  }, [setGeneratedCode, generateCodeFromFlowchart]);
-
+  // Moved generateCodeFromFlowchart before handleFlowchartChange
   const generateCodeFromFlowchart = React.useCallback((flowchart: FlowchartData): string => {
     if (flowchart.nodes.length === 0) return '';
 
@@ -181,6 +174,14 @@ function App() {
     code += '}';
     return code;
   }, []); // Added empty dependency array
+
+  const handleFlowchartChange = React.useCallback((flowchart: FlowchartData) => {
+    setCurrentFlowchart(flowchart);
+
+    // Generate code from flowchart
+    const code = generateCodeFromFlowchart(flowchart);
+    setGeneratedCode(code);
+  }, [setGeneratedCode, generateCodeFromFlowchart]);
 
   const handleRunCode = async (code: string) => {
     setIsRunning(true);
