@@ -749,7 +749,7 @@ const selectedNodeDataForProperties = selectedNodeForProperties
                   </div>
                   <p className="text-xs opacity-75">{node.description}</p>
                 </div>
-              ));
+              ))}
             </div>
 
             {/* Required Nodes Checklist */}
