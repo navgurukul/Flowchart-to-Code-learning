@@ -30,6 +30,18 @@
   transition: width 0.3s ease, height 0.3s ease, bottom 0.3s ease, right 0.3s ease; /* For smoother transitions */
 }
 
+.chat-widget-fullscreen {
+  width: 100vw; /* Full viewport width */
+  height: 100vh; /* Full viewport height */
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 0; /* No border radius in full screen */
+  border: none; /* No border in full screen */
+  z-index: 2000; /* Ensure it's above other elements */
+}
+
 /* Responsive adjustments for smaller screens */
 @media (max-width: 640px) {
   .chat-widget-button {
