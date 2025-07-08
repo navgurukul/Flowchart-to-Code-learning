@@ -60,49 +60,49 @@ const nodePalette: NodePalette[] = [
   {
     type: 'start',
     label: 'Start',
-    icon: <Circle className="w-4 h-4" />,
+    icon: <Circle className="w-5 h-5" />,
     color: 'bg-emerald-100 border-emerald-300 text-emerald-800',
     description: 'Beginning of the flowchart'
   },
   {
     type: 'end',
     label: 'End',
-    icon: <Circle className="w-4 h-4" />,
+    icon: <Circle className="w-5 h-5" />,
     color: 'bg-red-100 border-red-300 text-red-800',
     description: 'End of the flowchart'
   },
   {
     type: 'process',
     label: 'Process',
-    icon: <Square className="w-4 h-4" />,
+    icon: <Square className="w-5 h-5" />,
     color: 'bg-blue-100 border-blue-300 text-blue-800',
     description: 'Processing step or calculation'
   },
   {
     type: 'decision',
     label: 'Decision',
-    icon: <Diamond className="w-4 h-4" />,
+    icon: <Diamond className="w-5 h-5" />,
     color: 'bg-orange-100 border-orange-300 text-orange-800',
     description: 'Conditional branching'
   },
   {
     type: 'input',
     label: 'Input',
-    icon: <ArrowRight className="w-4 h-4 rotate-180" />,
+    icon: <ArrowRight className="w-5 h-5 rotate-180" />,
     color: 'bg-purple-100 border-purple-300 text-purple-800',
     description: 'Data input operation'
   },
   {
     type: 'output',
     label: 'Output',
-    icon: <ArrowRight className="w-4 h-4" />,
+    icon: <ArrowRight className="w-5 h-5" />,
     color: 'bg-indigo-100 border-indigo-300 text-indigo-800',
     description: 'Data output operation'
   },
   {
     type: 'loop',
     label: 'Loop',
-    icon: <div className="w-4 h-4 border-2 border-current rounded-full" />,
+    icon: <div className="w-5 h-5 border-2 border-current rounded-full" />,
     color: 'bg-yellow-100 border-yellow-300 text-yellow-800',
     description: 'Repetitive operation'
   }
@@ -814,11 +814,10 @@ const selectedNodeDataForProperties = selectedNodeForProperties
                   onDragStart={() => handleDragStart(node.type)}
                   className={`p-3 rounded-lg border-2 border-dashed cursor-move transition-all hover:shadow-md ${node.color}`}
                 >
-                  <div className="flex items-center mb-1">
+                  <div title={node.description} className="flex items-center">
                     {node.icon}
                     <span className="ml-2 font-medium text-sm">{node.label}</span>
                   </div>
-                  <p className="text-xs opacity-75">{node.description}</p>
                 </div>
               ))}
             </div>
