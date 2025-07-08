@@ -19,6 +19,7 @@
     "react-flow-renderer": "^10.3.17",
     "react-hot-toast": "^2.5.2",
     "react-markdown": "^10.1.0",
+    "shepherd.js": "^14.5.0",
     "zustand": "^5.0.6"
   },
   "devDependencies": {
