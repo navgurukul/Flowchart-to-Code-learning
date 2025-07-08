@@ -1,14 +1,36 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Problem Solver</title>
-    <link rel="stylesheet" href="node_modules/shepherd.js/dist/css/shepherd.css"/>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flowchart Exercise Navigator</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        #flowchart-canvas { border: 1px solid #ccc; min-height: 200px; padding: 10px; margin-top: 10px; background-color: #f9f9f9; white-space: pre-wrap; /* To show JSON nicely */ }
+        .controls button { margin: 5px; padding: 10px; }
+        .info { margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Interactive Flowchart</h1>
+
+    <div class="info">
+        Current Exercise: <span id="current-exercise-id">None</span>
+    </div>
+
+    <div class="controls">
+        <button class="nav-exercise-btn" data-exercise-id="exercise1">Load Exercise 1</button>
+        <button class="nav-exercise-btn" data-exercise-id="exercise2">Load Exercise 2</button>
+        <button class="nav-exercise-btn" data-exercise-id="exercise3">Load Exercise 3</button>
+    </div>
+
+    <div id="flowchart-canvas">
+        <!-- Flowchart will be rendered here (or cleared) -->
+        Please load an exercise.
+    </div>
+
+    <!-- Important: flowchartManager.js must be included BEFORE app.js -->
+    <script src="flowchartManager.js"></script>
+    <script src="app.js"></script>
+</body>
 </html>
