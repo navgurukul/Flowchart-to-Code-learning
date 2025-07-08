@@ -139,3 +139,12 @@
 .shepherd-step-final .shepherd-title {
   color: #059669; /* green-600 */
 }
+
+/* Attempt to ensure non-enabled steps with our custom class are fully hidden */
+/* This relies on Shepherd correctly removing '.shepherd-enabled' from inactive steps. */
+.shepherd-element.shepherd-popup-custom:not(.shepherd-enabled) {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  z-index: -1 !important; /* Also send it to the back, just in case */
+}
