@@ -22,7 +22,8 @@
   height: 500px;
   border: 1px solid #ccc;
   border-radius: 8px;
-  background-color: white;
+  /* background-color: white; */
+  background: linear-gradient(135deg, #6dd5ed, #f5b0cb, #ffdc7d); /* Example: Blue to Pink to Yellow gradient */
   display: flex;
   flex-direction: column;
   box-shadow: 0 4px 8px rgba(0,0,0,0.1);
@@ -75,13 +76,14 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: #f0f0f0;
+  background-color: rgba(255, 255, 255, 0.3); /* Semi-transparent white for header */
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
 }
 
 .chat-header-title {
   font-weight: bold;
+  color: #333; /* Darker color for better readability */
 }
 
 .chat-header-buttons button {
@@ -129,7 +131,7 @@
 .bot-typing-indicator {
   align-self: flex-start;
   font-style: italic;
-  color: #666;
+  color: #444; /* Slightly darker for better contrast */
   padding: 8px 12px;
 }
 
