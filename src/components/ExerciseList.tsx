@@ -27,9 +27,9 @@ export const ExerciseList: React.FC<ExerciseListProps> = ({
   const completionPercentage = (progress.completedExercises.length / exercises.length) * 100;
 
   return (
-    <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-full">
+    <div className="w-full sm:w-80 bg-white border-r border-gray-200 flex flex-col h-full">
       {/* Header */}
-      <div className="p-6 border-b border-gray-200">
+      <div className="p-4 sm:p-6 border-b border-gray-200">
         <h2 className="text-xl font-bold text-gray-900 mb-4">Programming Exercises</h2>
         
         {/* Progress Overview */}

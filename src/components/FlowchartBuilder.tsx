@@ -257,6 +257,9 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
 
   const handleDragStart = (nodeType: FlowchartNodeType) => {
     setDraggedNodeType(nodeType);
+    if (window.innerWidth < 768) { // md breakpoint, consistent with panel logic
+      setIsPaletteOpen(false);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
