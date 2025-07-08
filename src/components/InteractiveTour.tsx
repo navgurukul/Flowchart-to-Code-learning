@@ -197,7 +197,7 @@ const InteractiveTour: React.FC<InteractiveTourProps> = ({ forceStart, onTourCom
     } else if (hasTourBeenCompleted !== 'true') {
       // Start tour automatically if not completed
       // Add a small delay to ensure the UI is fully rendered
-      const timer = setTimeout(()_ => {
+      const timer = setTimeout(() => {
           // Check again, in case component unmounted or forceStart happened
           if (localStorage.getItem(TOUR_STORAGE_KEY) !== 'true') {
             initializeAndStartTour();
