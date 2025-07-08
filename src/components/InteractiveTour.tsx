@@ -84,19 +84,101 @@ const InteractiveTour: React.FC<InteractiveTourProps> = ({ forceStart, onTourCom
 
     addStepsToTour(tourSteps);
 
+    // --- Event Logging for Debugging Issue #106 ---
+    const logStepDetails = (step: Shepherd.Step, eventName: string) => {
+      if (step.id === 'connect-nodes') {
+        const element = step.el;
+        console.log(`[Tour Debug] Event: '${eventName}' for step '${step.id}'`);
+        if (element) {
+          console.log(`  Element Exists. Classes: ${element.className}`);
+          console.log(`  Computed Style - Display: ${getComputedStyle(element).display}, Opacity: ${getComputedStyle(element).opacity}, Visibility: ${getComputedStyle(element).visibility}`);
+          // Check if target is still valid (Shepherd might have internal ways, this is a guess)
+          const targetElement = step.options.attachTo && typeof step.options.attachTo.element === 'string' ? document.querySelector(step.options.attachTo.element) : null;
+          console.log(`  Target Element ('${step.options.attachTo?.element}') Found: ${!!targetElement}`);
+          console.log(`  Is Centered: ${element.classList.contains('shepherd-centered')}`);
+        } else {
+          console.log(`  Element (step.el) does NOT exist.`);
+        }
+      }
+    };
+
+    // --- State for tracking previous step, to apply fix for issue #106 ---
+    let previousActiveStepId: string | null = null;
+
+    tour.on('before-show', ({ step }) => {
+      logStepDetails(step, 'before-show'); // Existing log
+
+      // GitHub Issue #106 Fix: If 'connect-nodes' was the previous step, ensure it's truly hidden.
+      if (previousActiveStepId === 'connect-nodes') {
+        const connectNodesElement = document.getElementById('connect-nodes'); // Shepherd uses step.id as DOM id
+        if (connectNodesElement) {
+          const isStillProblematic =
+            connectNodesElement.classList.contains('shepherd-enabled') ||
+            getComputedStyle(connectNodesElement).display !== 'none';
+
+          if (isStillProblematic) {
+            console.warn(`[Tour Fix #106] 'connect-nodes' (previous step) found problematic before step '${step.id}' shows. Forcibly hiding.`);
+            connectNodesElement.classList.remove('shepherd-enabled');
+            connectNodesElement.style.display = 'none';
+            connectNodesElement.style.opacity = '0';
+            connectNodesElement.style.visibility = 'hidden';
+
+            // Also try Shepherd's API if instance is available and seems open
+            const connectNodesStepInstance = tour.getById('connect-nodes');
+            if (connectNodesStepInstance && typeof connectNodesStepInstance.isOpen === 'function' && connectNodesStepInstance.isOpen()) {
+                console.warn("[Tour Fix #106] Shepherd API reports 'connect-nodes' as open. Calling hide().");
+                connectNodesStepInstance.hide();
+            }
+          }
+        }
+      }
+    });
+
+    tour.on('show', ({ step }) => {
+      logStepDetails(step, 'show');
+      previousActiveStepId = step.id; // Update after the current step is shown
+    });
+
+    tour.on('hide', ({ step }) => {
+      logStepDetails(step, 'hide');
+      if (step.id === 'connect-nodes') {
+        // Existing log to check its state after its own 'hide' event
+        setTimeout(() => {
+          const el = document.getElementById('connect-nodes');
+          if (el) {
+            console.log(`[Tour Debug] AFTER HIDE (connect-nodes) - Element Classes: ${el.className}`);
+            console.log(`  Computed Style - Display: ${getComputedStyle(el).display}, Opacity: ${getComputedStyle(el).opacity}, Visibility: ${getComputedStyle(el).visibility}`);
+          }
+        }, 100);
+      }
+      // If the hidden step was the one tracked, clear previousActiveStepId,
+      // though 'show' event of the next step will overwrite it anyway.
+      // if (previousActiveStepId === step.id) {
+      //   previousActiveStepId = null;
+      // }
+    });
+
+    tour.on('before-hide', ({ step }) => {
+      logStepDetails(step, 'before-hide');
+    });
+    // --- End Event Logging & Fix ---
+
     tour.on('complete', () => {
+      console.log('[Tour Debug] Event: complete');
+      previousActiveStepId = null; // Clear on tour completion
       localStorage.setItem(TOUR_STORAGE_KEY, 'true');
       if (onTourComplete) onTourComplete();
-      // Ensure tour instance is cleaned up if needed, though Shepherd might handle this
     });
 
     tour.on('cancel', () => {
-      // Also mark as seen if skipped, unless we want it to reappear
+      console.log('[Tour Debug] Event: cancel');
+      previousActiveStepId = null; // Clear on tour cancellation
       localStorage.setItem(TOUR_STORAGE_KEY, 'true');
-      if (onTourComplete) onTourComplete(); // Or a different handler for skip
+      if (onTourComplete) onTourComplete();
     });
 
     // Start the tour
+    console.log('[Tour Debug] Starting tour...');
     tour.start();
 
     // Store the tour instance if you need to access it outside, e.g., for a replay button
@@ -115,7 +197,7 @@ const InteractiveTour: React.FC<InteractiveTourProps> = ({ forceStart, onTourCom
     } else if (hasTourBeenCompleted !== 'true') {
       // Start tour automatically if not completed
       // Add a small delay to ensure the UI is fully rendered
-      const timer = setTimeout(() => {
+      const timer = setTimeout(()_ => {
           // Check again, in case component unmounted or forceStart happened
           if (localStorage.getItem(TOUR_STORAGE_KEY) !== 'true') {
             initializeAndStartTour();

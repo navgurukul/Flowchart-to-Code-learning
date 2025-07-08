@@ -140,9 +140,9 @@
   color: #059669; /* green-600 */
 }
 
-/* Attempt to ensure non-enabled steps with our custom class are fully hidden */
+/* Attempt to ensure non-enabled steps (including potentially centered ones) are fully hidden. */
 /* This relies on Shepherd correctly removing '.shepherd-enabled' from inactive steps. */
-.shepherd-element.shepherd-popup-custom:not(.shepherd-enabled) {
+.shepherd-element:not(.shepherd-enabled) {
   display: none !important;
   opacity: 0 !important;
   visibility: hidden !important;
