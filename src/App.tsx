@@ -45,12 +45,12 @@ function App() {
   const [progressLoaded, setProgressLoaded] = useState(false); // Added: Flag to track if initial progress load is complete
   const [currentExerciseId, setCurrentExerciseId] = useState<number | null>(null); // Changed: No exercise selected initially
   const [isExerciseListOpen, setIsExerciseListOpen] = useState(true);
-  const [isInputOutputOpen, setIsInputOutputOpen] = useState(true);
+  const [isInputOutputOpen, setIsInputOutputOpen] = useState(false); // Default to collapsed
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<string>('');
   const [currentFlowchart, setCurrentFlowchart] = useState<FlowchartData>({ nodes: [], edges: [] });
-  const [isCodeEditorOpen, setIsCodeEditorOpen] = useState(true); // New state for CodeEditor visibility
+  const [isCodeEditorOpen, setIsCodeEditorOpen] = useState(false); // Default to collapsed
   // const [isChatOpen, setIsChatOpen] = useState(false); // Removed: Handled by ExerciseChat store
   const [aiFlowchartToLoad, setAiFlowchartToLoad] = useState<FlowchartData | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);

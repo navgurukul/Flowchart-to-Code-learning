@@ -17,7 +17,10 @@ import {
   Settings2, // Added for properties toggle
   Palette, // Added for palette toggle
   X, // For the close button on properties panel
-  Upload // Added for image upload
+  Upload, // Added for image upload
+  ZoomIn, // For Zoom In button
+  ZoomOut, // For Zoom Out button
+  RefreshCcw // For Reset Zoom button
 } from 'lucide-react';
 import { getDatabase, ref, update, serverTimestamp, onValue } from 'firebase/database'; // Added onValue
 import { app } from '../firebaseConfig';
@@ -133,6 +136,11 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
   const didDragNodeRef = useRef(false);
   const [otherUsersOnFlowchart, setOtherUsersOnFlowchart] = useState<UserPresence[]>([]);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const ZOOM_STEP = 0.1;
+  const MIN_ZOOM = 0.5;
+  const MAX_ZOOM = 2;
+
 
   // Effect to fetch other users' presence on the current flowchart
   useEffect(() => {
@@ -254,6 +262,22 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
     }
   }, [selectedNodeForProperties]);
 
+  // Effect to handle Escape key for exiting connect mode
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isConnecting) {
+        setIsConnecting(false);
+        setConnectionStart(null);
+        setConnectingMousePosition(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isConnecting]); // Re-run if isConnecting changes, though the core logic only depends on its value
+
 
   const handleDragStart = (nodeType: FlowchartNodeType) => {
     setDraggedNodeType(nodeType);
@@ -271,8 +295,9 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
     if (!draggedNodeType || !canvasRef.current) return;
 
     const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    // Adjust mouse coordinates for zoom
+    const x = (e.clientX - rect.left) / zoomLevel;
+    const y = (e.clientY - rect.top) / zoomLevel;
 
     const newNode: FlowchartNode = {
       id: `node-${Date.now()}`,
@@ -292,12 +317,38 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
     setDraggedNodeType(null);
   };
 
-  const handleCanvasMouseMove = (e: React.MouseEvent) => {
-    if (draggingNodeId && dragOffset && canvasRef.current) {
-      const rect = canvasRef.current.getBoundingClientRect();
-      const mouseXInCanvas = e.clientX - rect.left;
-      const mouseYInCanvas = e.clientY - rect.top;
+  const handleZoomIn = () => {
+    setZoomLevel(prevZoom => Math.min(MAX_ZOOM, prevZoom + ZOOM_STEP));
+  };
 
+  const handleZoomOut = () => {
+    setZoomLevel(prevZoom => Math.max(MIN_ZOOM, prevZoom - ZOOM_STEP));
+  };
+
+  const handleResetZoom = () => {
+    setZoomLevel(1);
+  };
+
+  const handleWheelZoom = (e: React.WheelEvent) => {
+    if (e.ctrlKey) { // Require Ctrl key for wheel zoom to prevent accidental zoom while scrolling
+      e.preventDefault();
+      if (e.deltaY < 0) {
+        handleZoomIn();
+      } else if (e.deltaY > 0) {
+        handleZoomOut();
+      }
+    }
+    // If Ctrl key is not pressed, let the default scroll behavior happen (for panning when zoomed in)
+  };
+
+  const handleCanvasMouseMove = (e: React.MouseEvent) => {
+    if (!canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    // Adjust mouse coordinates for zoom
+    const mouseXInCanvas = (e.clientX - rect.left) / zoomLevel;
+    const mouseYInCanvas = (e.clientY - rect.top) / zoomLevel;
+
+    if (draggingNodeId && dragOffset) {
       const newNodeX = mouseXInCanvas - dragOffset.x;
       const newNodeY = mouseYInCanvas - dragOffset.y;
 
@@ -309,17 +360,13 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
             : n
         )
       }));
-      didDragNodeRef.current = true; // Mark that a drag occurred
-      // No need to explicitly set isDragging here as it's managed by mousedown/mouseup
-      // and styles can rely on draggingNodeId
-    } else if (isConnecting && connectionStart && canvasRef.current) {
-      const rect = canvasRef.current.getBoundingClientRect();
+      didDragNodeRef.current = true;
+    } else if (isConnecting && connectionStart) {
       setConnectingMousePosition({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
+        x: mouseXInCanvas,
+        y: mouseYInCanvas,
       });
     } else if (connectingMousePosition) {
-      // If not connecting anymore, and not dragging, clear the preview line position
       setConnectingMousePosition(null);
     }
   };
@@ -364,28 +411,26 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
 
     if (isConnecting) {
       if (!connectionStart) {
-        // This is the first click in a connection sequence
+        // This is the first click in a connection sequence: SET SOURCE NODE
         setConnectionStart(nodeId);
-        // Visual feedback for line preview is handled by onMouseMove
+        // Visual feedback for line preview is handled by onMouseMove (connectingMousePosition)
       } else {
-        // This is the second click
-        if (connectionStart !== nodeId) {
-          // Connecting to a different node
+        // This is the second click: SET TARGET NODE & CREATE EDGE
+        if (connectionStart !== nodeId) { // Prevent connecting a node to itself
           const newEdge: FlowchartEdge = {
             id: `edge-${Date.now()}`,
             source: connectionStart,
             target: nodeId,
-            type: 'default', // Consider edge types later if needed
+            type: 'default',
           };
           setFlowchartData(prev => ({
             ...prev,
             edges: [...prev.edges, newEdge],
           }));
         }
-        // Reset connection state whether an edge was created or not (e.g. clicked same node)
-        setIsConnecting(false);
+        // Reset for the next connection, but STAY in connecting mode
         setConnectionStart(null);
-        setConnectingMousePosition(null); // Reset preview line
+        setConnectingMousePosition(null);
       }
     } else {
     // Not in connecting mode, so select the node for properties panel
@@ -650,7 +695,34 @@ const selectedNodeDataForProperties = selectedNodeForProperties
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">Interactive Flowchart Builder</h3>
         </div>
         
-        <div className="flex items-center flex-wrap justify-end space-x-1 sm:space-x-2 ml-2"> {/* Added flex-wrap and justify-end, reduced ml */}
+        <div className="flex items-center flex-wrap justify-end space-x-1 sm:space-x-2 ml-2">
+          {/* Zoom Controls */}
+          <div className="flex items-center border border-gray-200 rounded-md">
+            <button
+              onClick={handleZoomOut}
+              className="p-1.5 text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+              title="Zoom Out"
+              disabled={zoomLevel <= MIN_ZOOM}
+            >
+              <ZoomOut size={18} />
+            </button>
+            <button
+              onClick={handleResetZoom}
+              className="p-1.5 text-gray-600 hover:bg-gray-100 border-l border-r border-gray-200"
+              title="Reset Zoom"
+            >
+              <RefreshCcw size={16} />
+            </button>
+            <button
+              onClick={handleZoomIn}
+              className="p-1.5 text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+              title="Zoom In"
+              disabled={zoomLevel >= MAX_ZOOM}
+            >
+              <ZoomIn size={18} />
+            </button>
+          </div>
+
           <button
             onClick={() => {
               const newIsConnecting = !isConnecting;
@@ -772,28 +844,39 @@ const selectedNodeDataForProperties = selectedNodeForProperties
           </div>
         )}
 
-        {/* Canvas */}
-        <div className="flex-1 relative"> {/* This is the key for the canvas to take remaining space */}
-          <div
+        {/* Canvas Container */}
+        <div
             ref={canvasRef}
-            className="w-full h-full bg-gray-50 relative flowchart-dots-bg"
+            className="flex-1 relative overflow-auto bg-gray-50 flowchart-dots-bg" // Added overflow-auto
             onDragOver={handleDragOver}
             onDrop={handleDrop}
             onMouseMove={handleCanvasMouseMove}
             onMouseUp={handleDragEnd}
-            onClick={handleCanvasClick} // Added to handle clicks on canvas background
-            // onMouseLeave={handleDragEnd} // Removed this line as it might prematurely end drags
-          >
-            {isGeneratingFlowchart && (
-              <div className="absolute inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-50">
-                <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
-                <p className="ml-3 text-white font-semibold">Generating Flowchart...</p>
-              </div>
-            )}
-            {/* Render Edges */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-none">
-              {isConnecting && connectionStart && connectingMousePosition && (() => {
-                const sourceNode = flowchartData.nodes.find(n => n.id === connectionStart);
+            onClick={handleCanvasClick}
+            onWheel={handleWheelZoom}
+        >
+            {/* Inner Scalable Canvas Content */}
+            <div
+                className="relative w-full h-full" // w-full h-full to match parent before scaling
+                style={{
+                    transform: `scale(${zoomLevel})`,
+                    transformOrigin: 'top left',
+                    // The effective size of this div will be scaled.
+                    // Parent has overflow:auto to handle it.
+                }}
+            >
+                {isGeneratingFlowchart && (
+                  <div className="absolute inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-50" style={{transform: `scale(${1/zoomLevel})`, transformOrigin: 'center center' }}>
+                    {/* Spinner itself should not scale, or scale inversely */}
+                    <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
+                    <p className="ml-3 text-white font-semibold">Generating Flowchart...</p>
+                  </div>
+                )}
+                {/* Render Edges */}
+                {/* SVG needs to be positioned absolutely to fill its scaled container, or its dimensions adjusted */}
+                <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                  {isConnecting && connectionStart && connectingMousePosition && (() => {
+                    const sourceNode = flowchartData.nodes.find(n => n.id === connectionStart);
                 if (!sourceNode || !sourceNode.position) return null; // Guard against missing position
                 const x1 = sourceNode.position.x + 64;
                 const y1 = sourceNode.position.y + 32;
