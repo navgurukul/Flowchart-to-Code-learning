@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast'; // Import toast
+import { marked } from 'marked'; // Import marked library
 import useChatStore from '../store/chatStore';
 import { postRealChatMessage } from '../services/api';
 import './ExerciseChat.css';
@@ -185,7 +186,11 @@ const ExerciseChat: React.FC = () => {
               msg.sender === 'user' ? 'chat-message-user' : 'chat-message-assistant'
             }`}
           >
-            {msg.text}
+            {msg.sender === 'assistant' ? (
+              <div dangerouslySetInnerHTML={{ __html: marked(msg.text) as string }} />
+            ) : (
+              <div>{msg.text}</div> // User messages rendered as plain text
+            )}
           </div>
         ))}
          {isBotTyping && (
