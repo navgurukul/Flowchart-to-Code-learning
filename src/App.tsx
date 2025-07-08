@@ -13,9 +13,10 @@ import { FlowchartBuilder } from './components/FlowchartBuilder';
 import { CodeEditor } from './components/CodeEditor';
 import { InputOutput } from './components/InputOutput';
 import ExerciseChat from './components/ExerciseChat'; // Import the new ExerciseChat component
-import GuideModal from './components/GuideModal';
+// import GuideModal from './components/GuideModal'; // Removed
 import { allExercises } from './data/exercises';
-import { guideSteps } from './data/guideSteps';
+// import { guideSteps } from './data/guideSteps'; // Removed
+import InteractiveTour, { replayInteractiveTour } from './components/InteractiveTour'; // Added
 import { SafeCodeExecutor } from './utils/codeExecutor';
 import { StudentProgress, ExecutionResult, FlowchartData } from './types/index';
 import { DryRunState, DryRunVariableMap } from './types/dryRun';
@@ -59,10 +60,6 @@ function App() {
     height: window.innerHeight,
   });
 
-  // Guide State
-  const [isGuideOpen, setIsGuideOpen] = useState(false);
-  const [currentGuideStep, setCurrentGuideStep] = useState(0);
-
   // --- Dry Run State ---
   const [isDryRunMode, setIsDryRunMode] = useState<boolean>(false);
   const [dryRunSimulator, setDryRunSimulator] = useState<FlowchartSimulator | null>(null);
@@ -77,6 +74,9 @@ function App() {
 
   // --- Online Users Panel State ---
   const [isOnlineUsersPanelOpen, setIsOnlineUsersPanelOpen] = useState(false);
+
+  // --- Interactive Tour State ---
+  const [forceTourStart, setForceTourStart] = useState(false);
 
   // --- Event Handlers ---
   const handleSelectExercise = (exerciseId: number) => {
@@ -383,46 +383,11 @@ function App() {
     handleFlowchartChange(newFlowchartData); // This will update generatedCode and what FlowchartBuilder shows.
   };
 
-  // Guide Modal Handlers
-  const handleGuideNext = () => {
-    if (currentGuideStep < guideSteps.length - 1) {
-      setCurrentGuideStep(prevStep => prevStep + 1);
-    }
-  };
-
-  const handleGuidePrev = () => {
-    if (currentGuideStep > 0) {
-      setCurrentGuideStep(prevStep => prevStep - 1);
-    }
-  };
-
-  const handleGuideClose = () => {
-    setIsGuideOpen(false);
-    localStorage.setItem('flowchartGuideSeen', 'true');
-    setCurrentGuideStep(0); // Reset for next time
-  };
-
-  const handleOpenGuide = () => { // New handler to open guide
-    setCurrentGuideStep(0);
-    setIsGuideOpen(true);
-  };
-
   // Load progress on mount or when auth state changes
   useEffect(() => {
     if (authLoading) {
       console.log("Auth state loading, waiting to load progress and check guide status...");
       return; // Wait for authentication to resolve
-    }
-
-    // Check if guide has been seen, only after auth is resolved
-    const guideSeen = localStorage.getItem('flowchartGuideSeen');
-    if (guideSeen !== 'true') {
-      console.log("Guide not seen, opening guide.");
-      setIsGuideOpen(true);
-      setCurrentGuideStep(0);
-      // Don't proceed to loadData immediately if guide is opening,
-      // or ensure guide doesn't interfere with loading experience.
-      // For now, guide opens, and data loads in parallel if needed or after guide closes.
     }
 
     const loadData = async () => {
@@ -624,12 +589,19 @@ function App() {
     console.log("App.tsx Dry Run State:", currentDryRunState);
   }
 
+  const handleReplayTour = () => {
+    replayInteractiveTour(); // Clears localStorage for the tour
+    setForceTourStart(true); // Signal InteractiveTour to start
+    // Optional: Reset flag after a short delay if tour doesn't auto-reset it
+    setTimeout(() => setForceTourStart(false), 100);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col relative">
       <Toaster position="top-center" reverseOrder={false} />
       {showConfetti && <Confetti width={windowSize.width} height={windowSize.height} recycle={false} />}
-      <Header progress={progress} onOpenGuide={handleOpenGuide} />
+      <Header progress={progress} onReplayTour={handleReplayTour} />
+      {/* Pass handleReplayTour to Header */}
       
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel: Exercise List */}
@@ -642,13 +614,15 @@ function App() {
             {isExerciseListOpen ? <ChevronLeft size={20} /> : <PanelLeft size={20} />}
           </button>
           {isExerciseListOpen && (
-            <GamifiedExerciseMap
-              exercises={allExercises}
-              progress={progress}
-              currentExerciseId={currentExerciseId}
-              onSelectExercise={handleSelectExercise}
-              isDryRunMode={isDryRunMode} // Pass dry run mode to disable interactions
-            />
+            <div data-tour-id="exercise-list-panel"> {/* Added tour ID to the wrapper */}
+              <GamifiedExerciseMap
+                exercises={allExercises}
+                progress={progress}
+                currentExerciseId={currentExerciseId}
+                onSelectExercise={handleSelectExercise}
+                isDryRunMode={isDryRunMode} // Pass dry run mode to disable interactions
+              />
+            </div>
           )}
         </div>
 
@@ -721,6 +695,7 @@ function App() {
               <button
                 onClick={() => setIsCodeEditorOpen(!isCodeEditorOpen)}
                 className="mb-2 px-3 py-1.5 text-sm bg-gray-200 hover:bg-gray-300 rounded-md"
+                data-tour-id="toggle-code-editor-button"
               >
                 {isCodeEditorOpen ? 'Hide Code Editor' : 'Show Code Editor'}
               </button>
@@ -815,6 +790,7 @@ function App() {
                 onClick={() => setIsInputOutputOpen(!isInputOutputOpen)}
                 className="p-2 bg-gray-200 hover:bg-gray-300 h-full flex items-center justify-center z-10"
                 title={isInputOutputOpen ? "Collapse Input/Output Panel" : "Expand Input/Output Panel"}
+                data-tour-id="toggle-input-output-button"
               >
                 {isInputOutputOpen ? <ChevronRight size={20} /> : <PanelRight size={20} />}
               </button>
@@ -837,17 +813,10 @@ function App() {
         />
       )}
 
-      <GuideModal
-        isOpen={isGuideOpen}
-        title={guideSteps[currentGuideStep]?.title || "Guide"}
-        content={guideSteps[currentGuideStep]?.content || "Loading content..."}
-        // imageSrc={guideSteps[currentGuideStep]?.actualImageSrcUrl} // Future: use actual image URLs
-        imagePlaceholderText={guideSteps[currentGuideStep]?.imagePlaceholder} // Pass placeholder text
-        currentStep={currentGuideStep}
-        totalSteps={guideSteps.length}
-        onNext={handleGuideNext}
-        onPrev={handleGuidePrev}
-        onClose={handleGuideClose}
+      {/* GuideModal removed */}
+      <InteractiveTour
+        forceStart={forceTourStart}
+        onTourComplete={() => setForceTourStart(false)} // Reset flag when tour completes or is skipped
       />
       <DomainBlockModal isOpen={showDomainBlockModal} onClose={closeDomainBlockModal} />
     </div>

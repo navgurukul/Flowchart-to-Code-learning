@@ -697,7 +697,7 @@ const selectedNodeDataForProperties = selectedNodeForProperties
         
         <div className="flex items-center flex-wrap justify-end space-x-1 sm:space-x-2 ml-2">
           {/* Zoom Controls */}
-          <div className="flex items-center border border-gray-200 rounded-md">
+          <div className="flex items-center border border-gray-200 rounded-md" data-tour-id="zoom-controls-container">
             <button
               onClick={handleZoomOut}
               className="p-1.5 text-gray-600 hover:bg-gray-100 disabled:opacity-50"
@@ -737,6 +737,7 @@ const selectedNodeDataForProperties = selectedNodeForProperties
                 ? 'bg-orange-100 text-orange-700 border border-orange-300' 
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
+            data-tour-id="connect-nodes-button"
           >
             {isConnecting ? 'Connecting...' : 'Connect Nodes'}
           </button>
@@ -745,6 +746,7 @@ const selectedNodeDataForProperties = selectedNodeForProperties
             onClick={generateCodeFromFlowchart}
             disabled={flowchartData.nodes.length === 0}
             className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            data-tour-id="generate-code-button"
           >
             <Zap className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
             Generate Code
@@ -754,6 +756,7 @@ const selectedNodeDataForProperties = selectedNodeForProperties
             onClick={() => onRunCode(generatedCode)}
             disabled={!generatedCode || isRunning}
             className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-white bg-emerald-600 rounded-md hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            data-tour-id="run-code-button"
           >
             <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
             {isRunning ? 'Running...' : 'Run'}
