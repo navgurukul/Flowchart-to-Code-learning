@@ -770,10 +770,10 @@ const selectedNodeDataForProperties = selectedNodeForProperties
           <button
             onClick={triggerImageUpload}
             className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-white bg-teal-600 rounded-md hover:bg-teal-700 transition-colors"
-            title="Upload Flowchart Image"
+            title="This feature is coming soon!"
           >
             <Upload className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-            Import
+            Import (WIP)
           </button>
           <input
             type="file"
