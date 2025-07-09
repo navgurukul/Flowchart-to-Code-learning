@@ -605,25 +605,29 @@ function App() {
       
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel: Exercise List */}
-        <div className="flex"> {/* Container for button and panel */}
-          <button
-            onClick={() => setIsExerciseListOpen(!isExerciseListOpen)}
-            className="p-2 bg-gray-200 hover:bg-gray-300 h-full flex items-center justify-center z-10"
-            title={isExerciseListOpen ? "Collapse Exercise List" : "Expand Exercise List"}
-          >
-            {isExerciseListOpen ? <ChevronLeft size={20} /> : <PanelLeft size={20} />}
-          </button>
-          {isExerciseListOpen && (
-            <div data-tour-id="exercise-list-panel"> {/* Added tour ID to the wrapper */}
-              <GamifiedExerciseMap
-                exercises={allExercises}
-                progress={progress}
-                currentExerciseId={currentExerciseId}
-                onSelectExercise={handleSelectExercise}
-                isDryRunMode={isDryRunMode} // Pass dry run mode to disable interactions
-              />
-            </div>
-          )}
+        {/* New parent container for the button and the GamifiedExerciseMap */}
+        <div className="flex"> {/* This div will ensure the panel and button group stays to the left */}
+          {/* This div will stack the button on top of the list */}
+          <div className={`flex flex-col ${isExerciseListOpen ? 'w-72' : 'w-auto'} bg-gray-50 border-r border-gray-200`}> {/* w-72 when open, or your desired width */}
+            <button
+              onClick={() => setIsExerciseListOpen(!isExerciseListOpen)}
+              className="p-2 bg-gray-200 hover:bg-gray-300 flex justify-center items-center z-10 sticky top-0" // items-center for icon, sticky top-0 to keep button visible if list scrolls
+              title={isExerciseListOpen ? "Collapse Exercise List" : "Expand Exercise List"}
+            >
+              {isExerciseListOpen ? <ChevronLeft size={20} /> : <PanelLeft size={20} />}
+            </button>
+            {isExerciseListOpen && (
+              <div data-tour-id="exercise-list-panel" className="overflow-y-auto"> {/* Allow list to scroll if it's taller than screen */}
+                <GamifiedExerciseMap
+                  exercises={allExercises}
+                  progress={progress}
+                  currentExerciseId={currentExerciseId}
+                  onSelectExercise={handleSelectExercise}
+                  isDryRunMode={isDryRunMode}
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Main Content Area */}
