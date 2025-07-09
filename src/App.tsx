@@ -697,7 +697,14 @@ function App() {
             {/* Code Editor Toggle & Main Content Grid */}
             <div>
               <button
-                onClick={() => setIsCodeEditorOpen(!isCodeEditorOpen)}
+                onClick={() => {
+                  const newCodeEditorOpenState = !isCodeEditorOpen;
+                  setIsCodeEditorOpen(newCodeEditorOpenState);
+                  // If the code editor is being opened, close the exercise list.
+                  if (newCodeEditorOpenState) {
+                    setIsExerciseListOpen(false);
+                  }
+                }}
                 className="mb-2 px-3 py-1.5 text-sm bg-gray-200 hover:bg-gray-300 rounded-md"
                 data-tour-id="toggle-code-editor-button"
               >
