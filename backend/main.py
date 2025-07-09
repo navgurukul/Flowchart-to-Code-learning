@@ -1,8 +1,13 @@
 from datetime import datetime, timezone # Added import
 from typing import List, Dict, Any  # Added import for Dict, Any
 from fastapi import FastAPI, HTTPException, Request, Depends, UploadFile, File # Added UploadFile, File
+from typing import List, Optional # Added import
+from fastapi import FastAPI, HTTPException, Request, Depends, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi.middleware.cors import CORSMiddleware  # Ensure this is imported
+from fastapi.middleware.cors import CORSMiddleware
+from ultralytics import YOLO
+from PIL import Image
+import io
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import os
@@ -95,12 +100,16 @@ def configure_gemini(gemini_version: str = "2.0") -> Optional[genai.GenerativeMo
     try:
         gemini_api_key = os.environ.get("GEMINI_API_KEY")
         # This debug print is crucial
-        print(
-            f"DEBUG: Inside Gemini config try block, value of 'gemini_api_key' variable is: {{gemini_api_key[:5] + '...' if gemini_api_key else 'None'}}")
+        if gemini_api_key:
+            print(
+                f"DEBUG: GEMINI_API_KEY FOUND in environment. Value: '{gemini_api_key[:5]}...' (partially shown)")
+        else:
+            print(
+                "DEBUG: GEMINI_API_KEY NOT FOUND in os.environ during Gemini configuration.")
 
         if not gemini_api_key:
             raise KeyError(
-                "GEMINI_API_KEY not found in environment. Please ensure it is set in your system environment or in a 'backend/.env' file.")
+                "GEMINI_API_KEY not found in environment. Please ensure it is set in your system environment (e.g., Render service environment variables) or in a 'backend/.env' file for local development.")
 
         genai.configure(api_key=gemini_api_key)
         print("INFO: Gemini SDK configured with API key.")
@@ -175,6 +184,8 @@ def configure_gemini(gemini_version: str = "2.0") -> Optional[genai.GenerativeMo
 
 class ChatMessage(BaseModel):
     message: str
+    exercise_id: Optional[str] = None
+    exercise_title: Optional[str] = None
 
 
 class UserDetails(BaseModel):
@@ -236,13 +247,242 @@ async def get_current_user_data(credentials: HTTPAuthorizationCredentials = Depe
 
 @app.get("/")
 async def read_root():
-    status = "Gemini Configured and Model Initialized" if model else "Gemini NOT Configured or Model Init Failed - Check Logs & .env setup"
-    return {"message": f"Flowchart AI Backend is running! ({status})"}
+    return {"status": "API is running"}
+
+# Models for image import response
+class Node(BaseModel):
+    id: str
+    type: str # Should match frontend FlowchartNodeType: 'start', 'end', 'process', 'decision', 'input', 'output', 'loop'
+    label: str
+    x: int
+    y: int
+    width: int
+    height: int
+
+class Edge(BaseModel):
+    id: str
+    source: str
+    target: str
+    label: Optional[str] = None
+
+class FlowchartResponse(BaseModel):
+    nodes: List[Node]
+    edges: List[Edge]
+    error: Optional[str] = None
+    fallback_used: Optional[bool] = False
+
+@app.post("/api/import-image", response_model=FlowchartResponse)
+async def import_image(file: UploadFile = File(...)):
+    """
+    Accepts an image file, processes it (placeholder), and returns flowchart nodes and edges.
+    """
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Invalid image format. Only JPG/PNG accepted for now.")
+
+    # --- CV Model and OCR Processing ---
+
+    # Configuration - User must update MODEL_CLASS_NAMES
+    # Assumes 'flowcharts.pt' will be placed in the 'backend/' directory by the user.
+    MODEL_PATH = "flowcharts.pt"
+    # !!! IMPORTANT: User MUST replace this with their actual class names in the correct order !!!
+    # Example: MODEL_CLASS_NAMES = ['rectangle', 'diamond', 'oval_start', 'oval_end', 'arrow']
+    MODEL_CLASS_NAMES = ['start', 'end', 'process', 'decision', 'input', 'output', 'arrow'] # Placeholder
+    CONFIDENCE_THRESHOLD = 0.7 # As per acceptance criteria
+
+    # 1. Load YOLO Model
+    try:
+        # Check if model file exists
+        if not os.path.exists(MODEL_PATH):
+            print(f"ERROR: Model file not found at {MODEL_PATH}. Please ensure 'flowcharts.pt' is in the 'backend/' directory.")
+            raise HTTPException(status_code=503, detail=f"CV Model file not found at {MODEL_PATH}. Please ensure it is uploaded.")
+
+        yolo_model = YOLO(MODEL_PATH)
+        # Override class names if yolo_model.names is different or to ensure consistency
+        # yolo_model.names = {i: name for i, name in enumerate(MODEL_CLASS_NAMES)} # This might be needed if model has internal names
+        print(f"DEBUG: YOLOv8 model loaded from {MODEL_PATH}. Model classes (from yolo_model.names): {yolo_model.names if hasattr(yolo_model, 'names') else 'Not available'}")
+        print(f"DEBUG: Using configured MODEL_CLASS_NAMES for mapping: {MODEL_CLASS_NAMES}")
+
+    except Exception as e:
+        print(f"Error loading YOLOv8 model from {MODEL_PATH}: {e}")
+        # Log the full exception for more details if needed
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=503, detail=f"CV Model not available or failed to load: {str(e)}")
+
+    # 2. Process Uploaded Image
+    try:
+        contents = await file.read()
+        pil_image = Image.open(io.BytesIO(contents))
+        print(f"DEBUG: Image loaded into PIL. Format: {pil_image.format}, Size: {pil_image.size}, Mode: {pil_image.mode}")
+        # Convert to RGB if it's RGBA or P (palette) to avoid issues with some models/libraries
+        if pil_image.mode in ('RGBA', 'P'):
+            pil_image = pil_image.convert('RGB')
+            print(f"DEBUG: Image converted to RGB.")
+
+    except Exception as e:
+        print(f"Error processing/reading image: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid or corrupted image file: {str(e)}")
+
+    # 3. Perform Inference
+    try:
+        results = yolo_model(pil_image) # Returns a list of Results objects
+        print(f"DEBUG: YOLOv8 inference completed. Number of result sets: {len(results)}")
+    except Exception as e:
+        print(f"Error during YOLOv8 inference: {e}")
+        raise HTTPException(status_code=500, detail=f"Error during CV model inference: {str(e)}")
+
+    # 4. Extract and Filter Detections
+    processed_nodes: List[Node] = []
+    # detected_arrows_info = [] # For later edge creation
+
+    if results and len(results) > 0:
+        # Assuming results[0] contains the detections for the single image
+        detections = results[0].boxes
+        print(f"DEBUG: Detections object type: {type(detections)}")
+        print(f"DEBUG: Number of raw boxes found: {len(detections.xyxy)}")
+
+        for i in range(len(detections.xyxy)):
+            box = detections.xyxy[i].tolist() # [x1, y1, x2, y2]
+            conf = float(detections.conf[i])
+            cls_id = int(detections.cls[i])
+
+            if conf >= CONFIDENCE_THRESHOLD:
+                try:
+                    # Use the model's internal class names if available and map, otherwise use configured list directly
+                    # This depends on how yolo_model.names is structured and if it matches MODEL_CLASS_NAMES indices
+                    # Safest is to rely on MODEL_CLASS_NAMES index if yolo_model.names isn't directly usable or is just numbers
+                    class_name = MODEL_CLASS_NAMES[cls_id] if cls_id < len(MODEL_CLASS_NAMES) else f"class_{cls_id}"
+
+                    # If yolo_model.names is a dict like {0: 'class_a', 1: 'class_b'}, use it:
+                    # if hasattr(yolo_model, 'names') and isinstance(yolo_model.names, dict) and cls_id in yolo_model.names:
+                    #    class_name = yolo_model.names[cls_id]
+                    # else: # Fallback to list if dict access fails or names not a dict
+                    #    class_name = MODEL_CLASS_NAMES[cls_id] if cls_id < len(MODEL_CLASS_NAMES) else f"class_{cls_id}"
+
+                    print(f"DEBUG: Detected: class_id={cls_id}, class_name='{class_name}', conf={conf:.2f}, box={box}")
+                except IndexError:
+                    print(f"WARNING: class_id {cls_id} is out of range for MODEL_CLASS_NAMES (len: {len(MODEL_CLASS_NAMES)}). Skipping.")
+                    continue
+
+                # For now, we only create nodes from non-arrow shapes. OCR will provide better labels later.
+                # The 'type' field for the Node should be a FlowchartNodeType (e.g., 'start', 'process')
+                # This requires mapping from model's detected class_name to FlowchartNodeType
+                # Example mapping (NEEDS TO BE ADJUSTED BASED ON YOUR ACTUAL MODEL_CLASS_NAMES)
+                node_type_mapping = {
+                    'start': 'start', 'oval_start': 'start', # Example model class name -> frontend type
+                    'end': 'end', 'oval_end': 'end',
+                    'process': 'process', 'rectangle': 'process',
+                    'decision': 'decision', 'diamond': 'decision',
+                    'input': 'input', 'parallelogram_input': 'input', 'io': 'input', # if 'io' is generic
+                    'output': 'output', 'parallelogram_output': 'output',
+                    # 'arrow' type shapes are handled separately for edges, not as nodes here
+                }
+
+                # For now, directly use class_name if it's a valid FlowchartNodeType, otherwise map or skip
+                # This assumes your MODEL_CLASS_NAMES are already the frontend types or you have a mapping
+                # For this step, we'll assume direct mapping for simplicity if class_name is not 'arrow'.
+
+                if class_name.lower() != 'arrow': # Or however your arrow class is named
+                    # TODO: Implement robust mapping from `class_name` to `FlowchartNodeType`
+                    # For now, let's assume class_name IS the FlowchartNodeType if it's not an arrow
+                    # This is a placeholder and needs refinement based on actual class names.
+                    node_type_candidate = class_name.lower()
+
+                    # A more robust mapping based on common patterns:
+                    if "start" in node_type_candidate: current_node_type = "start"
+                    elif "end" in node_type_candidate: current_node_type = "end"
+                    elif "process" in node_type_candidate or "rect" in node_type_candidate: current_node_type = "process"
+                    elif "decision" in node_type_candidate or "diamond" in node_type_candidate: current_node_type = "decision"
+                    elif "input" in node_type_candidate or "parallelogram" in node_type_candidate: current_node_type = "input" # Default "io" to input
+                    elif "output" in node_type_candidate: current_node_type = "output" # More specific output
+                    else:
+                        print(f"WARNING: Class name '{class_name}' not directly mappable to a standard FlowchartNodeType for creating a node. Skipping this shape as a node.")
+                        continue # Skip if not a recognized shape for a node
+
+                    x1, y1, x2, y2 = box
+                    node = Node(
+                        id=f"cv-node-{len(processed_nodes)}",
+                        type=current_node_type, # This needs to be a valid FlowchartNodeType
+                        label=f"Detected: {class_name}", # Placeholder label, OCR will replace
+                        x=int(x1),
+                        y=int(y1),
+                        width=int(x2 - x1),
+                        height=int(y2 - y1)
+                    )
+                    processed_nodes.append(node)
+                # else:
+                #     detected_arrows_info.append({'box': box, 'class_name': class_name, 'conf': conf})
+            else:
+                print(f"DEBUG: Skipped low confidence detection: class_id={cls_id}, conf={conf:.2f}")
+
+        print(f"DEBUG: Total processed nodes (shapes) after CV: {len(processed_nodes)}")
+    else:
+        print("DEBUG: No results from YOLO model or results list is empty.")
+
+
+    # 5. Placeholder for OCR (to be implemented in next step)
+    # For each node in processed_nodes, crop image and run OCR to update label.
+
+    # 6. Placeholder for Edge Creation (to be implemented after node finalization and arrow processing)
+    processed_edges: List[Edge] = []
+
+    # 7. Implement Fallback Logic (placeholder)
+    # overall_confidence = calculate_overall_confidence(processed_nodes) # Needs implementation
+    # MIN_SHAPE_DETECT_THRESHOLD = 1 # Example: if less than 1 shape, consider it low confidence
+    # if not processed_nodes or len(processed_nodes) < MIN_SHAPE_DETECT_THRESHOLD: # or overall_confidence < 0.4:
+    #     print("DEBUG: Fallback triggered due to low confidence or too few shapes detected.")
+    #     fallback_nodes = [
+    #         Node(id="fallback-1", type="start", label="Start ML (Fallback)", x=50, y=50, width=100, height=40),
+    #         Node(id="fallback-2", type="process", label="Process ML Data (Fallback)", x=50, y=150, width=150, height=60),
+    #         Node(id="fallback-3", type="end", label="End ML (Fallback)", x=50, y=250, width=100, height=40),
+    #     ]
+    #     fallback_edges = [
+    #         Edge(id="fallback-edge-1", source="fallback-1", target="fallback-2"),
+    #         Edge(id="fallback-edge-2", source="fallback-2", target="fallback-3"),
+    #     ]
+    #     return FlowchartResponse(
+    #         nodes=fallback_nodes,
+    #         edges=fallback_edges,
+    #         error="Couldn’t recognise that sketch—try a clearer photo.",
+    #         fallback_used=True
+    #     )
+
+    # Return detected nodes (edges are empty for now)
+    if not processed_nodes: # If no nodes were processed (e.g. only arrows detected or all low conf)
+         return FlowchartResponse(
+            nodes=[Node(id="empty-1", type="process", label="No shapes detected clearly.", x=50, y=50, width=200, height=40)],
+            edges=[],
+            error="No flowchart shapes were detected with sufficient confidence.",
+            fallback_used=True # Consider this a type of fallback
+        )
+
+    return FlowchartResponse(nodes=processed_nodes, edges=processed_edges)
+
+
+    # Example of returning the fallback response (as per Acceptance Criteria 6)
+    # This also uses frontend-compatible types now.
+    # return FlowchartResponse(
+    #     nodes=[
+    #         Node(id="fallback-1", type="start", label="Start ML (Fallback)", x=50, y=50, width=100, height=40),
+    #         Node(id="fallback-2", type="process", label="Process ML Data (Fallback)", x=50, y=150, width=150, height=60),
+    #         Node(id="fallback-3", type="end", label="End ML (Fallback)", x=50, y=250, width=100, height=40),
+    #     ],
+    #     edges=[
+    #         Edge(id="fallback-edge-1", source="fallback-1", target="fallback-2"),
+    #         Edge(id="fallback-edge-2", source="fallback-2", target="fallback-3"),
+    #     ],
+    #     error="Couldn’t recognise that sketch—try a clearer photo.", # Toast message
+    #     fallback_used=True
+    # )
+
+    # Example of returning an error (as per Error Handling section)
+    # raise HTTPException(status_code=400, detail="Invalid image format.") # For 4xx
+    # raise HTTPException(status_code=500, detail="Importer offline, please try again later.") # For 5xx
 
 
 @app.post("/api/chat")
-async def handle_chat_message(chat_message: ChatMessage, current_user: AuthenticatedUser = Depends(get_current_user_data)):
-    print(f"User {current_user.email} (UID: {current_user.uid}) accessing chat.")
+async def handle_chat_message(chat_message: ChatMessage): # Removed current_user dependency
+    # print(f"User {current_user.email} (UID: {current_user.uid}) accessing chat.") # Commented out as current_user is removed
     user_message = chat_message.message.strip()
     response_text = ""
     is_structured_data = False
@@ -254,8 +494,13 @@ async def handle_chat_message(chat_message: ChatMessage, current_user: Authentic
             if not topic:
                 response_text = "Please specify a topic after /learn. For example: /learn loops"
             else:
+                context_prefix = ""
+                if chat_message.exercise_title:
+                    context_prefix = f"Within the context of the exercise titled '{chat_message.exercise_title}', "
+                    print(f"DEBUG: Received exercise context: ID='{chat_message.exercise_id}', Title='{chat_message.exercise_title}'")
+
                 prompt = (
-                    f"Explain the programming concept of '{topic}' clearly and concisely, as if to a beginner learning about flowcharts.\n"
+                    f"{context_prefix}Explain the programming concept of '{topic}' clearly and concisely, as if to a beginner learning about flowcharts.\n"
                     f"Your explanation should include:\n"
                     f"1. A definition of the concept.\n"
                     f"2. How it is typically represented in a flowchart (mention symbol types if specific).\n"
@@ -264,17 +509,20 @@ async def handle_chat_message(chat_message: ChatMessage, current_user: Authentic
                     f"Focus on educational value and clarity. Use markdown for formatting if it helps readability (e.g., for lists or code blocks)."
                 )
                 # Print first 100 chars for brevity
-                print(f"DEBUG: topic '{topic[:100]}'")
+                print(f"DEBUG: topic '{topic[:100]}' with context prefix: '{context_prefix[:100]}'")
 
                 # Ensure model is configured
+                print("DEBUG: Attempting to configure Gemini model for '/learn' command...")
                 model = configure_gemini(gemini_version="2.0")
                 if model is None:
+                    print("ERROR: Gemini model is None after configuration attempt in '/learn'.")
                     raise HTTPException(
-                status_code=503, detail="AI Service not configured or model not available. Ensure GEMINI_API_KEY is set and valid, and a suitable model is available.")
+                        status_code=503, detail="AI Service not configured or model not available. Critical: GEMINI_API_KEY might be missing or invalid in the deployment environment (e.g., Render settings). Also, check model availability for your key.")
 
-            ai_response = await model.generate_content_async(prompt)
-            # Print first 100 chars for brevity
-            print(f"DEBUG: AI response received: {ai_response.text[:100]}...")
+                print(f"DEBUG: Gemini model object before calling generate_content_async: {model}")
+                ai_response = await model.generate_content_async(prompt)
+                # Print first 100 chars for brevity
+                print(f"DEBUG: AI response received: {ai_response.text[:100]}...")
             response_text = ai_response.text
         elif user_message.lower().startswith("/generate "):
             description = user_message[len("/generate "):].strip()
@@ -335,12 +583,15 @@ async def handle_chat_message(chat_message: ChatMessage, current_user: Authentic
                     response_schema=response_schema,
                     candidate_count=1
                 )
-                model = configure_gemini(gemini_version="2.5")
+                print("DEBUG: Attempting to configure Gemini model for '/generate' command with version 2.0 (e.g., gemini-2.0-flash)...")
+                model = configure_gemini(gemini_version="2.0") # Changed from "2.5" to "2.0"
                 if model is None:
+                    print("ERROR: Gemini model is None after configuration attempt in '/generate' with version 2.0.")
                     raise HTTPException(
-                        status_code=503, detail="AI Service not configured or model not available. Ensure GEMINI_API_KEY is set and valid, and a suitable model is available."
+                        status_code=503, detail="AI Service not configured or model not available. Critical: GEMINI_API_KEY might be missing or invalid in the deployment environment (e.g., Render settings). Also, check model availability for your key."
                     )
 
+                print(f"DEBUG: Gemini model object before calling generate_content_async: {model}")
                 # Pass the generation config to generate_content_async
                 ai_response = await model.generate_content_async(prompt, generation_config=generation_config)
                 try:
@@ -477,10 +728,6 @@ async def get_user_details(user_id: str, current_user: AuthenticatedUser = Depen
             # or ensure they are stored as strings if that's what UserDetails expects.
             # Based on StudentProgress, completedExercises are numbers.
             # UserDetails expects tasks_completed as List[str].
-            # For now, let's assume we want to return them as strings of numbers.
-
-            # Frontend uses numbers for exercise IDs. Let's keep it consistent.
-            # The UserDetails model expects List[str], but the frontend StudentProgress uses List[number].
             # This is a mismatch. For now, I will adapt to UserDetails, but this might need further review.
             tasks_completed_str = [str(ex_id) for ex_id in progress_data.get("completedExercises", [])]
 

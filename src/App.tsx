@@ -3,7 +3,7 @@ import Confetti from 'react-confetti';
 import { Toaster } from 'react-hot-toast';
 import { getDatabase, ref, get, set, update, serverTimestamp } from 'firebase/database'; // Added update and serverTimestamp
 import { app } from "./firebaseConfig";
-import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Bot, X, PlaySquare, StepForward, Square, Users } from 'lucide-react'; // Added Users icon
+import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, PlaySquare, StepForward, Square, Users } from 'lucide-react'; // Added Users icon, removed Bot, X
 import { useAuth } from './contexts/AuthContext';
 import DomainBlockModal from './components/DomainBlockModal'; // Import the modal
 import { Header } from './components/Header';
@@ -12,18 +12,27 @@ import { GamifiedExerciseMap } from './components/GamifiedExerciseMap';
 import { FlowchartBuilder } from './components/FlowchartBuilder';
 import { CodeEditor } from './components/CodeEditor';
 import { InputOutput } from './components/InputOutput';
-import { ChatWindow } from './components/ChatWindow';
-import GuideModal from './components/GuideModal';
+import ExerciseChat from './components/ExerciseChat'; // Import the new ExerciseChat component
+// import GuideModal from './components/GuideModal'; // Removed
 import { allExercises } from './data/exercises';
-import { guideSteps } from './data/guideSteps';
+// import { guideSteps } from './data/guideSteps'; // Removed
+import InteractiveTour, { replayInteractiveTour } from './components/InteractiveTour'; // Added
 import { SafeCodeExecutor } from './utils/codeExecutor';
 import { StudentProgress, ExecutionResult, FlowchartData } from './types/index';
 import { DryRunState, DryRunVariableMap } from './types/dryRun';
 import { FlowchartSimulator } from './engine/dryRun/FlowchartSimulator';
 import { DryRunInputModal } from './components/dryRun/DryRunInputModal';
+import useChatStore from './store/chatStore'; // Import the chat store
 
 function App() {
   const { currentUser, loading: authLoading, showDomainBlockModal, closeDomainBlockModal } = useAuth();
+  const setExerciseContext = useChatStore((s) => s.setExerciseContext);
+  const exerciseContext = useChatStore((s) => s.exerciseContext);
+  const lastResyncRequested = useChatStore((s) => s.lastResyncRequested);
+  const generatedFlowchartDataFromChat = useChatStore((s) => s.generatedFlowchartData);
+  const setGeneratedFlowchartDataInChatStore = useChatStore((s) => s.setGeneratedFlowchartData);
+  const isGeneratingFlowchart = useChatStore((s) => s.isGeneratingFlowchart); // Get loading state
+
 
   // --- Standard App State ---
   const defaultInitialProgress: StudentProgress = {
@@ -34,25 +43,22 @@ function App() {
   };
 
   const [progress, setProgress] = useState<StudentProgress>(defaultInitialProgress);
+  const [progressLoaded, setProgressLoaded] = useState(false); // Added: Flag to track if initial progress load is complete
   const [currentExerciseId, setCurrentExerciseId] = useState<number | null>(null); // Changed: No exercise selected initially
   const [isExerciseListOpen, setIsExerciseListOpen] = useState(true);
-  const [isInputOutputOpen, setIsInputOutputOpen] = useState(true);
+  const [isInputOutputOpen, setIsInputOutputOpen] = useState(false); // Default to collapsed
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<string>('');
   const [currentFlowchart, setCurrentFlowchart] = useState<FlowchartData>({ nodes: [], edges: [] });
-  const [isCodeEditorOpen, setIsCodeEditorOpen] = useState(true); // New state for CodeEditor visibility
-  const [isChatOpen, setIsChatOpen] = useState(false); // Default to closed
+  const [isCodeEditorOpen, setIsCodeEditorOpen] = useState(false); // Default to collapsed
+  // const [isChatOpen, setIsChatOpen] = useState(false); // Removed: Handled by ExerciseChat store
   const [aiFlowchartToLoad, setAiFlowchartToLoad] = useState<FlowchartData | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [windowSize, setWindowSize] = useState({
     width: window.innerWidth,
     height: window.innerHeight,
   });
-
-  // Guide State
-  const [isGuideOpen, setIsGuideOpen] = useState(false);
-  const [currentGuideStep, setCurrentGuideStep] = useState(0);
 
   // --- Dry Run State ---
   const [isDryRunMode, setIsDryRunMode] = useState<boolean>(false);
@@ -68,6 +74,9 @@ function App() {
 
   // --- Online Users Panel State ---
   const [isOnlineUsersPanelOpen, setIsOnlineUsersPanelOpen] = useState(false);
+
+  // --- Interactive Tour State ---
+  const [forceTourStart, setForceTourStart] = useState(false);
 
   // --- Event Handlers ---
   const handleSelectExercise = (exerciseId: number) => {
@@ -87,92 +96,92 @@ function App() {
     }));
   };
 
-  const handleFlowchartChange = (flowchart: FlowchartData) => {
+  // Moved generateCodeFromFlowchart before handleFlowchartChange
+  const generateCodeFromFlowchart = React.useCallback((flowchart: FlowchartData): string => {
+  if (flowchart.nodes.length === 0) return '';
+
+  // Validate flowchart structure
+  const errors = SafeCodeExecutor.validateFlowchartLogic(flowchart.nodes, flowchart.edges);
+  if (errors.length > 0) {
+    return `// Flowchart validation errors:\n// ${errors.join('\n// ')}\n\nfunction solution() {\n  // Fix the flowchart structure first\n  return "error";\n}`;
+  }
+
+  // Simple code generation based on flowchart structure
+  let code = 'function solution(';
+
+  // Find input nodes to determine parameters
+  const inputNodes = flowchart.nodes.filter(node => node.type === 'input');
+  if (inputNodes.length > 0) {
+    const params = inputNodes.map((node, index) => {
+      const paramName = node.data.label.toLowerCase().replace(/[^a-z0-9]/g, '') || `input${index + 1}`;
+      return paramName;
+    }).join(', ');
+    code += params;
+  }
+  code += ') {\n';
+
+  // Add variable declarations for inputs
+  inputNodes.forEach((node, index) => {
+    const varName = node.data.label.toLowerCase().replace(/[^a-z0-9]/g, '') || `input${index + 1}`;
+    code += `  // Input: ${node.data.label}\n`;
+  });
+
+  // Process nodes in a simple sequential manner
+  const processNodes = flowchart.nodes.filter(node => node.type === 'process');
+  processNodes.forEach(node => {
+    if (node.data.value && node.data.value.trim()) {
+      code += `  ${node.data.value.endsWith(';') ? node.data.value : node.data.value + ';'}\n`;
+    } else {
+      code += `  // Process: ${node.data.label}\n`;
+    }
+  });
+
+  // Handle decision nodes
+  const decisionNodes = flowchart.nodes.filter(node => node.type === 'decision');
+  decisionNodes.forEach(node => {
+    if (node.data.condition && node.data.condition.trim()) {
+      code += `  if (${node.data.condition}) {\n`;
+      code += `    // Yes path\n`;
+      code += `  } else {\n`;
+      code += `    // No path\n`;
+      code += `  }\n`;
+    }
+  });
+
+  // Handle loop nodes
+  const loopNodes = flowchart.nodes.filter(node => node.type === 'loop');
+  loopNodes.forEach(node => {
+    code += `  // Loop: ${node.data.label}\n`;
+    if (node.data.condition) {
+      code += `  while (${node.data.condition}) {\n`;
+      code += `    // Loop body\n`;
+      code += `  }\n`;
+    }
+  });
+
+  // Find output nodes for return statement
+  const outputNodes = flowchart.nodes.filter(node => node.type === 'output');
+  if (outputNodes.length > 0) {
+    const outputValue = outputNodes[0].data.value || outputNodes[0].data.label.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (outputValue && !outputValue.includes('display') && !outputValue.includes('print')) {
+      code += `  return ${outputValue};\n`;
+    } else {
+      code += `  return "${outputNodes[0].data.label}";\n`;
+    }
+  } else {
+    code += `  return "result";\n`;
+  }
+
+  code += '}';
+  return code;
+}, []);
+
+  const handleFlowchartChange = React.useCallback((flowchart: FlowchartData) => {
     setCurrentFlowchart(flowchart);
-    
     // Generate code from flowchart
     const code = generateCodeFromFlowchart(flowchart);
     setGeneratedCode(code);
-  };
-
-  const generateCodeFromFlowchart = (flowchart: FlowchartData): string => {
-    if (flowchart.nodes.length === 0) return '';
-
-    // Validate flowchart structure
-    const errors = SafeCodeExecutor.validateFlowchartLogic(flowchart.nodes, flowchart.edges);
-    if (errors.length > 0) {
-      return `// Flowchart validation errors:\n// ${errors.join('\n// ')}\n\nfunction solution() {\n  // Fix the flowchart structure first\n  return "error";\n}`;
-    }
-
-    // Simple code generation based on flowchart structure
-    let code = 'function solution(';
-    
-    // Find input nodes to determine parameters
-    const inputNodes = flowchart.nodes.filter(node => node.type === 'input');
-    if (inputNodes.length > 0) {
-      const params = inputNodes.map((node, index) => {
-        const paramName = node.data.label.toLowerCase().replace(/[^a-z0-9]/g, '') || `input${index + 1}`;
-        return paramName;
-      }).join(', ');
-      code += params;
-    }
-    code += ') {\n';
-
-    // Add variable declarations for inputs
-    inputNodes.forEach((node, index) => {
-      const varName = node.data.label.toLowerCase().replace(/[^a-z0-9]/g, '') || `input${index + 1}`;
-      code += `  // Input: ${node.data.label}\n`;
-    });
-
-    // Process nodes in a simple sequential manner
-    const processNodes = flowchart.nodes.filter(node => node.type === 'process');
-    processNodes.forEach(node => {
-      if (node.data.value && node.data.value.trim()) {
-        code += `  ${node.data.value.endsWith(';') ? node.data.value : node.data.value + ';'}\n`;
-      } else {
-        code += `  // Process: ${node.data.label}\n`;
-      }
-    });
-
-    // Handle decision nodes
-    const decisionNodes = flowchart.nodes.filter(node => node.type === 'decision');
-    decisionNodes.forEach(node => {
-      if (node.data.condition && node.data.condition.trim()) {
-        code += `  if (${node.data.condition}) {\n`;
-        code += `    // Yes path\n`;
-        code += `  } else {\n`;
-        code += `    // No path\n`;
-        code += `  }\n`;
-      }
-    });
-
-    // Handle loop nodes
-    const loopNodes = flowchart.nodes.filter(node => node.type === 'loop');
-    loopNodes.forEach(node => {
-      code += `  // Loop: ${node.data.label}\n`;
-      if (node.data.condition) {
-        code += `  while (${node.data.condition}) {\n`;
-        code += `    // Loop body\n`;
-        code += `  }\n`;
-      }
-    });
-
-    // Find output nodes for return statement
-    const outputNodes = flowchart.nodes.filter(node => node.type === 'output');
-    if (outputNodes.length > 0) {
-      const outputValue = outputNodes[0].data.value || outputNodes[0].data.label.toLowerCase().replace(/[^a-z0-9]/g, '');
-      if (outputValue && !outputValue.includes('display') && !outputValue.includes('print')) {
-        code += `  return ${outputValue};\n`;
-      } else {
-        code += `  return "${outputNodes[0].data.label}";\n`;
-      }
-    } else {
-      code += `  return "result";\n`;
-    }
-
-    code += '}';
-    return code;
-  };
+  }, [generateCodeFromFlowchart]);
 
   const handleRunCode = async (code: string) => {
     setIsRunning(true);
@@ -201,16 +210,30 @@ function App() {
       }
 
       // Update progress if correct and not already completed
+      const isCheatMode = useChatStore.getState().isCheatModeSource;
+      if (isCheatMode) {
+        useChatStore.getState().setIsCheatModeSource(false); // Reset flag
+        console.log("Cheat mode was active. Progress not awarded.");
+        // Toast notification for cheat mode will be handled in ExerciseChat.tsx or a global toast service
+      }
+
       if (result.isCorrect && currentExerciseId !== null && !progress.completedExercises.includes(currentExerciseId)) {
-        const points = currentExercise!.difficulty === 'beginner' ? 50 :
-                       currentExercise!.difficulty === 'intermediate' ? 75 : 100;
-        
-        setProgress(prev => ({
-          ...prev,
-          completedExercises: [...prev.completedExercises, currentExerciseId!],
-          totalScore: prev.totalScore + points,
-          lastAccessedAt: new Date().toISOString()
-        }));
+        if (!isCheatMode) {
+          const points = currentExercise!.difficulty === 'beginner' ? 50 :
+                         currentExercise!.difficulty === 'intermediate' ? 75 : 100;
+
+          setProgress(prev => ({
+            ...prev,
+            completedExercises: [...prev.completedExercises, currentExerciseId!],
+            totalScore: prev.totalScore + points,
+            lastAccessedAt: new Date().toISOString()
+          }));
+          console.log("Progress awarded for completing exercise.");
+        } else {
+          // If it was cheat mode, and the solution is correct,
+          // we still might want to acknowledge it, but not give points.
+          // For now, the console log above handles the notification.
+        }
       }
     } catch (error) {
       setExecutionResult({
@@ -295,6 +318,11 @@ function App() {
   // --- Standard Effects ---
   // Save progress
   useEffect(() => {
+    if (!progressLoaded) { // Added: Guard to prevent saving before initial load
+      console.log("Progress not yet loaded. Skipping saveProgress.");
+      return;
+    }
+
     if (currentUser) {
       console.log(`Attempting to save progress for user: ${currentUser.uid}`, progress);
       // Save to Firebase Realtime Database
@@ -355,46 +383,11 @@ function App() {
     handleFlowchartChange(newFlowchartData); // This will update generatedCode and what FlowchartBuilder shows.
   };
 
-  // Guide Modal Handlers
-  const handleGuideNext = () => {
-    if (currentGuideStep < guideSteps.length - 1) {
-      setCurrentGuideStep(prevStep => prevStep + 1);
-    }
-  };
-
-  const handleGuidePrev = () => {
-    if (currentGuideStep > 0) {
-      setCurrentGuideStep(prevStep => prevStep - 1);
-    }
-  };
-
-  const handleGuideClose = () => {
-    setIsGuideOpen(false);
-    localStorage.setItem('flowchartGuideSeen', 'true');
-    setCurrentGuideStep(0); // Reset for next time
-  };
-
-  const handleOpenGuide = () => { // New handler to open guide
-    setCurrentGuideStep(0);
-    setIsGuideOpen(true);
-  };
-
   // Load progress on mount or when auth state changes
   useEffect(() => {
     if (authLoading) {
       console.log("Auth state loading, waiting to load progress and check guide status...");
       return; // Wait for authentication to resolve
-    }
-
-    // Check if guide has been seen, only after auth is resolved
-    const guideSeen = localStorage.getItem('flowchartGuideSeen');
-    if (guideSeen !== 'true') {
-      console.log("Guide not seen, opening guide.");
-      setIsGuideOpen(true);
-      setCurrentGuideStep(0);
-      // Don't proceed to loadData immediately if guide is opening,
-      // or ensure guide doesn't interfere with loading experience.
-      // For now, guide opens, and data loads in parallel if needed or after guide closes.
     }
 
     const loadData = async () => {
@@ -522,7 +515,10 @@ function App() {
       console.log("loadData: Finished loading user progress.");
     };
 
-    loadData();
+    loadData().then(() => {
+      setProgressLoaded(true);
+      console.log("Initial progress loaded. progressLoaded set to true.");
+    });
   }, [currentUser, authLoading]); // Re-run when auth state is confirmed or user changes
 
   useEffect(() => {
@@ -547,6 +543,43 @@ function App() {
     }
   }, [showConfetti]);
 
+  // Effect to update chat context when exercise or related states change
+  useEffect(() => {
+    if (currentExercise) {
+      setExerciseContext({
+        exerciseId: String(currentExercise.id),
+        title: currentExercise.title,
+        userCode: generatedCode,
+        isCorrect: executionResult?.isCorrect ?? null,
+        errorMessage: executionResult?.error ?? null,
+        previousHints: 0,
+      });
+    } else {
+      setExerciseContext({
+        exerciseId: null,
+        title: null,
+        userCode: null,
+        isCorrect: null,
+        errorMessage: null,
+        previousHints: null,
+      });
+    }
+  }, [currentExercise, generatedCode, executionResult, setExerciseContext, lastResyncRequested]);
+
+  // Effect to load flowchart data generated from chat
+  useEffect(() => {
+    if (generatedFlowchartDataFromChat) {
+      console.log("App.tsx: Detected new flowchart data from chat store:", generatedFlowchartDataFromChat);
+      setAiFlowchartToLoad(generatedFlowchartDataFromChat); // This will pass it as a prop to FlowchartBuilder
+      // Optionally, also update currentFlowchart directly if FlowchartBuilder doesn't fully manage it via prop change
+      // setCurrentFlowchart(generatedFlowchartDataFromChat);
+      // handleFlowchartChange(generatedFlowchartDataFromChat); // This also generates code, might be desired
+
+      setGeneratedFlowchartDataInChatStore(null); // Reset in store after processing
+    }
+  }, [generatedFlowchartDataFromChat, setAiFlowchartToLoad, setGeneratedFlowchartDataInChatStore, handleFlowchartChange]);
+
+
   // Debug log for current exercise state at render time
   console.log(
     `App.tsx render: currentExerciseId = ${currentExerciseId}, currentExercise?.id = ${currentExercise?.id}, progress.currentExercise = ${progress.currentExercise}, isDryRunMode = ${isDryRunMode}`
@@ -556,12 +589,19 @@ function App() {
     console.log("App.tsx Dry Run State:", currentDryRunState);
   }
 
+  const handleReplayTour = () => {
+    replayInteractiveTour(); // Clears localStorage for the tour
+    setForceTourStart(true); // Signal InteractiveTour to start
+    // Optional: Reset flag after a short delay if tour doesn't auto-reset it
+    setTimeout(() => setForceTourStart(false), 100);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col relative">
       <Toaster position="top-center" reverseOrder={false} />
       {showConfetti && <Confetti width={windowSize.width} height={windowSize.height} recycle={false} />}
-      <Header progress={progress} onOpenGuide={handleOpenGuide} />
+      <Header progress={progress} onReplayTour={handleReplayTour} />
+      {/* Pass handleReplayTour to Header */}
       
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel: Exercise List */}
@@ -574,13 +614,15 @@ function App() {
             {isExerciseListOpen ? <ChevronLeft size={20} /> : <PanelLeft size={20} />}
           </button>
           {isExerciseListOpen && (
-            <GamifiedExerciseMap
-              exercises={allExercises}
-              progress={progress}
-              currentExerciseId={currentExerciseId}
-              onSelectExercise={handleSelectExercise}
-              isDryRunMode={isDryRunMode} // Pass dry run mode to disable interactions
-            />
+            <div data-tour-id="exercise-list-panel"> {/* Added tour ID to the wrapper */}
+              <GamifiedExerciseMap
+                exercises={allExercises}
+                progress={progress}
+                currentExerciseId={currentExerciseId}
+                onSelectExercise={handleSelectExercise}
+                isDryRunMode={isDryRunMode} // Pass dry run mode to disable interactions
+              />
+            </div>
           )}
         </div>
 
@@ -653,6 +695,7 @@ function App() {
               <button
                 onClick={() => setIsCodeEditorOpen(!isCodeEditorOpen)}
                 className="mb-2 px-3 py-1.5 text-sm bg-gray-200 hover:bg-gray-300 rounded-md"
+                data-tour-id="toggle-code-editor-button"
               >
                 {isCodeEditorOpen ? 'Hide Code Editor' : 'Show Code Editor'}
               </button>
@@ -665,6 +708,7 @@ function App() {
                 onRunCode={handleRunCode} // This is for actual code execution, not dry run steps
                 isRunning={isRunning && !isDryRunMode} // Actual run is only when not in dry run
                 newFlowchartToLoad={aiFlowchartToLoad}
+                isGeneratingFlowchart={isGeneratingFlowchart} // Pass loading state for spinner
                 highlightedNodeId={isDryRunMode ? currentDryRunState?.currentProcessedNodeId : null} // Highlight current dry run node
               />
               {isCodeEditorOpen && (
@@ -746,6 +790,7 @@ function App() {
                 onClick={() => setIsInputOutputOpen(!isInputOutputOpen)}
                 className="p-2 bg-gray-200 hover:bg-gray-300 h-full flex items-center justify-center z-10"
                 title={isInputOutputOpen ? "Collapse Input/Output Panel" : "Expand Input/Output Panel"}
+                data-tour-id="toggle-input-output-button"
               >
                 {isInputOutputOpen ? <ChevronRight size={20} /> : <PanelRight size={20} />}
               </button>
@@ -754,21 +799,10 @@ function App() {
         </div>
       </div>
 
-      {/* Chat Window */}
-      {isChatOpen && <ChatWindow
-                      onClose={() => setIsChatOpen(false)}
-                      onFlowchartGenerated={handleNewFlowchartFromAI}
-                   />}
+      {/* New Exercise Chat Component */}
+      <ExerciseChat />
 
-      {/* Chat Toggle Button */}
-      <button
-        onClick={() => setIsChatOpen(!isChatOpen)}
-        title={isChatOpen ? "Close AI Chat" : "Open AI Chat"}
-        aria-label={isChatOpen ? "Close AI Chat" : "Open AI Chat"}
-        className="fixed bottom-4 right-4 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg z-50"
-      >
-        {isChatOpen ? <X size={24} /> : <Bot size={24} />}
-      </button>
+      {/* Removed old chat toggle button and ChatWindow component */}
 
       {showDryRunInputModal && currentFlowchart && (
         <DryRunInputModal
@@ -779,17 +813,10 @@ function App() {
         />
       )}
 
-      <GuideModal
-        isOpen={isGuideOpen}
-        title={guideSteps[currentGuideStep]?.title || "Guide"}
-        content={guideSteps[currentGuideStep]?.content || "Loading content..."}
-        // imageSrc={guideSteps[currentGuideStep]?.actualImageSrcUrl} // Future: use actual image URLs
-        imagePlaceholderText={guideSteps[currentGuideStep]?.imagePlaceholder} // Pass placeholder text
-        currentStep={currentGuideStep}
-        totalSteps={guideSteps.length}
-        onNext={handleGuideNext}
-        onPrev={handleGuidePrev}
-        onClose={handleGuideClose}
+      {/* GuideModal removed */}
+      <InteractiveTour
+        forceStart={forceTourStart}
+        onTourComplete={() => setForceTourStart(false)} // Reset flag when tour completes or is skipped
       />
       <DomainBlockModal isOpen={showDomainBlockModal} onClose={closeDomainBlockModal} />
     </div>

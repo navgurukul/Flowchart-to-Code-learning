@@ -10,14 +10,17 @@ import {
   RotateCcw,
   Save,
   Download,
-  Upload,
+  //Upload,
   Zap,
   PanelLeft, // Added for palette toggle
   PanelRight, // Added for properties toggle
   Settings2, // Added for properties toggle
   Palette, // Added for palette toggle
   X, // For the close button on properties panel
-  Upload // Added for image upload
+  Upload, // Added for image upload
+  ZoomIn, // For Zoom In button
+  ZoomOut, // For Zoom Out button
+  RefreshCcw // For Reset Zoom button
 } from 'lucide-react';
 import { getDatabase, ref, update, serverTimestamp, onValue } from 'firebase/database'; // Added onValue
 import { app } from '../firebaseConfig';
@@ -42,6 +45,8 @@ interface FlowchartBuilderProps {
   onRunCode: (code: string) => void;
   isRunning: boolean;
   newFlowchartToLoad?: FlowchartData | null; // New prop for AI generated flowcharts
+  isGeneratingFlowchart?: boolean; // For spinner display
+  highlightedNodeId?: string | null; // Added from previous context, ensure it's used or removed if not
 }
 
 interface NodePalette {
@@ -56,49 +61,49 @@ const nodePalette: NodePalette[] = [
   {
     type: 'start',
     label: 'Start',
-    icon: <Circle className="w-4 h-4" />,
+    icon: <Circle className="w-5 h-5" />,
     color: 'bg-emerald-100 border-emerald-300 text-emerald-800',
     description: 'Beginning of the flowchart'
   },
   {
     type: 'end',
     label: 'End',
-    icon: <Circle className="w-4 h-4" />,
+    icon: <Circle className="w-5 h-5" />,
     color: 'bg-red-100 border-red-300 text-red-800',
     description: 'End of the flowchart'
   },
   {
     type: 'process',
     label: 'Process',
-    icon: <Square className="w-4 h-4" />,
+    icon: <Square className="w-5 h-5" />,
     color: 'bg-blue-100 border-blue-300 text-blue-800',
     description: 'Processing step or calculation'
   },
   {
     type: 'decision',
     label: 'Decision',
-    icon: <Diamond className="w-4 h-4" />,
+    icon: <Diamond className="w-5 h-5" />,
     color: 'bg-orange-100 border-orange-300 text-orange-800',
     description: 'Conditional branching'
   },
   {
     type: 'input',
     label: 'Input',
-    icon: <ArrowRight className="w-4 h-4 rotate-180" />,
+    icon: <ArrowRight className="w-5 h-5 rotate-180" />,
     color: 'bg-purple-100 border-purple-300 text-purple-800',
     description: 'Data input operation'
   },
   {
     type: 'output',
     label: 'Output',
-    icon: <ArrowRight className="w-4 h-4" />,
+    icon: <ArrowRight className="w-5 h-5" />,
     color: 'bg-indigo-100 border-indigo-300 text-indigo-800',
     description: 'Data output operation'
   },
   {
     type: 'loop',
     label: 'Loop',
-    icon: <div className="w-4 h-4 border-2 border-current rounded-full" />,
+    icon: <div className="w-5 h-5 border-2 border-current rounded-full" />,
     color: 'bg-yellow-100 border-yellow-300 text-yellow-800',
     description: 'Repetitive operation'
   }
@@ -110,7 +115,8 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
   onRunCode,
   isRunning,
   newFlowchartToLoad,
-  highlightedNodeId // This prop is from App.tsx for dry run, ensure it's declared in FlowchartBuilderProps if not already
+  isGeneratingFlowchart, // Destructure the new prop
+  highlightedNodeId
 }) => {
   const { currentUser } = useAuth(); // Get current user for presence updates
   const [flowchartData, setFlowchartData] = useState<FlowchartData>({
@@ -165,6 +171,10 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
       setErrorNodeIds(new Set());
     }
   }, [importedChartJson, importedValidationReport, onGenerateCode]);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const ZOOM_STEP = 0.1;
+  const MIN_ZOOM = 0.5;
+  const MAX_ZOOM = 2;
 
   // Effect to fetch other users' presence on the current flowchart
   useEffect(() => {
@@ -279,9 +289,35 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
     return () => window.removeEventListener('resize', debouncedResize);
   }, []);
 
+  // Effect to open properties panel when a node is selected
+  useEffect(() => {
+    if (selectedNodeForProperties) {
+      setIsPropertiesOpen(true);
+    }
+  }, [selectedNodeForProperties]);
+
+  // Effect to handle Escape key for exiting connect mode
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isConnecting) {
+        setIsConnecting(false);
+        setConnectionStart(null);
+        setConnectingMousePosition(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isConnecting]); // Re-run if isConnecting changes, though the core logic only depends on its value
+
 
   const handleDragStart = (nodeType: FlowchartNodeType) => {
     setDraggedNodeType(nodeType);
+    if (window.innerWidth < 768) { // md breakpoint, consistent with panel logic
+      setIsPaletteOpen(false);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -293,8 +329,9 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
     if (!draggedNodeType || !canvasRef.current) return;
 
     const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    // Adjust mouse coordinates for zoom
+    const x = (e.clientX - rect.left) / zoomLevel;
+    const y = (e.clientY - rect.top) / zoomLevel;
 
     const newNode: FlowchartNode = {
       id: `node-${Date.now()}`,
@@ -314,12 +351,38 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
     setDraggedNodeType(null);
   };
 
-  const handleCanvasMouseMove = (e: React.MouseEvent) => {
-    if (draggingNodeId && dragOffset && canvasRef.current) {
-      const rect = canvasRef.current.getBoundingClientRect();
-      const mouseXInCanvas = e.clientX - rect.left;
-      const mouseYInCanvas = e.clientY - rect.top;
+  const handleZoomIn = () => {
+    setZoomLevel(prevZoom => Math.min(MAX_ZOOM, prevZoom + ZOOM_STEP));
+  };
 
+  const handleZoomOut = () => {
+    setZoomLevel(prevZoom => Math.max(MIN_ZOOM, prevZoom - ZOOM_STEP));
+  };
+
+  const handleResetZoom = () => {
+    setZoomLevel(1);
+  };
+
+  const handleWheelZoom = (e: React.WheelEvent) => {
+    if (e.ctrlKey) { // Require Ctrl key for wheel zoom to prevent accidental zoom while scrolling
+      e.preventDefault();
+      if (e.deltaY < 0) {
+        handleZoomIn();
+      } else if (e.deltaY > 0) {
+        handleZoomOut();
+      }
+    }
+    // If Ctrl key is not pressed, let the default scroll behavior happen (for panning when zoomed in)
+  };
+
+  const handleCanvasMouseMove = (e: React.MouseEvent) => {
+    if (!canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    // Adjust mouse coordinates for zoom
+    const mouseXInCanvas = (e.clientX - rect.left) / zoomLevel;
+    const mouseYInCanvas = (e.clientY - rect.top) / zoomLevel;
+
+    if (draggingNodeId && dragOffset) {
       const newNodeX = mouseXInCanvas - dragOffset.x;
       const newNodeY = mouseYInCanvas - dragOffset.y;
 
@@ -331,17 +394,13 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
             : n
         )
       }));
-      didDragNodeRef.current = true; // Mark that a drag occurred
-      // No need to explicitly set isDragging here as it's managed by mousedown/mouseup
-      // and styles can rely on draggingNodeId
-    } else if (isConnecting && connectionStart && canvasRef.current) {
-      const rect = canvasRef.current.getBoundingClientRect();
+      didDragNodeRef.current = true;
+    } else if (isConnecting && connectionStart) {
       setConnectingMousePosition({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
+        x: mouseXInCanvas,
+        y: mouseYInCanvas,
       });
     } else if (connectingMousePosition) {
-      // If not connecting anymore, and not dragging, clear the preview line position
       setConnectingMousePosition(null);
     }
   };
@@ -380,43 +439,32 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
       return;
     }
 
-    // Prevent node selection or connection logic if a drag is starting
-    // This check might be redundant if stopPropagation in handleNodeMouseDown works perfectly
-    // but can be a safeguard.
-    // Note: The original check `if (draggingNodeId === nodeId && dragOffset)` is likely
-    // not needed anymore because `handleDragEnd` (which fires on mouseup, triggering click)
-    // clears `draggingNodeId` and `dragOffset`. The `didDragNodeRef.current` check is more robust.
-    // However, keeping it for now to ensure no unintended behavior changes from its removal.
-    if (draggingNodeId === nodeId && dragOffset) {
-      // If a drag is initiated, don't process click for selection/connection
-      // The mouseup event will handle the end of the drag.
-      return;
-    }
+  // Removed the potentially problematic redundant check.
+  // The didDragNodeRef.current check above should be sufficient
+  // to distinguish between a click and a drag-release.
 
     if (isConnecting) {
       if (!connectionStart) {
-        // This is the first click in a connection sequence
+        // This is the first click in a connection sequence: SET SOURCE NODE
         setConnectionStart(nodeId);
-        // Visual feedback for line preview is handled by onMouseMove
+        // Visual feedback for line preview is handled by onMouseMove (connectingMousePosition)
       } else {
-        // This is the second click
-        if (connectionStart !== nodeId) {
-          // Connecting to a different node
+        // This is the second click: SET TARGET NODE & CREATE EDGE
+        if (connectionStart !== nodeId) { // Prevent connecting a node to itself
           const newEdge: FlowchartEdge = {
             id: `edge-${Date.now()}`,
             source: connectionStart,
             target: nodeId,
-            type: 'default', // Consider edge types later if needed
+            type: 'default',
           };
           setFlowchartData(prev => ({
             ...prev,
             edges: [...prev.edges, newEdge],
           }));
         }
-        // Reset connection state whether an edge was created or not (e.g. clicked same node)
-        setIsConnecting(false);
+        // Reset for the next connection, but STAY in connecting mode
         setConnectionStart(null);
-        setConnectingMousePosition(null); // Reset preview line
+        setConnectingMousePosition(null);
       }
     } else {
     // Not in connecting mode, so select the node for properties panel
@@ -452,25 +500,25 @@ const handleCanvasClick = (event: React.MouseEvent) => {
         console.error("Error clearing current node ID in presence:", error);
       });
     }
-    }
-  };
+  }
+};
 
-  const handleNodeUpdate = (nodeId: string, updates: Partial<FlowchartNode['data']>) => {
-    setFlowchartData(prev => ({
-      ...prev,
-      nodes: prev.nodes.map(node =>
-        node.id === nodeId
-          ? { ...node, data: { ...node.data, ...updates } }
-          : node
-      )
-    }));
-  };
+const handleNodeUpdate = (nodeId: string, updates: Partial<FlowchartNode['data']>) => {
+  setFlowchartData(prev => ({
+    ...prev,
+    nodes: prev.nodes.map(node =>
+      node.id === nodeId
+        ? { ...node, data: { ...node.data, ...updates } }
+        : node
+    )
+  }));
+};
 
-  const handleDeleteNode = (nodeId: string) => {
-    setFlowchartData(prev => ({
-      nodes: prev.nodes.filter(node => node.id !== nodeId),
-      edges: prev.edges.filter(edge => edge.source !== nodeId && edge.target !== nodeId)
-    }));
+const handleDeleteNode = (nodeId: string) => {
+  setFlowchartData(prev => ({
+    nodes: prev.nodes.filter(node => node.id !== nodeId),
+    edges: prev.edges.filter(edge => edge.source !== nodeId && edge.target !== nodeId)
+  }));
   setSelectedNodeForProperties(null);
 
   // If the deleted node was the one the user had selected for presence, clear it
@@ -494,84 +542,175 @@ const handleCanvasClick = (event: React.MouseEvent) => {
       });
     }
   }
-  };
+};
+
+const handleImageFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const file = event.target.files?.[0];
+  if (!file) {
+    return;
+  }
+
+  console.log("Image file selected:", file.name, file.type);
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  const endpoint = `${apiBaseUrl}/api/import-image`;
 
   // const handleImageFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => { ... }; // REMOVED
   // const updateFlowchartDataWithMLOutput = (data: FlowchartData) => { ... }; // REMOVED
   // const triggerImageUpload = () => { ... }; // REMOVED - Replaced by hook's triggerImport
+  console.log(`Attempting to upload image to: ${endpoint}`);
 
-  const handleDeleteEdge = (edgeId: string) => {
-    setFlowchartData(prev => ({
-      ...prev,
-      edges: prev.edges.filter(edge => edge.id !== edgeId)
-    }));
-  };
-
-  const generateCodeFromFlowchart = () => {
-    const code = convertFlowchartToCode(flowchartData);
-    setGeneratedCode(code);
-    onGenerateCode(flowchartData);
-  };
-
-  const convertFlowchartToCode = (data: FlowchartData): string => {
-    // Simple code generation logic
-    let code = 'function solution(';
-    
-    // Find input nodes to determine parameters
-    const inputNodes = data.nodes.filter(node => node.type === 'input');
-    const params = inputNodes.map((_, index) => `input${index + 1}`).join(', ');
-    code += params + ') {\n';
-
-    // Add variable declarations
-    inputNodes.forEach((node, index) => {
-      code += `  let ${node.data.label.toLowerCase().replace(/\s+/g, '')} = input${index + 1};\n`;
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      body: formData,
+      // Headers like 'Content-Type': 'multipart/form-data' are usually set automatically by the browser with FormData
     });
 
-    // Process nodes in order
-    const processNodes = data.nodes.filter(node => node.type === 'process');
-    processNodes.forEach(node => {
-      if (node.data.value) {
-        code += `  ${node.data.value}\n`;
+    if (!response.ok) {
+      // Try to parse error from backend
+      let errorDetail = `Error ${response.status}: ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        errorDetail = errorData.detail || errorDetail;
+      } catch (e) {
+        // Ignore if error response is not JSON
       }
+      alert(`Failed to import flowchart: ${errorDetail}`);
+      return;
+    }
+
+    const apiResponse: {
+      nodes: Array<{ id: string; type: FlowchartNodeType; label: string; x: number; y: number; width: number; height: number }>; // Backend Node
+      edges: Array<{ id: string; source: string; target: string; label?: string }>; // Backend Edge
+      error?: string;
+      fallback_used?: boolean;
+    } = await response.json();
+
+    if (apiResponse.fallback_used && apiResponse.error) {
+      alert(`Import Alert: ${apiResponse.error}`); // Show fallback toast
+    }
+
+    // Transform API nodes and edges to frontend FlowchartData structure
+    const feNodes: FlowchartNode[] = apiResponse.nodes.map(apiNode => ({
+      id: apiNode.id,
+      type: apiNode.type, // Assuming backend type is already compatible FlowchartNodeType
+      position: { x: apiNode.x, y: apiNode.y },
+      data: { label: apiNode.label },
+      // width and height from apiNode are ignored for now, as frontend nodes have fixed size
+    }));
+
+    const feEdges: FlowchartEdge[] = apiResponse.edges.map(apiEdge => ({
+      id: apiEdge.id,
+      source: apiEdge.source,
+      target: apiEdge.target,
+      label: apiEdge.label,
+      type: 'default', // Defaulting edge type, can be enhanced if API provides it
+    }));
+
+    const newFlowchartData: FlowchartData = { nodes: feNodes, edges: feEdges };
+
+    console.log("Received data from API, transformed for frontend:", newFlowchartData);
+    updateFlowchartDataWithMLOutput(newFlowchartData);
+
+  } catch (error) {
+    console.error("Error importing image:", error);
+    alert(`An unexpected error occurred: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    // Reset file input to allow selecting the same file again if needed
+    if (event.target) {
+      event.target.value = '';
+    }
+  }
+};
+
+const updateFlowchartDataWithMLOutput = (data: FlowchartData) => {
+  console.log("Updating flowchart with data from API/ML:", data);
+  setFlowchartData(data);
+  setSelectedNodeForProperties(null); // Deselect any currently selected node
+  // Optionally, trigger code generation if that's desired after import
+  onGenerateCode(data); // This will call handleFlowchartChange in App.tsx
+};
+
+const triggerImageUpload = () => {
+  fileInputRef.current?.click();
+};
+
+const handleDeleteEdge = (edgeId: string) => {
+  setFlowchartData(prev => ({
+    ...prev,
+    edges: prev.edges.filter(edge => edge.id !== edgeId)
+  }));
+};
+
+const generateCodeFromFlowchart = () => {
+  const code = convertFlowchartToCode(flowchartData);
+  setGeneratedCode(code);
+  onGenerateCode(flowchartData);
+};
+
+const convertFlowchartToCode = (data: FlowchartData): string => {
+  // Simple code generation logic
+  let code = 'function solution(';
+  
+  // Find input nodes to determine parameters
+  const inputNodes = data.nodes.filter(node => node.type === 'input');
+  const params = inputNodes.map((_, index) => `input${index + 1}`).join(', ');
+  code += params + ') {\n';
+
+  // Add variable declarations
+  inputNodes.forEach((node, index) => {
+    code += `  let ${node.data.label.toLowerCase().replace(/\s+/g, '')} = input${index + 1};\n`;
+  });
+
+  // Process nodes in order
+  const processNodes = data.nodes.filter(node => node.type === 'process');
+  processNodes.forEach(node => {
+    if (node.data.value) {
+      code += `  ${node.data.value}\n`;
+    }
+  });
+
+  // Find output nodes
+  const outputNodes = data.nodes.filter(node => node.type === 'output');
+  if (outputNodes.length > 0) {
+    const outputValue = outputNodes[0].data.value || outputNodes[0].data.label;
+    code += `  return ${outputValue};\n`;
+  }
+
+  code += '}';
+  return code;
+};
+
+const clearCanvas = () => {
+  setFlowchartData({ nodes: [], edges: [] });
+  setSelectedNodeForProperties(null);
+  setGeneratedCode('');
+  setConnectingMousePosition(null);
+  // Clear current node ID in Firebase presence when canvas is cleared
+  if (currentUser) {
+    const db = getDatabase(app);
+    const userPresenceRef = ref(db, `onlineUsers/${currentUser.uid}`);
+    update(userPresenceRef, {
+      currentNodeId: null,
+      lastSeen: serverTimestamp()
+    }).catch(error => {
+      console.error("Error clearing current node ID on canvas clear:", error);
     });
+  }
+};
 
-    // Find output nodes
-    const outputNodes = data.nodes.filter(node => node.type === 'output');
-    if (outputNodes.length > 0) {
-      const outputValue = outputNodes[0].data.value || outputNodes[0].data.label;
-      code += `  return ${outputValue};\n`;
-    }
+const getNodeStyle = (nodeType: FlowchartNodeType) => {
+  const palette = nodePalette.find(p => p.type === nodeType);
+  return palette?.color || 'bg-gray-100 border-gray-300 text-gray-800';
+};
 
-    code += '}';
-    return code;
-  };
-
-  const clearCanvas = () => {
-    setFlowchartData({ nodes: [], edges: [] });
-    setSelectedNodeForProperties(null);
-    setGeneratedCode('');
-    setConnectingMousePosition(null);
-    // Clear current node ID in Firebase presence when canvas is cleared
-    if (currentUser) {
-      const db = getDatabase(app);
-      const userPresenceRef = ref(db, `onlineUsers/${currentUser.uid}`);
-      update(userPresenceRef, {
-        currentNodeId: null,
-        lastSeen: serverTimestamp()
-      }).catch(error => {
-        console.error("Error clearing current node ID on canvas clear:", error);
-      });
-    }
-  };
-
-  const getNodeStyle = (nodeType: FlowchartNodeType) => {
-    const palette = nodePalette.find(p => p.type === nodeType);
-    return palette?.color || 'bg-gray-100 border-gray-300 text-gray-800';
-  };
-
-  const selectedNodeDataForProperties = selectedNodeForProperties
-    ? flowchartData.nodes.find(node => node.id === selectedNodeForProperties)
-    : null;
+const selectedNodeDataForProperties = selectedNodeForProperties
+  ? flowchartData.nodes.find(node => node.id === selectedNodeForProperties)
+  : null;
 
   // Props for FlowchartBuilder in App.tsx likely needs to be updated
   // for onNodeClick, onPaneClick, etc. if we were using ReactFlow directly.
@@ -593,7 +732,34 @@ const handleCanvasClick = (event: React.MouseEvent) => {
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">Interactive Flowchart Builder</h3>
         </div>
         
-        <div className="flex items-center flex-wrap justify-end space-x-1 sm:space-x-2 ml-2"> {/* Added flex-wrap and justify-end, reduced ml */}
+        <div className="flex items-center flex-wrap justify-end space-x-1 sm:space-x-2 ml-2">
+          {/* Zoom Controls */}
+          <div className="flex items-center border border-gray-200 rounded-md" data-tour-id="zoom-controls-container">
+            <button
+              onClick={handleZoomOut}
+              className="p-1.5 text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+              title="Zoom Out"
+              disabled={zoomLevel <= MIN_ZOOM}
+            >
+              <ZoomOut size={18} />
+            </button>
+            <button
+              onClick={handleResetZoom}
+              className="p-1.5 text-gray-600 hover:bg-gray-100 border-l border-r border-gray-200"
+              title="Reset Zoom"
+            >
+              <RefreshCcw size={16} />
+            </button>
+            <button
+              onClick={handleZoomIn}
+              className="p-1.5 text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+              title="Zoom In"
+              disabled={zoomLevel >= MAX_ZOOM}
+            >
+              <ZoomIn size={18} />
+            </button>
+          </div>
+
           <button
             onClick={() => {
               const newIsConnecting = !isConnecting;
@@ -608,6 +774,7 @@ const handleCanvasClick = (event: React.MouseEvent) => {
                 ? 'bg-orange-100 text-orange-700 border border-orange-300' 
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
+            data-tour-id="connect-nodes-button"
           >
             {isConnecting ? 'Connecting...' : 'Connect Nodes'}
           </button>
@@ -616,6 +783,7 @@ const handleCanvasClick = (event: React.MouseEvent) => {
             onClick={generateCodeFromFlowchart}
             disabled={flowchartData.nodes.length === 0}
             className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            data-tour-id="generate-code-button"
           >
             <Zap className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
             Generate Code
@@ -625,6 +793,7 @@ const handleCanvasClick = (event: React.MouseEvent) => {
             onClick={() => onRunCode(generatedCode)}
             disabled={!generatedCode || isRunning}
             className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-white bg-emerald-600 rounded-md hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            data-tour-id="run-code-button"
           >
             <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
             {isRunning ? 'Running...' : 'Run'}
@@ -658,6 +827,21 @@ const handleCanvasClick = (event: React.MouseEvent) => {
               className="hidden"
             />
           */}
+            onClick={triggerImageUpload}
+            className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-white bg-teal-600 rounded-md hover:bg-teal-700 transition-colors"
+            title="This feature is coming soon!"
+          >
+            <Upload className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+            Import (WIP)
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="image/jpeg, image/png"
+            onChange={handleImageFileSelect}
+            data-testid="flowchart-image-upload-input"
+            className="hidden"
+          />
           <button
             onClick={() => setIsPropertiesOpen(!isPropertiesOpen)}
             className="p-1.5 hover:bg-gray-200 rounded-md ml-1 sm:ml-2 md:hidden" // Hidden on md and above
@@ -686,11 +870,10 @@ const handleCanvasClick = (event: React.MouseEvent) => {
                   onDragStart={() => handleDragStart(node.type)}
                   className={`p-3 rounded-lg border-2 border-dashed cursor-move transition-all hover:shadow-md ${node.color}`}
                 >
-                  <div className="flex items-center mb-1">
+                  <div title={node.description} className="flex items-center">
                     {node.icon}
                     <span className="ml-2 font-medium text-sm">{node.label}</span>
                   </div>
-                  <p className="text-xs opacity-75">{node.description}</p>
                 </div>
               ))}
             </div>
@@ -744,22 +927,42 @@ const handleCanvasClick = (event: React.MouseEvent) => {
         {/* Canvas */}
         <div className="flex-1 relative"> {/* This is the key for the canvas to take remaining space */}
           <div
+        {/* Canvas Container */}
+        <div
             ref={canvasRef}
-            className="w-full h-full bg-gray-50 relative flowchart-dots-bg"
+            className="flex-1 relative overflow-auto bg-gray-50 flowchart-dots-bg" // Added overflow-auto
             onDragOver={handleDragOver}
             onDrop={handleDrop}
             onMouseMove={handleCanvasMouseMove}
             onMouseUp={handleDragEnd}
-            onClick={handleCanvasClick} // Added to handle clicks on canvas background
-            // onMouseLeave={handleDragEnd} // Removed this line as it might prematurely end drags
-          >
-            {/* Render Edges */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-none">
-              {isConnecting && connectionStart && connectingMousePosition && (() => {
-                const sourceNode = flowchartData.nodes.find(n => n.id === connectionStart);
-                if (!sourceNode) return null;
-                const x1 = sourceNode.position.x + 64; // Adjusted for new center
-                const y1 = sourceNode.position.y + 32; // Adjusted for new center
+            onClick={handleCanvasClick}
+            onWheel={handleWheelZoom}
+        >
+            {/* Inner Scalable Canvas Content */}
+            <div
+                className="relative w-full h-full" // w-full h-full to match parent before scaling
+                style={{
+                    transform: `scale(${zoomLevel})`,
+                    transformOrigin: 'top left',
+                    // The effective size of this div will be scaled.
+                    // Parent has overflow:auto to handle it.
+                }}
+            >
+                {isGeneratingFlowchart && (
+                  <div className="absolute inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-50" style={{transform: `scale(${1/zoomLevel})`, transformOrigin: 'center center' }}>
+                    {/* Spinner itself should not scale, or scale inversely */}
+                    <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
+                    <p className="ml-3 text-white font-semibold">Generating Flowchart...</p>
+                  </div>
+                )}
+                {/* Render Edges */}
+                {/* SVG needs to be positioned absolutely to fill its scaled container, or its dimensions adjusted */}
+                <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                  {isConnecting && connectionStart && connectingMousePosition && (() => {
+                    const sourceNode = flowchartData.nodes.find(n => n.id === connectionStart);
+                if (!sourceNode || !sourceNode.position) return null; // Guard against missing position
+                const x1 = sourceNode.position.x + 64;
+                const y1 = sourceNode.position.y + 32;
                 return (
                   <line
                     x1={x1}
@@ -776,12 +979,16 @@ const handleCanvasClick = (event: React.MouseEvent) => {
                 const sourceNode = flowchartData.nodes.find(n => n.id === edge.source);
                 const targetNode = flowchartData.nodes.find(n => n.id === edge.target);
                 
-                if (!sourceNode || !targetNode) return null;
+                // Guard against missing nodes or their positions
+                if (!sourceNode || !sourceNode.position || !targetNode || !targetNode.position) {
+                  console.error("FlowchartBuilder: Skipping edge render due to missing source/target node or position", edge, sourceNode, targetNode);
+                  return null;
+                }
 
-                const x1 = sourceNode.position.x + 64; // Adjusted for new center (assuming this was intended from previous task)
-                const y1 = sourceNode.position.y + 32; // Adjusted for new center
-                const x2 = targetNode.position.x + 64; // Adjusted for new center
-                const y2 = targetNode.position.y + 32; // Adjusted for new center
+                const x1 = sourceNode.position.x + 64;
+                const y1 = sourceNode.position.y + 32;
+                const x2 = targetNode.position.x + 64;
+                const y2 = targetNode.position.y + 32;
 
                 return (
                   <g key={edge.id}>
@@ -835,7 +1042,15 @@ const handleCanvasClick = (event: React.MouseEvent) => {
             </svg>
 
             {/* Render Nodes */}
-            {flowchartData.nodes.map((node) => (
+            {flowchartData.nodes.map((node) => {
+              // Guard against missing position and provide defaults
+              const positionX = typeof node.position?.x === 'number' ? node.position.x : 0;
+              const positionY = typeof node.position?.y === 'number' ? node.position.y : 0;
+              if (typeof node.position?.x !== 'number' || typeof node.position?.y !== 'number') {
+                console.error("FlowchartBuilder: Node missing valid position, defaulting to (0,0). Node data:", node);
+              }
+
+              return (
               <div
                 key={node.id}
                 className={`absolute w-32 h-16 rounded-lg border-2 cursor-pointer transition-all hover:shadow-lg z-20 ${ // Added z-20
@@ -845,8 +1060,8 @@ const handleCanvasClick = (event: React.MouseEvent) => {
                    ${errorNodeIds.has(node.id) ? 'border-red-500 ring-2 ring-red-500 ring-offset-1' : ''} // Highlight for validation errors
                 `}
                 style={{
-                  left: node.position.x,
-                  top: node.position.y,
+                  left: positionX,
+                  top: positionY,
                   transform: node.type === 'decision' ? 'rotate(45deg)' : 'none',
                   cursor: draggingNodeId === node.id ? 'grabbing' : 'grab' // Visual feedback for dragging
                 }}
@@ -875,18 +1090,24 @@ const handleCanvasClick = (event: React.MouseEvent) => {
                   </button>
                 )}
               </div>
-            ))}
+               );
+            })}
+
 
             {/* Render Presence Bubbles for other users */}
             {otherUsersOnFlowchart.map(user => {
               if (!user.currentNodeId) return null;
               const targetNode = flowchartData.nodes.find(n => n.id === user.currentNodeId);
-              if (!targetNode) return null;
+              // Guard against missing targetNode or its position
+              if (!targetNode || !targetNode.position) return null;
+
+              const positionX = typeof targetNode.position?.x === 'number' ? targetNode.position.x : 0;
+              const positionY = typeof targetNode.position?.y === 'number' ? targetNode.position.y : 0;
 
               // Position bubble slightly offset from the target node (e.g., top-right corner)
               // Node dimensions: w-32 (128px), h-16 (64px)
-              const bubbleX = targetNode.position.x + 128 - 8; // Node width - half bubble width approx
-              const bubbleY = targetNode.position.y - 8;      // Half bubble height approx above node
+              const bubbleX = positionX + 128 - 8; // Node width - half bubble width approx
+              const bubbleY = positionY - 8;      // Half bubble height approx above node
 
               return (
                 <div
@@ -959,7 +1180,7 @@ const handleCanvasClick = (event: React.MouseEvent) => {
                 <input
                   type="text"
                   value={selectedNodeDataForProperties.data.label}
-                  onChange={(e) => handleNodeUpdate(selectedNodeForProperties!, { label: e.target.value })}
+                  onChange={(e) => handleNodeUpdate(selectedNodeDataForProperties!.id, { label: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -971,7 +1192,7 @@ const handleCanvasClick = (event: React.MouseEvent) => {
                   </label>
                   <textarea
                     value={selectedNodeDataForProperties.data.value || ''}
-                    onChange={(e) => handleNodeUpdate(selectedNodeForProperties!, { value: e.target.value })}
+                    onChange={(e) => handleNodeUpdate(selectedNodeDataForProperties!.id, { value: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     rows={3}
                     placeholder={selectedNodeDataForProperties.type === 'process' ? 'e.g., sum = a + b' : 'e.g., sum'}
@@ -987,7 +1208,7 @@ const handleCanvasClick = (event: React.MouseEvent) => {
                   <input
                     type="text"
                     value={selectedNodeDataForProperties.data.condition || ''}
-                    onChange={(e) => handleNodeUpdate(selectedNodeForProperties!, { condition: e.target.value })}
+                    onChange={(e) => handleNodeUpdate(selectedNodeDataForProperties!.id, { condition: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="e.g., n % 2 == 0"
                   />

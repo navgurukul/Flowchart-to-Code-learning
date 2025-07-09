@@ -9,6 +9,12 @@ export interface Exercise {
   category: string;
   hints: string[];
   requiredNodes?: FlowchartNodeType[];
+  testCases?: TestCase[];
+}
+
+export interface TestCase {
+  input: string;
+  expectedOutput: string;
 }
 
 export interface StudentProgress {

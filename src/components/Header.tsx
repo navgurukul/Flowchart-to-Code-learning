@@ -7,7 +7,7 @@ import { app } from "../firebaseConfig";
 
 interface HeaderProps {
   progress: StudentProgress;
-  onOpenGuide: () => void; // Added prop for opening guide
+  onReplayTour: () => void; // Added for replaying the interactive tour
 }
 
 // Define the structure for user presence data
@@ -21,7 +21,7 @@ interface UserPresence {
   status: 'online' | 'idle' | 'offline';
 }
 
-export const Header: React.FC<HeaderProps> = ({ progress, onOpenGuide }) => {
+export const Header: React.FC<HeaderProps> = ({ progress, onReplayTour }) => { // Added onReplayTour
   const { currentUser, signInWithGoogle, signOut: authSignOut, loading } = useAuth(); // Renamed signOut to authSignOut
   const [onlineUsersCount, setOnlineUsersCount] = useState(0);
   const [appearOffline, setAppearOffline] = useState<boolean>(false);
@@ -224,12 +224,12 @@ export const Header: React.FC<HeaderProps> = ({ progress, onOpenGuide }) => {
             )}
 
             <button
-              onClick={onOpenGuide}
+              onClick={onReplayTour}
               className="p-1.5 sm:p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-100 rounded-full transition-colors duration-150"
-              title="Show Application Guide"
-              aria-label="Show Application Guide"
+              title="Replay Interactive Tour"
+              aria-label="Replay Interactive Tour"
             >
-              <HelpCircle size={20} /> {/* Adjusted size for consistency */}
+              <HelpCircle size={20} /> {/* Using HelpCircle icon for consistency, could be changed */}
             </button>
           </div>
         </div>

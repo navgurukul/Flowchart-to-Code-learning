@@ -58,50 +58,49 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       const firebaseUser = result.user;
 
       if (firebaseUser && firebaseUser.email) {
-        const emailDomain = firebaseUser.email.split('@')[1];
-        if (emailDomain !== ALLOWED_DOMAIN) {
-          toast.error(`Access restricted to ${ALLOWED_DOMAIN} domain.`);
-          setShowDomainBlockModal(true);
-          await firebaseSignOut(auth); // Sign out immediately
-          setCurrentUser(null);
-          return; // Stop further processing
-        }
+        // const emailDomain = firebaseUser.email.split('@')[1];
+        // if (emailDomain !== ALLOWED_DOMAIN) {
+        //   toast.error(`Access restricted to ${ALLOWED_DOMAIN} domain.`);
+        //   setShowDomainBlockModal(true);
+        //   await firebaseSignOut(auth); // Sign out immediately
+        //   setCurrentUser(null);
+        //   return; // Stop further processing
+        // }
 
-        // Domain is allowed, proceed with backend authentication
-        const idToken = await firebaseUser.getIdToken();
-        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
-        const endpoint = `${apiBaseUrl}/auth/google`; // Updated to /auth/google as per plan
+        // Domain check removed. All domains are allowed.
+        // Backend authentication call to /auth/google has been removed as per user request.
+        // const idToken = await firebaseUser.getIdToken();
+        // const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+        // const endpoint = `${apiBaseUrl}/auth/google`;
 
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ token: idToken }),
-        });
+        // const response = await fetch(endpoint, {
+        //   method: 'POST',
+        //   headers: {
+        //     'Content-Type': 'application/json',
+        //   },
+        //   body: JSON.stringify({ token: idToken }),
+        // });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error('Backend auth error:', errorData);
-          toast.error(errorData.detail || 'Failed to authenticate with backend.');
-          await firebaseSignOut(auth);
-          setCurrentUser(null);
-          // Potentially show a generic error modal or message
-          if (errorData.detail && errorData.detail.includes("domain")) {
-            setShowDomainBlockModal(true); // Show domain block modal if backend indicates domain issue
-          }
-          return;
-        }
+        // if (!response.ok) {
+        //   const errorData = await response.json();
+        //   console.error('Backend auth error:', errorData);
+        //   toast.error(errorData.detail || 'Failed to authenticate with backend.');
+        //   await firebaseSignOut(auth);
+        //   setCurrentUser(null);
+        //   if (errorData.detail && errorData.detail.includes("domain")) {
+        //     setShowDomainBlockModal(true);
+        //   }
+        //   return;
+        // }
 
-        // const backendData = await response.json(); // This is your FirebaseUser model from backend
-        // console.log("Backend response:", backendData);
-
+        // setCurrentUser immediately after successful Firebase client-side sign-in.
         setCurrentUser(mapFirebaseUserToAppUser(firebaseUser));
 
         const welcomeMessage = firebaseUser.displayName
           ? `Welcome, ${firebaseUser.displayName.split(' ')[0]}!`
           : 'Signed in successfully!';
         toast.success(welcomeMessage);
+
       } else if (firebaseUser && !firebaseUser.email) {
         // Handle case where email is not available from provider, though unlikely for Google
         toast.error('Could not retrieve email from provider. Please try again.');
@@ -150,14 +149,15 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       if (firebaseUser) {
         // Initial check: if a user is already authenticated in Firebase, verify their domain.
         // This handles cases like page refresh.
-        if (firebaseUser.email && firebaseUser.email.split('@')[1] !== ALLOWED_DOMAIN) {
-          toast.error(`Access restricted to ${ALLOWED_DOMAIN} domain.`);
-          setShowDomainBlockModal(true);
-          await firebaseSignOut(auth); // Sign out from Firebase
-          setCurrentUser(null); // Clear local user state
-          setLoading(false);
-          return; // Stop further processing for this user
-        }
+        // if (firebaseUser.email && firebaseUser.email.split('@')[1] !== ALLOWED_DOMAIN) {
+        //   toast.error(`Access restricted to ${ALLOWED_DOMAIN} domain.`);
+        //   setShowDomainBlockModal(true);
+        //   await firebaseSignOut(auth); // Sign out from Firebase
+        //   setCurrentUser(null); // Clear local user state
+        //   setLoading(false);
+        //   return; // Stop further processing for this user
+        // }
+        // Domain check removed. All domains are allowed.
         // If domain is okay or email is not yet available (should be rare for Google Auth)
         setCurrentUser(mapFirebaseUserToAppUser(firebaseUser));
 

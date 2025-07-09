@@ -49,23 +49,31 @@ export const InputOutput: React.FC<InputOutputProps> = ({
       >
         {/* Input Section */}
         <div className="p-4 sm:p-6 border-b border-gray-200"> {/* Adjusted padding */}
-          <h4 className="text-sm font-semibold text-gray-900 mb-3">Sample Input</h4>
-          <div className="bg-gray-50 rounded-lg p-3 sm:p-4 border"> {/* Adjusted padding */}
-            <code className="text-xs sm:text-sm text-gray-800 whitespace-pre-wrap"> {/* Ensure whitespace is preserved */}
-                {exercise.sampleInput || 'No input required'}
-              </code>
+          <h4 className="text-sm font-semibold text-gray-900 mb-3">Test Cases</h4>
+          {exercise.testCases && exercise.testCases.length > 0 ? (
+            exercise.testCases.map((testCase, index) => (
+              <div key={index} className="mb-4">
+                <p className="text-xs font-medium text-gray-700 mb-1">Test Case {index + 1}:</p>
+                <div className="bg-gray-50 rounded-lg p-3 sm:p-4 border mb-2">
+                  <p className="text-xs text-gray-600 mb-1">Input:</p>
+                  <code className="text-xs sm:text-sm text-gray-800 whitespace-pre-wrap">
+                    {testCase.input || 'No input required'}
+                  </code>
+                </div>
+                <div className="bg-emerald-50 rounded-lg p-3 sm:p-4 border border-emerald-200">
+                  <p className="text-xs text-emerald-600 mb-1">Expected Output:</p>
+                  <code className="text-xs sm:text-sm text-emerald-800 whitespace-pre-wrap">
+                    {testCase.expectedOutput}
+                  </code>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="bg-gray-50 rounded-lg p-3 sm:p-4 border">
+              <p className="text-xs sm:text-sm text-gray-600">No test cases defined for this exercise.</p>
             </div>
-          </div>
-
-          {/* Expected Output Section */}
-          <div className="p-4 sm:p-6 border-b border-gray-200"> {/* Adjusted padding */}
-            <h4 className="text-sm font-semibold text-gray-900 mb-3">Expected Output</h4>
-            <div className="bg-emerald-50 rounded-lg p-3 sm:p-4 border border-emerald-200"> {/* Adjusted padding */}
-              <code className="text-xs sm:text-sm text-emerald-800 whitespace-pre-wrap"> {/* Ensure whitespace is preserved */}
-                {exercise.expectedOutput}
-              </code>
-            </div>
-          </div>
+          )}
+        </div>
 
           {/* Actual Output Section */}
           {/* Note: flex-1 might behave unexpectedly if the parent (transitioning div) is truly height 0. */}

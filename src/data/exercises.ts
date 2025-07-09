@@ -8,6 +8,9 @@ export const exercises: Exercise[] = [
     problemStatement: "Build a simple flowchart that outputs the text 'Hello, World!' when executed. This is your first step into programming logic!",
     sampleInput: "",
     expectedOutput: "Hello, World!",
+    testCases: [
+      { input: "", expectedOutput: "Hello, World!" }
+    ],
     difficulty: 'beginner',
     category: 'Basic Output',
     hints: [
@@ -25,6 +28,11 @@ export const exercises: Exercise[] = [
     problemStatement: "Design a flowchart that takes two numbers as input, adds them together, and outputs the sum.",
     sampleInput: "5, 3",
     expectedOutput: "8",
+    testCases: [
+      { input: "5, 3", expectedOutput: "8" },
+      { input: "10, 20", expectedOutput: "30" },
+      { input: "-5, 5", expectedOutput: "0" }
+    ],
     difficulty: 'beginner',
     category: 'Arithmetic Operations',
     hints: [
@@ -42,6 +50,11 @@ export const exercises: Exercise[] = [
     problemStatement: "Create a flowchart that takes a number as input and determines if it's even or odd, then displays the appropriate message.",
     sampleInput: "4",
     expectedOutput: "Even",
+    testCases: [
+      { input: "4", expectedOutput: "Even" },
+      { input: "7", expectedOutput: "Odd" },
+      { input: "0", expectedOutput: "Even" }
+    ],
     difficulty: 'beginner',
     category: 'Conditional Logic',
     hints: [
@@ -59,6 +72,11 @@ export const exercises: Exercise[] = [
     problemStatement: "Design a flowchart that takes three numbers as input and determines which one is the largest, then outputs that number.",
     sampleInput: "10, 25, 15",
     expectedOutput: "25",
+    testCases: [
+      { input: "10, 25, 15", expectedOutput: "25" },
+      { input: "30, 15, 20", expectedOutput: "30" },
+      { input: "5, 5, 5", expectedOutput: "5" }
+    ],
     difficulty: 'intermediate',
     category: 'Conditional Logic',
     hints: [
@@ -76,6 +94,11 @@ export const exercises: Exercise[] = [
     problemStatement: "Create a flowchart that calculates the factorial of a number using iterative logic (loops).",
     sampleInput: "5",
     expectedOutput: "120",
+    testCases: [
+      { input: "5", expectedOutput: "120" },
+      { input: "0", expectedOutput: "1" },
+      { input: "1", expectedOutput: "1" }
+    ],
     difficulty: 'intermediate',
     category: 'Loops',
     hints: [
@@ -93,6 +116,12 @@ export const exercises: Exercise[] = [
     problemStatement: "Design a flowchart that determines whether a given number is prime (only divisible by 1 and itself).",
     sampleInput: "17",
     expectedOutput: "Prime",
+    testCases: [
+      { input: "17", expectedOutput: "Prime" },
+      { input: "4", expectedOutput: "Not Prime" },
+      { input: "2", expectedOutput: "Prime" },
+      { input: "1", expectedOutput: "Not Prime" }
+    ],
     difficulty: 'intermediate',
     category: 'Loops',
     hints: [
@@ -147,8 +176,12 @@ for (let i = 7; i <= 50; i++) {
     title: `${template.title} ${Math.floor((i - 7) / exerciseTemplates.length) + 1}`,
     description: `${template.description} - Challenge ${i}`,
     problemStatement: `Advanced programming challenge focusing on ${template.category.toLowerCase()}. Design a flowchart to solve this problem step by step.`,
-    sampleInput: "sample input",
-    expectedOutput: "expected result",
+    sampleInput: "sample input", // Placeholder, will be customized if needed
+    expectedOutput: "expected result", // Placeholder, will be customized if needed
+    testCases: [ // Generic test cases for programmatically generated exercises
+      { input: "sample input 1", expectedOutput: "expected result 1" },
+      { input: "sample input 2", expectedOutput: "expected result 2" }
+    ],
     difficulty: template.difficulty,
     category: template.category,
     hints: [

@@ -1,0 +1,45 @@
+/* Basic styling for the toggle buttons to make them unobtrusive */
+/* It's assumed that a container with ID #ui-toggle-buttons-container exists,
+   or these buttons are appended to the body. */
+
+#toggle-code-editor-btn,
+#toggle-input-output-btn {
+  background-color: #f0f0f0; /* Light grey background */
+  border: 1px solid #cccccc; /* Subtle border */
+  padding: 8px 12px;
+  margin: 5px;
+  cursor: pointer;
+  font-size: 0.9em;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+
+#toggle-code-editor-btn:hover,
+#toggle-input-output-btn:hover {
+  background-color: #e0e0e0; /* Slightly darker on hover */
+}
+
+/* Optional: If using a specific container for the buttons, style it here.
+   For example, to position them in a corner: */
+/*
+#ui-toggle-buttons-container {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  z-index: 1000; // Ensure they are above other elements
+}
+*/
+
+/* If buttons are directly in the body, you might need more specific
+   positioning, or ensure they are placed within a flow that makes sense.
+   The current JavaScript appends them to #ui-toggle-buttons-container
+   or body if the container isn't found.
+   The following is a simple way to group them if they are direct children of body,
+   but a dedicated container is preferred. */
+
+body > #toggle-code-editor-btn,
+body > #toggle-input-output-btn {
+  /* This example assumes they might be direct children of body if container is missing.
+     It's better to ensure the container exists and style that.
+     If they are in a container, these specific body > rules won't apply as strongly. */
+}
