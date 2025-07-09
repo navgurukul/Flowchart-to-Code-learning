@@ -24,6 +24,7 @@ const ExerciseChat: React.FC = () => {
   const [isFullScreen, setIsFullScreen] = useState(false); // Added for full-screen mode
   const messages = currentExerciseId ? loadHistory(currentExerciseId) : [];
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null); // Ref for the input element
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -83,15 +84,24 @@ const ExerciseChat: React.FC = () => {
         messageContent = userMessage.text.substring('/learn '.length).trim();
       }
 
+      // Determine what to send to the API
+      // If it's a known command, send the original text so the backend can parse it.
+      // Otherwise, send the processed messageContent (which is the same as userMessage.text for 'chat').
+      const messageForApi = (command === 'learn' || command === 'generate') ? userMessage.text : messageContent;
+
+      const apiPayload = {
+        message: messageForApi,
+        command: command, // 'learn', 'generate', or 'chat'
+        exerciseContext: storeExerciseContext ? {
+          currentExerciseId: storeExerciseContext.exerciseId,
+          title: storeExerciseContext.title,
+        } : null,
+      };
+
+      // console.log("[DEBUG] Payload to postRealChatMessage:", apiPayload); // For debugging
+
       try {
-        const apiResponse = await postRealChatMessage({
-          message: messageContent,
-          command: command,
-          exerciseContext: storeExerciseContext ? {
-            currentExerciseId: storeExerciseContext.exerciseId,
-            title: storeExerciseContext.title,
-          } : null,
-        });
+        const apiResponse = await postRealChatMessage(apiPayload);
 
         if (currentExerciseId) {
           const botReply = apiResponse.reply;
@@ -163,6 +173,16 @@ const ExerciseChat: React.FC = () => {
     }
   };
 
+  const handleLearnButtonClick = () => {
+    setInputValue('/learn ');
+    inputRef.current?.focus();
+  };
+
+  const handleGenerateButtonClick = () => {
+    setInputValue('/generate ');
+    inputRef.current?.focus();
+  };
+
   return (
     <div className={`chat-widget-container ${isFullScreen ? 'chat-widget-fullscreen' : ''}`}>
       {/* Header */}
@@ -203,17 +223,28 @@ const ExerciseChat: React.FC = () => {
 
       {/* Input Area */}
       <div className="chat-input-area">
-        <input
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-          className="chat-input"
-          placeholder="Type a message..."
-        />
-        <button onClick={handleSendMessage} className="chat-send-button">
-          Send
-        </button>
+        <div className="chat-command-buttons">
+          <button onClick={handleLearnButtonClick} className="chat-command-button">
+            /learn
+          </button>
+          <button onClick={handleGenerateButtonClick} className="chat-command-button">
+            /generate
+          </button>
+        </div>
+        <div className="chat-input-row"> {/* Wrapper for input and send button */}
+          <input
+            ref={inputRef} // Assign ref to the input
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+            className="chat-input"
+            placeholder="Type a message or use command buttons..."
+          />
+          <button onClick={handleSendMessage} className="chat-send-button">
+            Send
+          </button>
+        </div>
       </div>
     </div>
   );
