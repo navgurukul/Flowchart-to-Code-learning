@@ -137,6 +137,37 @@
   padding: 10px;
   border-top: 1px solid #ccc;
   display: flex;
+  flex-direction: column; /* Stack command buttons above input+send */
+}
+
+.chat-command-buttons {
+  display: flex;
+  margin-bottom: 8px; /* Space between command buttons and input row */
+}
+
+.chat-command-button {
+  padding: 6px 10px;
+  margin-right: 8px;
+  background-color: #f0f0f0; /* Light grey, distinct from send */
+  color: #333;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+
+.chat-command-button:hover {
+  background-color: #e0e0e0;
+}
+
+.chat-command-button:last-child {
+  margin-right: 0;
+}
+
+/* Container for the input field and send button to keep them in a row */
+.chat-input-row {
+  display: flex;
+  width: 100%;
 }
 
 .chat-input {
