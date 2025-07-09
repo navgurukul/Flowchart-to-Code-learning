@@ -1,13 +1,14 @@
 version: 1.0
-runtime: python311          # tells App Runner to use its managed Python 3.11 image
+runtime: python311
 
 build:
   commands:
     build:
-      - pip3 install -r requirements.txt  # works inside the revised build
+      - pip3 install -r requirements.txt
 
 run:
-  # install again inside the running container so packages live inside /app
+  env:                       # ← add this block
+    GEMINI_API_KEY: AIzaSyCAdv_yJyCFUX38SfQmMEzRJrIubaM-GRU
   pre-run:
     - pip3 install -r requirements.txt
   command: uvicorn main:app --host 0.0.0.0 --port 8080
