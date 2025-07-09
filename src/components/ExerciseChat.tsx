@@ -5,16 +5,10 @@ import useChatStore from '../store/chatStore';
 import { postRealChatMessage } from '../services/api';
 import './ExerciseChat.css';
 
-interface ExerciseChatProps {
-  onChatInteraction: () => void;
-  isChatForcedOpen?: boolean;
-}
-
-const ExerciseChat: React.FC<ExerciseChatProps> = ({ onChatInteraction, isChatForcedOpen }) => {
+const ExerciseChat: React.FC = () => {
   const {
     isVisible,
     toggleVisibility,
-    openChat: openChatInStore, // Renamed to avoid conflict
     currentExerciseId,
     exerciseContext,
     addMessage,
@@ -37,51 +31,31 @@ const ExerciseChat: React.FC<ExerciseChatProps> = ({ onChatInteraction, isChatFo
 
   useEffect(scrollToBottom, [messages]);
 
-  // Effect to handle forced open state
-  useEffect(() => {
-    if (isChatForcedOpen && !isVisible) {
-      openChatInStore(); // Open the chat via store action
-    }
-  }, [isChatForcedOpen, isVisible, openChatInStore]);
-
   useEffect(() => {
     if (isVisible && currentExerciseId && exerciseContext?.title) {
       const currentMessages = loadHistory(currentExerciseId);
       if (currentMessages.length === 0) {
-        // Add a more guiding initial message
-        let initialText = `Hi 👋 I’m FlowBot! Ready to help you with "${exerciseContext.title}".`;
-        if (isChatForcedOpen) {
-          initialText += "\n\nLet's discuss the concepts first. When you're ready to build the flowchart, just send any message or ask a question!";
-        }
         const greetingMessage = {
           id: Date.now().toString() + '-greeting',
           sender: 'assistant' as 'assistant',
-          text: initialText,
+          text: `Hi 👋 I’m FlowBot! Ready to help you with "${exerciseContext.title}".`,
           timestamp: Date.now(),
         };
         addMessage(currentExerciseId, greetingMessage);
       }
     }
-  }, [isVisible, currentExerciseId, exerciseContext, addMessage, loadHistory, isChatForcedOpen]);
+  }, [isVisible, currentExerciseId, exerciseContext, addMessage, loadHistory]);
 
-  // Show minimized button only if not forced open and not visible
-  if (!isVisible && !isChatForcedOpen) {
+  if (!isVisible) {
     return (
       <button
-        onClick={openChatInStore} // Use openChatInStore to ensure visibility is correctly set in store
+        onClick={toggleVisibility}
         className="chat-widget-button"
       >
         Open Chat
       </button>
     );
   }
-
-  // If forced open but not yet visible (e.g. store state hasn't updated), show nothing briefly or a loader.
-  // Or, rely on the useEffect to call openChatInStore, then this condition won't be met for long.
-  if (!isVisible && isChatForcedOpen) {
-      return null; // Or a loading indicator if preferred
-  }
-
 
   const handleSendMessage = async () => {
     if (inputValue.trim() && currentExerciseId) {
@@ -94,7 +68,6 @@ const ExerciseChat: React.FC<ExerciseChatProps> = ({ onChatInteraction, isChatFo
       addMessage(currentExerciseId, userMessage);
       setInputValue('');
       setIsBotTyping(true);
-      onChatInteraction(); // Notify App.tsx that user has interacted
 
       console.log("[DEBUG] User message text at start of handleSendMessage:", userMessage.text); // DEBUG LOG
 

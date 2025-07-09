@@ -1,6 +1,6 @@
 from datetime import datetime, timezone # Added import
-from typing import List, Dict, Any, Optional # Combined imports
-from fastapi import FastAPI, HTTPException, Request, Depends, UploadFile, File # FastAPI imports are the same after feat branch added them
+from typing import List, Optional # Added import
+from fastapi import FastAPI, HTTPException, Request, Depends, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from ultralytics import YOLO
@@ -14,10 +14,7 @@ import json
 from dotenv import load_dotenv  # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< IMPORT THIS
 import firebase_admin
 from firebase_admin import credentials, auth, db
-# Removed redundant `from typing import Optional` as it's covered by the combined import
-
-# Import for flowchart analysis
-from .flowchart_analyzer import analyze_image_content # Assuming flowchart_analyzer.py is in the same directory
+from typing import Optional  # Added for Optional email in FirebaseUser
 
 # --- .env DEBUG START ---
 print("DEBUG: Script starting. Attempting to load .env file...")
@@ -617,43 +614,6 @@ async def handle_chat_message(chat_message: ChatMessage): # Removed current_user
             status_code=500, detail=f"An error occurred while processing your request with the AI: {str(e)}")
 
     return {"response": response_text, "isStructuredData": is_structured_data}
-
-class FlowchartAnalysisResponse(BaseModel):
-    chartJson: Dict[str, Any]
-    # validationReport: List[Dict[str, Any]] # Keeping this out for now as per plan
-
-@app.post("/api/analyze_flowchart_image", response_model=FlowchartAnalysisResponse)
-async def analyze_flowchart_image_endpoint(
-    file: UploadFile = File(...),
-    current_user: AuthenticatedUser = Depends(get_current_user_data) # Secure the endpoint
-):
-    print(f"User {current_user.email} (UID: {current_user.uid}) accessing flowchart image analysis.")
-    if not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Invalid file type. Please upload an image.")
-
-    try:
-        image_content = await file.read()
-        if not image_content:
-            raise HTTPException(status_code=400, detail="Empty file uploaded. Please upload a valid image.")
-
-        # Call the analysis function from flowchart_analyzer.py
-        chart_json = analyze_image_content(image_content)
-
-        # The plan mentions that the frontend will handle validation initially.
-        # So, the backend returns the chartJson.
-        # Later, if validation moves to backend, this is where it would be added.
-        # validation_report = [] # Placeholder
-
-        return FlowchartAnalysisResponse(chartJson=chart_json)
-
-    except HTTPException as http_exc: # Re-raise HTTPException
-        raise http_exc
-    except Exception as e:
-        print(f"Error during flowchart image analysis: {e}")
-        # Log the full traceback for server-side debugging
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"An error occurred while analyzing the flowchart image: {str(e)}")
 
 
 @app.post("/api/auth/google")
