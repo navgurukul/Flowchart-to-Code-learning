@@ -72,3 +72,62 @@ Currently, the allowed domain is hardcoded as `@navgurukul.org` in:
 *   `backend/main.py` (server-side)
 
 If you need to change or add allowed domains, you would need to update the `ALLOWED_DOMAIN` constant in these files. For more complex scenarios (e.g., multiple allowed domains from a configuration), the implementation would need to be adjusted accordingly.
+
+## Flowchart Image Import (AI/ML Feature)
+
+This feature allows users to upload an image of a flowchart. The backend then uses the Google Cloud Vision API to analyze the image, detect flowchart elements (text, shapes - basic implementation), and convert them into the application's JSON schema. The frontend renders this generated flowchart and runs validation rules.
+
+### Backend Setup (Google Cloud Vision API)
+
+The image analysis is performed by the `/api/analyze_flowchart_image` endpoint in the Python FastAPI backend (`backend/main.py`, with logic in `backend/flowchart_analyzer.py`).
+
+1.  **Authentication**:
+    *   The backend requires Google Cloud Application Default Credentials (ADC) to be set up in the environment where it runs. This typically involves:
+        *   Installing the Google Cloud CLI (`gcloud`).
+        *   Running `gcloud auth application-default login`.
+    *   Alternatively, you can set the `GOOGLE_APPLICATION_CREDENTIALS` environment variable to the path of a service account key JSON file.
+        ```bash
+        export GOOGLE_APPLICATION_CREDENTIALS="/path/to/your/service-account-file.json"
+        ```
+    *   Ensure the service account or your ADC has the "Cloud Vision API User" role (or equivalent permissions) enabled for your Google Cloud project.
+
+2.  **Dependencies**:
+    *   The necessary Python library `google-cloud-vision` is included in `backend/requirements.txt`. Ensure dependencies are installed by running `pip install -r requirements.txt` within the `backend` directory.
+
+3.  **Key Parameters/Logic**:
+    *   **Text Detection Confidence**: In `backend/flowchart_analyzer.py`, text blocks detected by the Vision API are only processed if their `confidence` score is `0.6` or higher.
+    *   **Node Type Heuristics**: The current implementation uses basic text-based heuristics to assign types to nodes (e.g., "start", "end", "decision"). Shape detection is rudimentary and primarily based on text block analysis.
+    *   **Edge Detection**: Currently, edge detection is **not implemented** in the backend. The returned `chartJson` will have an empty `edges` array.
+
+### Local Development and Testing
+
+1.  **Backend**:
+    *   Navigate to the `backend` directory.
+    *   Set up your Google Cloud credentials as described above.
+    *   Ensure all dependencies are installed: `pip install -r requirements.txt`.
+    *   Run the FastAPI server (example from `backend/main.py` comments):
+        ```bash
+        uvicorn main:app --reload --port 8000
+        ```
+    *   You can test the `/api/analyze_flowchart_image` endpoint using a tool like Postman, Insomnia, or `curl` by sending a POST request with a multipart/form-data image file.
+        ```bash
+        curl -X POST -F "file=@/path/to/your/flowchart_image.png" http://localhost:8000/api/analyze_flowchart_image -H "Authorization: Bearer YOUR_FIREBASE_ID_TOKEN"
+        ```
+        (Note: `YOUR_FIREBASE_ID_TOKEN` would be required if testing against a deployed/secured instance; local testing might not enforce this if `get_current_user_data` is temporarily bypassed or mocked for ease of testing the Vision API part).
+
+2.  **Frontend**:
+    *   Ensure the frontend development server is running (e.g., `npm start` or `vite dev` from the root directory).
+    *   Open the application in your browser.
+    *   Navigate to the Flowchart Builder page.
+    *   Use the "Import" button to upload a flowchart image.
+    *   Observe the rendered flowchart (which will be based on text blocks and have no edges initially) and the validation report panel.
+    *   The validation report will likely show many errors due to missing start/end nodes (if heuristics fail) and missing connections.
+
+3.  **Backend Unit Tests**:
+    *   Navigate to the `backend` directory.
+    *   Run `python -m unittest test_flowchart_analyzer.py`. These tests mock the Vision API responses and check the data transformation logic.
+
+4.  **Frontend E2E Tests (Cypress)**:
+    *   Ensure Cypress is set up.
+    *   Open Cypress: `npx cypress open` (from the root directory).
+    *   Run the `flowchart-import.cy.ts` test suite. These tests mock the backend API call to `/api/analyze_flowchart_image` to provide consistent `chartJson` for testing UI rendering and validation display.
