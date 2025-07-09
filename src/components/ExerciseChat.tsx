@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast'; // Import toast
+import { marked } from 'marked'; // Import marked library
 import useChatStore from '../store/chatStore';
 import { postRealChatMessage } from '../services/api';
 import './ExerciseChat.css';
@@ -20,6 +21,7 @@ const ExerciseChat: React.FC = () => {
 
   const [inputValue, setInputValue] = useState('');
   const [isBotTyping, setIsBotTyping] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false); // Added for full-screen mode
   const messages = currentExerciseId ? loadHistory(currentExerciseId) : [];
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
 
@@ -162,12 +164,15 @@ const ExerciseChat: React.FC = () => {
   };
 
   return (
-    <div className="chat-widget-container">
+    <div className={`chat-widget-container ${isFullScreen ? 'chat-widget-fullscreen' : ''}`}>
       {/* Header */}
       <div className="chat-header">
         <span className="chat-header-title">{exerciseContext?.title || 'Chat'}</span>
         <div className="chat-header-buttons">
           <button title="Re-sync" className="resync-button" onClick={requestResync}>🔄</button>
+          <button title={isFullScreen ? "Exit Full Screen" : "Full Screen"} onClick={() => setIsFullScreen(!isFullScreen)}>
+            {isFullScreen ? '↙️' : '↗️'}
+          </button>
           <button onClick={toggleVisibility}>✕</button>
         </div>
       </div>
@@ -181,7 +186,11 @@ const ExerciseChat: React.FC = () => {
               msg.sender === 'user' ? 'chat-message-user' : 'chat-message-assistant'
             }`}
           >
-            {msg.text}
+            {msg.sender === 'assistant' ? (
+              <div dangerouslySetInnerHTML={{ __html: marked(msg.text) as string }} />
+            ) : (
+              <div>{msg.text}</div> // User messages rendered as plain text
+            )}
           </div>
         ))}
          {isBotTyping && (

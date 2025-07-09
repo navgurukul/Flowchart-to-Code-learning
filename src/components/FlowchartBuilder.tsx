@@ -60,49 +60,49 @@ const nodePalette: NodePalette[] = [
   {
     type: 'start',
     label: 'Start',
-    icon: <Circle className="w-4 h-4" />,
+    icon: <Circle className="w-5 h-5" />,
     color: 'bg-emerald-100 border-emerald-300 text-emerald-800',
     description: 'Beginning of the flowchart'
   },
   {
     type: 'end',
     label: 'End',
-    icon: <Circle className="w-4 h-4" />,
+    icon: <Circle className="w-5 h-5" />,
     color: 'bg-red-100 border-red-300 text-red-800',
     description: 'End of the flowchart'
   },
   {
     type: 'process',
     label: 'Process',
-    icon: <Square className="w-4 h-4" />,
+    icon: <Square className="w-5 h-5" />,
     color: 'bg-blue-100 border-blue-300 text-blue-800',
     description: 'Processing step or calculation'
   },
   {
     type: 'decision',
     label: 'Decision',
-    icon: <Diamond className="w-4 h-4" />,
+    icon: <Diamond className="w-5 h-5" />,
     color: 'bg-orange-100 border-orange-300 text-orange-800',
     description: 'Conditional branching'
   },
   {
     type: 'input',
     label: 'Input',
-    icon: <ArrowRight className="w-4 h-4 rotate-180" />,
+    icon: <ArrowRight className="w-5 h-5 rotate-180" />,
     color: 'bg-purple-100 border-purple-300 text-purple-800',
     description: 'Data input operation'
   },
   {
     type: 'output',
     label: 'Output',
-    icon: <ArrowRight className="w-4 h-4" />,
+    icon: <ArrowRight className="w-5 h-5" />,
     color: 'bg-indigo-100 border-indigo-300 text-indigo-800',
     description: 'Data output operation'
   },
   {
     type: 'loop',
     label: 'Loop',
-    icon: <div className="w-4 h-4 border-2 border-current rounded-full" />,
+    icon: <div className="w-5 h-5 border-2 border-current rounded-full" />,
     color: 'bg-yellow-100 border-yellow-300 text-yellow-800',
     description: 'Repetitive operation'
   }
@@ -697,7 +697,7 @@ const selectedNodeDataForProperties = selectedNodeForProperties
         
         <div className="flex items-center flex-wrap justify-end space-x-1 sm:space-x-2 ml-2">
           {/* Zoom Controls */}
-          <div className="flex items-center border border-gray-200 rounded-md">
+          <div className="flex items-center border border-gray-200 rounded-md" data-tour-id="zoom-controls-container">
             <button
               onClick={handleZoomOut}
               className="p-1.5 text-gray-600 hover:bg-gray-100 disabled:opacity-50"
@@ -737,6 +737,7 @@ const selectedNodeDataForProperties = selectedNodeForProperties
                 ? 'bg-orange-100 text-orange-700 border border-orange-300' 
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
+            data-tour-id="connect-nodes-button"
           >
             {isConnecting ? 'Connecting...' : 'Connect Nodes'}
           </button>
@@ -745,6 +746,7 @@ const selectedNodeDataForProperties = selectedNodeForProperties
             onClick={generateCodeFromFlowchart}
             disabled={flowchartData.nodes.length === 0}
             className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            data-tour-id="generate-code-button"
           >
             <Zap className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
             Generate Code
@@ -754,6 +756,7 @@ const selectedNodeDataForProperties = selectedNodeForProperties
             onClick={() => onRunCode(generatedCode)}
             disabled={!generatedCode || isRunning}
             className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-white bg-emerald-600 rounded-md hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            data-tour-id="run-code-button"
           >
             <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
             {isRunning ? 'Running...' : 'Run'}
@@ -770,10 +773,10 @@ const selectedNodeDataForProperties = selectedNodeForProperties
           <button
             onClick={triggerImageUpload}
             className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-white bg-teal-600 rounded-md hover:bg-teal-700 transition-colors"
-            title="Upload Flowchart Image"
+            title="This feature is coming soon!"
           >
             <Upload className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-            Import
+            Import (WIP)
           </button>
           <input
             type="file"
@@ -811,11 +814,10 @@ const selectedNodeDataForProperties = selectedNodeForProperties
                   onDragStart={() => handleDragStart(node.type)}
                   className={`p-3 rounded-lg border-2 border-dashed cursor-move transition-all hover:shadow-md ${node.color}`}
                 >
-                  <div className="flex items-center mb-1">
+                  <div title={node.description} className="flex items-center">
                     {node.icon}
                     <span className="ml-2 font-medium text-sm">{node.label}</span>
                   </div>
-                  <p className="text-xs opacity-75">{node.description}</p>
                 </div>
               ))}
             </div>
