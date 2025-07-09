@@ -200,12 +200,13 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
 
   useEffect(() => {
     if (newFlowchartToLoad && (newFlowchartToLoad.nodes.length > 0 || newFlowchartToLoad.edges.length > 0)) {
-      console.log('FlowchartBuilder: Received new flowchart to load via props:', newFlowchartToLoad);
-      setFlowchartData(newFlowchartToLoad);
+      // Data from the store (newFlowchartToLoad) is now expected to be in the correct internal format
+      // because ExerciseChat.tsx transforms it before putting it in the store.
+      console.log('FlowchartBuilder: Received pre-transformed flowchart to load via props:', newFlowchartToLoad);
+      setFlowchartData(newFlowchartToLoad); // Directly set it
       setSelectedNodeForProperties(null); // Reset selection
-      // The existing useEffect that watches flowchartData will call onGenerateCode
     }
-  }, [newFlowchartToLoad]); // Dependency array includes newFlowchartToLoad
+  }, [newFlowchartToLoad]);
 
   // Effect to adjust panel visibility based on screen size
   useEffect(() => {
@@ -678,6 +679,22 @@ const selectedNodeDataForProperties = selectedNodeForProperties
   // Props for FlowchartBuilder in App.tsx likely needs to be updated
   // for onNodeClick, onPaneClick, etc. if we were using ReactFlow directly.
   // Since this is a custom builder, we add click handler to the canvas div.
+
+  // --- DEBUGGING LOGS START ---
+  if (flowchartData.nodes && flowchartData.nodes.length > 0) {
+    console.log('[DEBUG FlowchartBuilder RENDER] First node structure from state:', JSON.stringify(flowchartData.nodes[0], null, 2));
+    const firstNode = flowchartData.nodes[0];
+    console.log('[DEBUG FlowchartBuilder RENDER] node.id:', firstNode.id);
+    console.log('[DEBUG FlowchartBuilder RENDER] typeof node.position:', typeof firstNode.position);
+    console.log('[DEBUG FlowchartBuilder RENDER] node.position content:', JSON.stringify(firstNode.position, null, 2));
+    console.log('[DEBUG FlowchartBuilder RENDER] Does first node have position.x?', firstNode.position?.hasOwnProperty('x'));
+    console.log('[DEBUG FlowchartBuilder RENDER] typeof node.data:', typeof firstNode.data);
+    console.log('[DEBUG FlowchartBuilder RENDER] node.data content:', JSON.stringify(firstNode.data, null, 2));
+    console.log('[DEBUG FlowchartBuilder RENDER] Does first node have data.label?', firstNode.data?.hasOwnProperty('label'));
+  } else {
+    console.log('[DEBUG FlowchartBuilder RENDER] No nodes in flowchartData state to log.');
+  }
+  // --- DEBUGGING LOGS END ---
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 h-full flex flex-col">

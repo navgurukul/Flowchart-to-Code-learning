@@ -106,22 +106,69 @@ const ExerciseChat: React.FC = () => {
         if (currentExerciseId) {
           const botReply = apiResponse.reply;
           if (command === 'generate' && botReply.isStructuredData && botReply.text) {
+            console.log("[DEBUG] Raw botReply.text for /generate:", botReply.text);
+            let flowchartDataFromApi; // Renamed to avoid confusion
             try {
-              const flowchartData = JSON.parse(botReply.text);
-              if (flowchartData.nodes && flowchartData.edges) {
-                setGeneratedFlowchartData(flowchartData);
-                useChatStore.getState().setIsCheatModeSource(true); // Set cheat mode source
-                 addMessage(currentExerciseId, {
-                   id: Date.now().toString() + '-flowchart-generated',
-                   sender: 'assistant',
-                   text: "Flowchart generated. You can see it on the canvas.",
-                   timestamp: Date.now(),
-                 });
-                toast.success("Flowchart generated in cheat mode – progress not counted.");
-                console.log("Flowchart data parsed and set to store from chat message.");
+              flowchartDataFromApi = JSON.parse(botReply.text);
+              // console.log("[DEBUG] Parsed flowchartDataFromApi (raw API structure):", JSON.stringify(flowchartDataFromApi, null, 2));
+
+              if (flowchartDataFromApi.nodes && flowchartDataFromApi.edges) {
+                // Transform API data to the internal FlowchartNode structure
+                const transformedInternalNodes: import('../types').FlowchartNode[] = flowchartDataFromApi.nodes.map((apiNode: any) => ({
+                  id: apiNode.id,
+                  type: apiNode.type as import('../types').FlowchartNodeType,
+                  position: { x: apiNode.x, y: apiNode.y },
+                  data: {
+                    label: apiNode.label,
+                    value: apiNode.value || '',
+                    condition: apiNode.condition || '',
+                  },
+                }));
+
+                const transformedInternalEdges: import('../types').FlowchartEdge[] = flowchartDataFromApi.edges.map((apiEdge: any) => ({
+                  id: apiEdge.id,
+                  source: apiEdge.source,
+                  target: apiEdge.target,
+                  label: apiEdge.label || undefined,
+                  type: apiEdge.type || 'default',
+                }));
+
+                const dataForStore: import('../types').FlowchartData = {
+                  nodes: transformedInternalNodes,
+                  edges: transformedInternalEdges,
+                  // problemStatement, inputType, etc., are not part of FlowchartData type in types/index.ts
+                  // If needed by FlowchartBuilder, they must be passed via other means or FlowchartData type expanded.
+                };
+
+                console.log("[DEBUG] Transformed dataForStore (to be saved in Zustand):", JSON.stringify(dataForStore, null, 2));
+
+                // Further try-catch for setting data and UI updates
+                try {
+                  setGeneratedFlowchartData(dataForStore); // Pass the transformed data
+                  useChatStore.getState().setIsCheatModeSource(true); // Set cheat mode source
+                  addMessage(currentExerciseId, {
+                    id: Date.now().toString() + '-flowchart-generated',
+                    sender: 'assistant',
+                    text: "Flowchart generated. You can see it on the canvas.",
+                    timestamp: Date.now(),
+                  });
+                  toast.success("Flowchart generated in cheat mode – progress not counted.");
+                  console.log("Flowchart data successfully processed and UI updated.");
+                } catch (renderError) {
+                  console.error("[DEBUG] Error during setGeneratedFlowchartData or subsequent UI updates:", renderError);
+                  const renderErrorMessage = `Error rendering flowchart: ${renderError instanceof Error ? renderError.message : 'Unknown error'}`;
+                  toast.error(renderErrorMessage);
+                  addMessage(currentExerciseId, {
+                    id: Date.now().toString() + '-render-error',
+                    sender: 'assistant',
+                    text: renderErrorMessage,
+                    timestamp: Date.now(),
+                  });
+                }
               } else {
                 // Structured data was expected but not in the correct format
                 const formatError = "Flowchart data is missing nodes or edges.";
+                console.error("[DEBUG] Flowchart data format error:", formatError, "Data:", flowchartData);
                 toast.error(`Error: ${formatError}`);
                 throw new Error(formatError);
               }
