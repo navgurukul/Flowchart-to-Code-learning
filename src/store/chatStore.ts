@@ -27,6 +27,7 @@ interface ChatState {
   chatHistory: Record<string, ChatMessage[]>; // ExerciseId -> Messages
   generatedFlowchartData: FlowchartData | null; // For AI generated flowcharts
   toggleVisibility: () => void;
+  openChat: () => void; // New action to explicitly open chat
   setExerciseContext: (context: ExerciseContext) => void;
   addMessage: (exerciseId: string | null, message: ChatMessage) => void;
   loadHistory: (exerciseId: string | null) => ChatMessage[];
@@ -42,7 +43,7 @@ interface ChatState {
 const useChatStore = create<ChatState>()(
   persist(
     (set, get) => ({
-      isVisible: true,
+      isVisible: false, // Changed default to false
       currentExerciseId: null,
       exerciseContext: null,
       chatHistory: {},
@@ -51,6 +52,7 @@ const useChatStore = create<ChatState>()(
       isCheatModeSource: false, // Initialize cheat mode flag
       isGeneratingFlowchart: false, // Initialize loading flag
       toggleVisibility: () => set((state) => ({ isVisible: !state.isVisible })),
+      openChat: () => set({ isVisible: true }), // Implementation for openChat
       requestResync: () => set({ lastResyncRequested: Date.now() }),
       setGeneratedFlowchartData: (data) => set({ generatedFlowchartData: data }), // Implement setter
       setIsCheatModeSource: (isCheat) => set({ isCheatModeSource: isCheat }), // Implement cheat mode setter

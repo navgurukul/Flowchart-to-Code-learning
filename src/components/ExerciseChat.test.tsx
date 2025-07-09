@@ -31,12 +31,14 @@ describe('ExerciseChat', () => {
   let mockRequestResync: vi.Mock;
   let mockSetGeneratedFlowchartData: vi.Mock;
   let mockSetIsGeneratingFlowchart: vi.Mock;
+  let mockOpenChatInStore: vi.Mock;
 
 
   beforeEach(() => {
     mockAddMessage = vi.fn();
     mockLoadHistory = vi.fn();
     mockToggleVisibility = vi.fn();
+    mockOpenChatInStore = vi.fn();
     mockRequestResync = vi.fn();
     mockSetGeneratedFlowchartData = vi.fn();
     mockSetIsGeneratingFlowchart = vi.fn();
@@ -65,6 +67,7 @@ describe('ExerciseChat', () => {
         addMessage: mockAddMessage,
         loadHistory: mockLoadHistory, // Uses the default mock or test-specific one
         toggleVisibility: mockToggleVisibility,
+        openChat: mockOpenChatInStore, // Added
         requestResync: mockRequestResync,
         lastResyncRequested: null,
         setExerciseContext: vi.fn(),
@@ -74,17 +77,22 @@ describe('ExerciseChat', () => {
         // chatHistory is part of the internal state of useChatStore,
         // but components usually get messages via loadHistory.
       };
-       // getState mock
-      (useChatStore as any).getState = () => ({
+      const fullState = {
         ...baseState,
-        setIsCheatModeSource: vi.fn(), // Ensure getState also returns this
-      });
+        // Ensure all functions that might be called via getState() are present
+        setIsCheatModeSource: vi.fn(),
+        // Add any other functions here if needed by other tests or component logic accessed via getState
+      };
+
+      // This ensures that when the component calls useChatStore.getState(),
+      // it gets a complete state object including necessary functions.
+      (useChatStore as any).getState = () => fullState;
 
       // Simulating how Zustand selectors work:
       if (typeof selector === 'function') {
-        return selector(baseState);
+        return selector(fullState); // Pass the more complete state to selectors
       }
-      return baseState; // Fallback for direct use of the hook without selector
+      return fullState; // Fallback for direct use of the hook without selector
     });
   });
 
@@ -94,12 +102,15 @@ describe('ExerciseChat', () => {
     delete (window.HTMLElement.prototype as any).scrollIntoView;
   });
 
+  const mockOnChatInteraction = vi.fn();
+
   test('should display greeting message on first open for an exercise', () => {
     mockLoadHistory.mockReturnValue([]); // No history
 
-    render(<ExerciseChat />);
+    render(<ExerciseChat onChatInteraction={mockOnChatInteraction} />);
 
     expect(mockAddMessage).toHaveBeenCalledTimes(1);
+    // Default greeting
     expect(mockAddMessage).toHaveBeenCalledWith('ex1', {
       id: expect.any(String),
       sender: 'assistant',
@@ -113,10 +124,23 @@ describe('ExerciseChat', () => {
       { id: '1', sender: 'user', text: 'Hello', timestamp: Date.now() },
     ]); // History exists
 
-    render(<ExerciseChat />);
+    render(<ExerciseChat onChatInteraction={mockOnChatInteraction} />);
 
     expect(mockAddMessage).not.toHaveBeenCalled();
   });
+
+  test('should call onChatInteraction when user sends a message', () => {
+    mockLoadHistory.mockReturnValue([]);
+    render(<ExerciseChat onChatInteraction={mockOnChatInteraction} />);
+
+    const input = screen.getByPlaceholderText('Type a message...');
+    const sendButton = screen.getByText('Send');
+    fireEvent.change(input, { target: { value: 'Hello there' } });
+    fireEvent.click(sendButton);
+
+    expect(mockOnChatInteraction).toHaveBeenCalledTimes(1);
+  });
+
 
   test('should send user message and receive bot response for /generate command', async () => {
     mockLoadHistory.mockReturnValue([]); // Start with no history for simplicity, greeting will be added
@@ -129,12 +153,15 @@ describe('ExerciseChat', () => {
       isStructuredData: true,
     };
     // Mock the specific API function used by the component
-    mockPostRealChatMessage.mockResolvedValue({ reply: mockBotResponse });
+    // Ensure the mock returns an object with a 'reply' property
+    mockPostRealChatMessage.mockResolvedValue({
+      reply: mockBotResponse
+    });
 
-    render(<ExerciseChat />);
+    render(<ExerciseChat onChatInteraction={mockOnChatInteraction} />);
 
     // Greeting message call
-    expect(mockAddMessage).toHaveBeenCalledTimes(1);
+    expect(mockAddMessage).toHaveBeenCalledTimes(1); // From the initial greeting
 
     const input = screen.getByPlaceholderText('Type a message...');
     const sendButton = screen.getByText('Send');
@@ -183,113 +210,78 @@ describe('ExerciseChat', () => {
     ];
     mockLoadHistory.mockReturnValue(messages);
 
-    render(<ExerciseChat />);
+    render(<ExerciseChat onChatInteraction={mockOnChatInteraction} />);
 
     expect(screen.getByText('Hello Bot')).toBeInTheDocument();
     expect(screen.getByText('Hello User')).toBeInTheDocument();
     expect(mockAddMessage).not.toHaveBeenCalled(); // No new greeting
   });
 
-  test('chat opens and closes when toggle button is clicked', () => {
-    // Initial state: visible
-    render(<ExerciseChat />);
-    expect(screen.getByText('Sum of Two Numbers')).toBeInTheDocument(); // Header title
-
-    const closeButton = screen.getByText('✕');
-    fireEvent.click(closeButton);
-    expect(mockToggleVisibility).toHaveBeenCalledTimes(1);
-
-    // Simulate store update for visibility
-    mockUseChatStore.mockImplementation((selector) => {
+  test('chat opens using openChatInStore when "Open Chat" button is clicked', () => {
+    // Initial state: hidden, not forced open
+    mockUseChatStore.mockImplementation((selector: any) => {
       const state = {
-        isVisible: false, // Now hidden
-        currentExerciseId: 'ex1',
-        exerciseContext: { exerciseId: 'ex1', title: 'Sum of Two Numbers' },
-        addMessage: mockAddMessage,
-        loadHistory: mockLoadHistory,
-        toggleVisibility: mockToggleVisibility,
-        // ... other store state
-      };
-      if (selector) { return selector(state); }
-      return state;
-    });
-
-    // Re-render or update component state to reflect store change
-    // In a real app, the component would re-render. Here, we can simulate by re-rendering.
-    // However, direct re-render might not be enough if the store subscription logic is complex.
-    // It's often better to ensure the mock store behaves as expected upon calls.
-    // For this test, assuming toggleVisibility leads to the component being unmounted/re-mounted or conditional rendering changes.
-
-    // To simulate the "Open Chat" button appearing, we need to re-render with `isVisible: false`
-    // This is tricky with the current mock setup if it doesn't dynamically respond to `toggleVisibility` calls.
-    // A more robust way is to control the `isVisible` state directly for different render calls if needed.
-
-    // Let's refine the mock for the "hidden" state
-    mockUseChatStore.mockImplementationOnce((selector: any) => {
-       const hiddenState = {
         isVisible: false,
-        currentExerciseId: 'ex1',
-        // other state properties...
-        exerciseContext: { exerciseId: 'ex1', title: 'Sum of Two Numbers' },
-        addMessage: mockAddMessage,
-        loadHistory: mockLoadHistory.mockReturnValue([]), // Ensure loadHistory is appropriately mocked for this scenario
-        toggleVisibility: mockToggleVisibility,
-        requestResync: mockRequestResync,
-        setExerciseContext: vi.fn(),
-        setGeneratedFlowchartData: mockSetGeneratedFlowchartData,
-        setIsGeneratingFlowchart: mockSetIsGeneratingFlowchart,
-      };
-      if (typeof selector === 'function') {
-        return selector(hiddenState);
-      }
-      return hiddenState;
-    });
-
-
-    const { rerender } = render(<ExerciseChat />); // First render is with isVisible: true (from beforeEach)
-                                                 // This instance will be based on the general beforeEach mock.
-
-    // Click close button
-    // const closeButton = screen.getByText('✕'); // Assuming this is found from the first render
-    // fireEvent.click(closeButton);
-    // expect(mockToggleVisibility).toHaveBeenCalledTimes(1); // From the first visible state
-
-    // Now, to test the "Open Chat" button, we need a render where isVisible is false.
-    // The previous mockUseChatStore.mockImplementationOnce sets this up for the *next* component instantiation/render cycle.
-    // It's crucial that this mock also correctly sets up loadHistory.
-
-    mockUseChatStore.mockImplementationOnce((selector: any) => {
-      const hiddenState = {
-        isVisible: false,
+        isChatForcedOpen: false, // Ensure this is part of the mocked state if your component uses it
         currentExerciseId: 'ex1',
         exerciseContext: { exerciseId: 'ex1', title: 'Sum of Two Numbers' },
         addMessage: mockAddMessage,
-        loadHistory: mockLoadHistory.mockReturnValue([]), // Explicitly mock loadHistory here
+        loadHistory: mockLoadHistory.mockReturnValue([]),
         toggleVisibility: mockToggleVisibility,
+        openChat: mockOpenChatInStore, // Use the new mock
         requestResync: mockRequestResync,
         setExerciseContext: vi.fn(),
         setGeneratedFlowchartData: mockSetGeneratedFlowchartData,
         setIsGeneratingFlowchart: mockSetIsGeneratingFlowchart,
         setIsCheatModeSource: vi.fn(),
       };
-       // Ensure getState is also available for this specific mock instance if needed by the component logic
-      (hiddenState as any).getState = () => ({ ...hiddenState, setIsCheatModeSource: vi.fn() });
-
       if (typeof selector === 'function') {
-        return selector(hiddenState);
+        return selector(state);
       }
-      return hiddenState;
+      return state;
     });
 
-    rerender(<ExerciseChat />); // This should now use isVisible: false
+    render(<ExerciseChat onChatInteraction={mockOnChatInteraction} isChatForcedOpen={false} />);
 
-    expect(screen.getByText('Open Chat')).toBeInTheDocument(); // Button to open
     const openButton = screen.getByText('Open Chat');
+    expect(openButton).toBeInTheDocument();
     fireEvent.click(openButton);
-    // mockToggleVisibility would be called by the component when the openButton is clicked.
-    // The count depends on how many times it was called before this specific interaction.
-    // If the component was truly closed and re-opened, toggleVisibility is called again.
-    expect(mockToggleVisibility).toHaveBeenCalledTimes(2); //  (once to close, once to open)
+
+    expect(mockOpenChatInStore).toHaveBeenCalledTimes(1); // Check if openChat was called
+    // toggleVisibility should not be called if openChat is the primary mechanism now
+    expect(mockToggleVisibility).not.toHaveBeenCalled();
+  });
+
+  test('chat close button calls toggleVisibility', () => {
+    // Initial state: visible
+     mockUseChatStore.mockImplementation((selector: any) => {
+      const state = {
+        isVisible: true, // Start visible
+        isChatForcedOpen: false,
+        currentExerciseId: 'ex1',
+        exerciseContext: { exerciseId: 'ex1', title: 'Sum of Two Numbers' },
+        addMessage: mockAddMessage,
+        loadHistory: mockLoadHistory.mockReturnValue([]),
+        toggleVisibility: mockToggleVisibility, // This should be called by the close button
+        openChat: mockOpenChatInStore,
+        requestResync: mockRequestResync,
+        setExerciseContext: vi.fn(),
+        setGeneratedFlowchartData: mockSetGeneratedFlowchartData,
+        setIsGeneratingFlowchart: mockSetIsGeneratingFlowchart,
+        setIsCheatModeSource: vi.fn(),
+      };
+      if (typeof selector === 'function') {
+        return selector(state);
+      }
+      return state;
+    });
+
+    render(<ExerciseChat onChatInteraction={mockOnChatInteraction} isChatForcedOpen={false} />);
+    expect(screen.getByText('Sum of Two Numbers')).toBeInTheDocument(); // Header title, implies chat is open
+
+    const closeButton = screen.getByText('✕');
+    fireEvent.click(closeButton);
+    expect(mockToggleVisibility).toHaveBeenCalledTimes(1); // toggleVisibility should be called to close
   });
 
 });
