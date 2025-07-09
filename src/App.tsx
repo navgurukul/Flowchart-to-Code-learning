@@ -78,10 +78,6 @@ function App() {
   // --- Interactive Tour State ---
   const [forceTourStart, setForceTourStart] = useState(false);
 
-  // --- State for Chat and Flowchart Visibility Control ---
-  const [isChatForcedOpen, setIsChatForcedOpen] = useState(false);
-  const [isFlowchartInitiallyHidden, setIsFlowchartInitiallyHidden] = useState(false);
-
   // --- Event Handlers ---
   const handleSelectExercise = (exerciseId: number) => {
     if (isDryRunMode) { // Prevent changing exercise during dry run
@@ -98,12 +94,6 @@ function App() {
       currentExercise: exerciseId,
       lastAccessedAt: new Date().toISOString()
     }));
-    // New logic for chat and flowchart visibility
-    setIsChatForcedOpen(true);
-    setIsFlowchartInitiallyHidden(true);
-    // Potentially toggle chat visibility directly if store doesn't react to isChatForcedOpen
-    // For now, assuming ExerciseChat will handle this.
-    // Or, call an action: useChatStore.getState().openChat();
   };
 
   // Moved generateCodeFromFlowchart before handleFlowchartChange
@@ -712,22 +702,16 @@ function App() {
             </div>
 
             <div className={`grid grid-cols-1 ${isCodeEditorOpen ? 'md:grid-cols-2' : 'md:grid-cols-1'} gap-6 h-[750px]`}>
-              {!isFlowchartInitiallyHidden ? (
-                <FlowchartBuilder
-                  exercise={currentExercise}
-                  onGenerateCode={handleFlowchartChange}
-                  onRunCode={handleRunCode} // This is for actual code execution, not dry run steps
-                  isRunning={isRunning && !isDryRunMode} // Actual run is only when not in dry run
-                  newFlowchartToLoad={aiFlowchartToLoad}
-                  isGeneratingFlowchart={isGeneratingFlowchart} // Pass loading state for spinner
-                  highlightedNodeId={isDryRunMode ? currentDryRunState?.currentProcessedNodeId : null} // Highlight current dry run node
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full bg-gray-100 rounded-lg">
-                  <p className="text-lg text-gray-600">Please interact with the chat first to unlock the flowchart builder.</p>
-                </div>
-              )}
-              {isCodeEditorOpen && !isFlowchartInitiallyHidden && ( // Also hide code editor if flowchart is hidden
+              <FlowchartBuilder
+                exercise={currentExercise}
+                onGenerateCode={handleFlowchartChange}
+                onRunCode={handleRunCode} // This is for actual code execution, not dry run steps
+                isRunning={isRunning && !isDryRunMode} // Actual run is only when not in dry run
+                newFlowchartToLoad={aiFlowchartToLoad}
+                isGeneratingFlowchart={isGeneratingFlowchart} // Pass loading state for spinner
+                highlightedNodeId={isDryRunMode ? currentDryRunState?.currentProcessedNodeId : null} // Highlight current dry run node
+              />
+              {isCodeEditorOpen && (
                 <CodeEditor
                   exercise={currentExercise}
                   generatedCode={generatedCode}
@@ -816,13 +800,7 @@ function App() {
       </div>
 
       {/* New Exercise Chat Component */}
-      <ExerciseChat
-        onChatInteraction={() => {
-          setIsFlowchartInitiallyHidden(false);
-          setIsChatForcedOpen(false);
-        }}
-        isChatForcedOpen={isChatForcedOpen} // Pass this down
-      />
+      <ExerciseChat />
 
       {/* Removed old chat toggle button and ChatWindow component */}
 

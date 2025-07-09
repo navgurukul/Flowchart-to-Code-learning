@@ -8,6 +8,5 @@ firebase-admin>=6.0.0
 ultralytics>=8.0.0 # For YOLOv8
 opencv-python-headless>=4.0.0 # For image processing
 Pillow>=9.0.0 # For image manipulation
-# easyocr>=1.7.0 # For OCR - Not directly used in main.py's /api/import-image, might be in flowchart_analyzer.py. Keeping out for now.
+easyocr>=1.7.0 # For OCR
 python-multipart>=0.0.5 # For FastAPI file uploads
-# google-cloud-vision>=3.4.0 # This was from the other branch and is not used by current main.py CV implementation
