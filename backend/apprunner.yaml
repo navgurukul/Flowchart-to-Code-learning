@@ -7,10 +7,13 @@ build:
       - pip3 install -r requirements.txt
 
 run:
-  env:                       # ← add this block
-    GEMINI_API_KEY: AIzaSyCAdv_yJyCFUX38SfQmMEzRJrIubaM-GRU
+  env:
+    - name: GEMINI_API_KEY
+      value: "AIzaSyCAdv_yJyCFUX38SfQmMEzRJrIubaM-GRU"
   pre-run:
     - pip3 install -r requirements.txt
   command: uvicorn main:app --host 0.0.0.0 --port 8080
-  network:
-    port: 8080
+
+network:
+  port: 8080
+
