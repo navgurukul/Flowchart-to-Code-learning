@@ -1,0 +1,15 @@
+version: 1.0
+runtime: python311          # tells App Runner to use its managed Python 3.11 image
+
+build:
+  commands:
+    build:
+      - pip3 install -r requirements.txt  # works inside the revised build
+
+run:
+  # install again inside the running container so packages live inside /app
+  pre-run:
+    - pip3 install -r requirements.txt
+  command: uvicorn main:app --host 0.0.0.0 --port 8080
+  network:
+    port: 8080
