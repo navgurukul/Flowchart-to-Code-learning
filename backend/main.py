@@ -406,6 +406,7 @@ async def handle_chat_message(chat_message: ChatMessage): # Removed current_user
                 print(f"DEBUG: Gemini model object before calling generate_content_async: {model}")
                 # Pass the generation config to generate_content_async
                 ai_response = await model.generate_content_async(prompt, generation_config=generation_config)
+                print(f"DEBUG: Raw ai_response.text from Gemini for /generate: {ai_response.text}") # LOGGING ADDED HERE
                 try:
                     potential_json = ai_response.text
                     if potential_json.strip().startswith("```json"):
