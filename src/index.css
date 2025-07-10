@@ -3,14 +3,18 @@
 @tailwind utilities;
 
 .flowchart-dots-bg {
-  background-image: radial-gradient(circle, #E0F2FE 1px, rgba(0,0,0,0) 1px);
-  background-size: 16px 16px;
+  background-color: #E0F2FE; /* Fallback or end color of gradient */
+  background-image:
+    radial-gradient(circle, #b0c4de 1px, rgba(0,0,0,0) 1px), /* Dots - changed to a slightly darker color for visibility */
+    linear-gradient(to bottom right, hsl(190, 100%, 91%), #E0F2FE); /* Pink to Blue gradient */
+  background-size: 16px 16px, auto; /* Size for dots, auto for gradient */
   /* You might want to set a base background-color for the canvas itself,
      if it's not already white or another desired color from its parent.
      e.g., background-color: #f9fafb; (Tailwind's gray-50) or #ffffff; (white)
      This will be under the dots.
   */
 }
+
 
 /* Shepherd.js Custom Styling */
 .shepherd-popup-custom {
