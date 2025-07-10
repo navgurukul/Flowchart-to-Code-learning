@@ -56,8 +56,9 @@ export interface FlowchartEdge {
   id: string;
   source: string;
   target: string;
-  label?: string;
-  type?: 'default' | 'yes' | 'no';
+  label?: string; // General purpose label, might be deprecated or coexist with conditionType
+  type?: 'default' | 'yes' | 'no'; // Could be used for styling, or replaced by conditionType for decision outputs
+  conditionType?: 'true' | 'false' | null; // Specifically for edges from decision nodes
 }
 
 export interface FlowchartData {
