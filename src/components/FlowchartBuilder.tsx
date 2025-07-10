@@ -22,7 +22,7 @@ import {
   ZoomOut, // For Zoom Out button
   RefreshCcw // For Reset Zoom button
 } from 'lucide-react';
-import { getDatabase, ref, update, serverTimestamp, onValue } from 'firebase/database'; // Added onValue
+import { getDatabase, ref, set, get, child, update, serverTimestamp, onValue } from 'firebase/database'; // Added 'set', 'get', 'child'
 import { app } from '../firebaseConfig';
 import { useAuth } from '../contexts/AuthContext';
 import { User as UserIcon } from 'lucide-react'; // For default presence bubble avatar
@@ -136,10 +136,13 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
   const didDragNodeRef = useRef(false);
   const [otherUsersOnFlowchart, setOtherUsersOnFlowchart] = useState<UserPresence[]>([]);
+  const [isLoading, setIsLoading] = useState(false); // For loading indicator
   const [zoomLevel, setZoomLevel] = useState(1);
   const ZOOM_STEP = 0.1;
   const MIN_ZOOM = 0.5;
   const MAX_ZOOM = 2;
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
 
   // Effect to fetch other users' presence on the current flowchart
@@ -198,15 +201,49 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
     };
   }, [draggingNodeId, handleDragEnd]);
 
+  // Effect to load flowchart from Firebase or newFlowchartToLoad prop
   useEffect(() => {
+    // If newFlowchartToLoad is provided (e.g., by AI generation), prioritize it
     if (newFlowchartToLoad && (newFlowchartToLoad.nodes.length > 0 || newFlowchartToLoad.edges.length > 0)) {
-      // Data from the store (newFlowchartToLoad) is now expected to be in the correct internal format
-      // because ExerciseChat.tsx transforms it before putting it in the store.
-      console.log('FlowchartBuilder: Received pre-transformed flowchart to load via props:', newFlowchartToLoad);
-      setFlowchartData(newFlowchartToLoad); // Directly set it
-      setSelectedNodeForProperties(null); // Reset selection
+      console.log('FlowchartBuilder: Loading flowchart from newFlowchartToLoad prop:', newFlowchartToLoad);
+      setFlowchartData(newFlowchartToLoad);
+      setSelectedNodeForProperties(null);
+      return; // Prioritize prop over Firebase load for this render cycle
     }
-  }, [newFlowchartToLoad]);
+
+    // Otherwise, try to load from Firebase if user and exercise are available
+    if (currentUser && exercise && exercise.id) {
+      setIsLoading(true);
+      const db = getDatabase(app);
+      const flowchartPath = `userFlowcharts/${currentUser.uid}/${exercise.id}`;
+      const flowchartRef = ref(db, flowchartPath);
+
+      get(flowchartRef).then((snapshot) => {
+        if (snapshot.exists()) {
+          const loadedData = snapshot.val() as FlowchartData;
+          // Ensure loaded data has nodes and edges arrays even if empty
+          loadedData.nodes = loadedData.nodes || [];
+          loadedData.edges = loadedData.edges || [];
+          setFlowchartData(loadedData);
+          console.log(`Flowchart loaded for exercise ${exercise.id}`, loadedData);
+        } else {
+          // No saved flowchart found, reset to blank
+          setFlowchartData({ nodes: [], edges: [] });
+          console.log(`No saved flowchart found for exercise ${exercise.id}, starting fresh.`);
+        }
+      }).catch((error) => {
+        console.error("Error loading flowchart from Firebase:", error);
+        setFlowchartData({ nodes: [], edges: [] }); // Reset on error
+      }).finally(() => {
+        setIsLoading(false);
+      });
+    } else {
+      // No user or exercise, reset to blank (e.g., if user logs out or no exercise selected)
+      setFlowchartData({ nodes: [], edges: [] });
+      setSelectedNodeForProperties(null); // Clear selection
+    }
+  }, [currentUser, exercise, newFlowchartToLoad]); // Rerun if user, exercise, or externally loaded flowchart changes
+
 
   // Effect to adjust panel visibility based on screen size
   useEffect(() => {
@@ -649,6 +686,34 @@ const convertFlowchartToCode = (data: FlowchartData): string => {
   return code;
 };
 
+const handleSaveFlowchart = async () => {
+  if (!currentUser) {
+    alert("You must be logged in to save your flowchart.");
+    return;
+  }
+  if (!exercise || !exercise.id) {
+    console.error("Exercise context is missing, cannot save.");
+    alert("Cannot save flowchart: exercise data is missing.");
+    return;
+  }
+
+  setIsSaving(true);
+  const db = getDatabase(app);
+  const flowchartPath = `userFlowcharts/${currentUser.uid}/${exercise.id}`;
+
+  try {
+    await set(ref(db, flowchartPath), flowchartData);
+    // alert("Flowchart saved successfully!"); // Replace with a less intrusive notification
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 2000); // Display success for 2 seconds
+  } catch (error) {
+    console.error("Error saving flowchart:", error);
+    alert("Failed to save flowchart. See console for details.");
+  } finally {
+    setIsSaving(false);
+  }
+};
+
 const clearCanvas = () => {
   setFlowchartData({ nodes: [], edges: [] });
   setSelectedNodeForProperties(null);
@@ -758,10 +823,21 @@ const selectedNodeDataForProperties = selectedNodeForProperties
           >
             {isConnecting ? 'Connecting...' : 'Connect Nodes'}
           </button>
+
+          <button
+            onClick={handleSaveFlowchart}
+            disabled={isSaving || !currentUser}
+            className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            title={!currentUser ? "Log in to save" : "Save Flowchart"}
+            data-tour-id="save-flowchart-button"
+          >
+            <Save className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+            {isSaving ? 'Saving...' : (saveSuccess ? 'Saved!' : 'Save')}
+          </button>
           
           <button
             onClick={generateCodeFromFlowchart}
-            disabled={flowchartData.nodes.length === 0}
+            disabled={flowchartData.nodes.length === 0 || isSaving}
             className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             data-tour-id="generate-code-button"
           >
@@ -884,6 +960,11 @@ const selectedNodeDataForProperties = selectedNodeForProperties
                     // Parent has overflow:auto to handle it.
                 }}
             >
+                {isLoading && !isGeneratingFlowchart && ( // Show only if not already showing AI generation spinner
+                  <div className="absolute inset-0 bg-gray-200 bg-opacity-50 flex items-center justify-center z-40" style={{transform: `scale(${1/zoomLevel})`, transformOrigin: 'center center' }}>
+                    <p className="text-gray-700 font-semibold">Loading Flowchart...</p>
+                  </div>
+                )}
                 {isGeneratingFlowchart && (
                   <div className="absolute inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-50" style={{transform: `scale(${1/zoomLevel})`, transformOrigin: 'center center' }}>
                     {/* Spinner itself should not scale, or scale inversely */}
