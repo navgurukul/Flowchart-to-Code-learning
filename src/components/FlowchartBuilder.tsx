@@ -701,14 +701,35 @@ const handleSaveFlowchart = async () => {
   const db = getDatabase(app);
   const flowchartPath = `userFlowcharts/${currentUser.uid}/${exercise.id}`;
 
+  // Sanitize flowchartData before saving
+  const sanitizedFlowchartData = JSON.parse(JSON.stringify(flowchartData)); // Deep copy
+
+  sanitizedFlowchartData.nodes = sanitizedFlowchartData.nodes.map((node: FlowchartNode) => ({
+    ...node,
+    data: {
+      label: node.data.label, // Assuming label is always defined
+      value: node.data.value === undefined ? null : node.data.value,
+      condition: node.data.condition === undefined ? null : node.data.condition,
+    },
+  }));
+
+  sanitizedFlowchartData.edges = sanitizedFlowchartData.edges.map((edge: FlowchartEdge) => ({
+    ...edge,
+    label: edge.label === undefined ? null : edge.label,
+  }));
+
   try {
-    await set(ref(db, flowchartPath), flowchartData);
-    // alert("Flowchart saved successfully!"); // Replace with a less intrusive notification
+    await set(ref(db, flowchartPath), sanitizedFlowchartData);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 2000); // Display success for 2 seconds
   } catch (error) {
     console.error("Error saving flowchart:", error);
-    alert("Failed to save flowchart. See console for details.");
+    // Check if the error is the specific "undefined" error to give a more targeted message
+    if (error instanceof Error && error.message.includes("undefined")) {
+        alert("Failed to save flowchart due to unexpected data. Please try modifying the problematic element or report this issue.");
+    } else {
+        alert("Failed to save flowchart. See console for details.");
+    }
   } finally {
     setIsSaving(false);
   }
