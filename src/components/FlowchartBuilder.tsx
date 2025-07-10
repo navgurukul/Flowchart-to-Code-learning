@@ -114,58 +114,66 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
   onRunCode,
   isRunning,
   newFlowchartToLoad,
-  isGeneratingFlowchart,
+  isGeneratingFlowchart, // Destructure the new prop
   highlightedNodeId
 }) => {
-  const { currentUser } = useAuth();
+  const { currentUser } = useAuth(); // Get current user for presence updates
   const [flowchartData, setFlowchartData] = useState<FlowchartData>({
     nodes: [],
     edges: []
   });
-  const [selectedNodeForProperties, setSelectedNodeForProperties] = useState<string | null>(null);
+  const [selectedNodeForProperties, setSelectedNodeForProperties] = useState<string | null>(null); // Renamed for clarity
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStart, setConnectionStart] = useState<string | null>(null);
   const [draggedNodeType, setDraggedNodeType] = useState<FlowchartNodeType | null>(null);
-  const [generatedCode, setGeneratedCode] = useState<string>('');
+  const [generatedCode, setGeneratedCode] = useState<string>(''); // This seems to be local state, but generatedCode is also a prop in App.tsx
   const canvasRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null); // Ref for the hidden file input
   const [connectingMousePosition, setConnectingMousePosition] = useState<{ x: number; y: number } | null>(null);
-  const [isPaletteOpen, setIsPaletteOpen] = useState(true);
-  const [isPropertiesOpen, setIsPropertiesOpen] = useState(true);
+  const [isPaletteOpen, setIsPaletteOpen] = useState(true); // Default open on larger screens
+  const [isPropertiesOpen, setIsPropertiesOpen] = useState(true); // Default open on larger screens
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
   const didDragNodeRef = useRef(false);
   const [otherUsersOnFlowchart, setOtherUsersOnFlowchart] = useState<UserPresence[]>([]);
   const [zoomLevel, setZoomLevel] = useState(1);
   const ZOOM_STEP = 0.1;
-  const MIN_ZOOM = 0.25; // Adjusted MIN_ZOOM
+  const MIN_ZOOM = 0.5;
   const MAX_ZOOM = 2;
 
 
+  // Effect to fetch other users' presence on the current flowchart
   useEffect(() => {
     if (!currentUser || !exercise) return;
+
     const db = getDatabase(app);
     const onlineUsersRef = ref(db, 'onlineUsers');
     const currentFlowchartIdForPresence = `exercise-${exercise.id}`;
+
     const unsubscribe = onValue(onlineUsersRef, (snapshot) => {
       const usersData = snapshot.val();
       if (usersData) {
         const usersList: UserPresence[] = Object.values(usersData)
           .filter((user): user is UserPresence =>
-            user !== null && typeof user === 'object' && 'uid' in user &&
-            'status' in user && 'currentFlowchartId' in user &&
+            user !== null &&
+            typeof user === 'object' &&
+            'uid' in user &&
+            'status' in user &&
+            'currentFlowchartId' in user &&
             (user as UserPresence).uid !== currentUser.uid &&
             (user as UserPresence).status === 'online' &&
             (user as UserPresence).currentFlowchartId === currentFlowchartIdForPresence
           )
-          .map(user => user as UserPresence);
+          .map(user => user as UserPresence); // Map to UserPresence after filtering
         setOtherUsersOnFlowchart(usersList);
       } else {
         setOtherUsersOnFlowchart([]);
       }
     });
+
     return () => unsubscribe();
   }, [currentUser, exercise]);
+
 
   const handleDragEnd = useCallback(() => {
     if (draggingNodeId) {
@@ -178,9 +186,10 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
       setDraggingNodeId(null);
       setDragOffset(null);
     }
-  }, [draggingNodeId]); // Removed redundant dependencies
+  }, [draggingNodeId, setFlowchartData, setDraggingNodeId, setDragOffset]);
 
   useEffect(() => {
+    // This effect handles the case where the mouse is released outside the canvas or window
     if (draggingNodeId) {
       window.addEventListener('mouseup', handleDragEnd);
     }
@@ -191,146 +200,130 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
 
   useEffect(() => {
     if (newFlowchartToLoad && (newFlowchartToLoad.nodes.length > 0 || newFlowchartToLoad.edges.length > 0)) {
-      console.log('[FlowchartBuilder LoadEffect] Received new flowchart. Nodes:', newFlowchartToLoad.nodes.length, 'Edges:', newFlowchartToLoad.edges.length);
+      console.log('FlowchartBuilder: Received pre-transformed flowchart to load via props:', newFlowchartToLoad);
       setFlowchartData(newFlowchartToLoad);
       setSelectedNodeForProperties(null);
-    }
-  }, [newFlowchartToLoad]);
 
-  useEffect(() => {
-    if (!canvasRef.current) return;
-    if (flowchartData.nodes.length > 0) {
-      console.log('[FlowchartBuilder ZoomEffect] Nodes count:', flowchartData.nodes.length);
-      const nodes = flowchartData.nodes;
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      nodes.forEach(node => {
-        const nodeWidth = 128; const nodeHeight = 64;
-        minX = Math.min(minX, node.position.x);
-        minY = Math.min(minY, node.position.y);
-        maxX = Math.max(maxX, node.position.x + nodeWidth);
-        maxY = Math.max(maxY, node.position.y + nodeHeight);
-      });
+      // Auto-center and zoom logic
+      if (newFlowchartToLoad.nodes.length > 0 && canvasRef.current) {
+        const nodes = newFlowchartToLoad.nodes;
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
-      const flowchartWidth = maxX - minX;
-      const flowchartHeight = maxY - minY;
+        nodes.forEach(node => {
+          // Assuming node width is 128 (w-32) and height is 64 (h-16) for bounding box
+          const nodeWidth = 128;
+          const nodeHeight = 64;
+          minX = Math.min(minX, node.position.x);
+          minY = Math.min(minY, node.position.y);
+          maxX = Math.max(maxX, node.position.x + nodeWidth);
+          maxY = Math.max(maxY, node.position.y + nodeHeight);
+        });
 
-      if (flowchartWidth > 0 && flowchartHeight > 0) {
-        const canvas = canvasRef.current;
-        const canvasWidth = canvas.clientWidth;
-        const canvasHeight = canvas.clientHeight;
-        const PADDING = 100;
+        const flowchartWidth = maxX - minX;
+        const flowchartHeight = maxY - minY;
 
-        let targetZoom = 1;
-        if (canvasWidth > 2 * PADDING && canvasHeight > 2 * PADDING) {
-            const zoomX = (canvasWidth - 2 * PADDING) / flowchartWidth;
-            const zoomY = (canvasHeight - 2 * PADDING) / flowchartHeight;
-            targetZoom = Math.min(zoomX, zoomY);
-        }
-        targetZoom = Math.max(MIN_ZOOM, Math.min(targetZoom, MAX_ZOOM));
-        console.log(`[FlowchartBuilder ZoomEffect] Canvas WxH: ${canvasWidth}x${canvasHeight}, Flowchart WxH: ${flowchartWidth}x${flowchartHeight}, TargetZoom: ${targetZoom}`);
-        if (Math.abs(zoomLevel - targetZoom) > 0.01) {
-            setZoomLevel(targetZoom);
-        }
-      } else {
-        console.log("[FlowchartBuilder ZoomEffect] Zero/Negative flowchart dimensions. Setting zoom to 1.");
-        if (zoomLevel !== 1) setZoomLevel(1);
-      }
-    } else if (flowchartData.nodes.length === 0 && zoomLevel !== 1) {
-        console.log("[FlowchartBuilder ZoomEffect] No nodes. Resetting zoom to 1.");
-        setZoomLevel(1);
-    }
-  }, [flowchartData, MIN_ZOOM, MAX_ZOOM]); // Removed canvasRef.current from deps
+        if (flowchartWidth > 0 && flowchartHeight > 0) {
+          const canvas = canvasRef.current;
+          const canvasWidth = canvas.clientWidth;
+          const canvasHeight = canvas.clientHeight;
 
-  useEffect(() => {
-    if (!canvasRef.current) {
-        console.log("[FlowchartBuilder ScrollEffect] canvasRef missing. Skipping scroll.");
-        return;
-    }
-    if (flowchartData.nodes.length > 0 && zoomLevel > 0) {
-      console.log(`[FlowchartBuilder ScrollEffect] Zoom: ${zoomLevel}, Nodes: ${flowchartData.nodes.length}`);
-      const nodes = flowchartData.nodes;
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      nodes.forEach(node => {
-        const nodeWidth = 128; const nodeHeight = 64;
-        minX = Math.min(minX, node.position.x);
-        minY = Math.min(minY, node.position.y);
-        maxX = Math.max(maxX, node.position.x + nodeWidth);
-        maxY = Math.max(maxY, node.position.y + nodeHeight);
-      });
+          const PADDING = 50; // Pixels of padding around the flowchart
 
-      const flowchartWidth = maxX - minX;
-      const flowchartHeight = maxY - minY;
+          // Calculate zoom to fit
+          const zoomX = (canvasWidth - 2 * PADDING) / flowchartWidth;
+          const zoomY = (canvasHeight - 2 * PADDING) / flowchartHeight;
+          let newZoom = Math.min(zoomX, zoomY, MAX_ZOOM); // Cap zoom at MAX_ZOOM
+          newZoom = Math.max(newZoom, MIN_ZOOM); // Ensure zoom is not less than MIN_ZOOM
 
-      if (flowchartWidth > 0 && flowchartHeight > 0) {
-        const canvas = canvasRef.current;
-        const canvasWidth = canvas.clientWidth;
-        const canvasHeight = canvas.clientHeight;
+          setZoomLevel(newZoom);
 
-        const contentScaledWidth = flowchartWidth * zoomLevel;
-        const contentScaledHeight = flowchartHeight * zoomLevel;
-        const contentScaledMinX = minX * zoomLevel;
-        const contentScaledMinY = minY * zoomLevel;
+          // Calculate scroll to center the content
+          // Content dimensions at newZoom
+          const contentScaledWidth = flowchartWidth * newZoom;
+          const contentScaledHeight = flowchartHeight * newZoom;
 
-        let newScrollLeft = contentScaledMinX + (contentScaledWidth / 2) - (canvasWidth / 2);
-        let newScrollTop = contentScaledMinY + (contentScaledHeight / 2) - (canvasHeight / 2);
+          // Top-left of flowchart content at newZoom, relative to unscaled origin
+          const contentScaledMinX = minX * newZoom;
+          const contentScaledMinY = minY * newZoom;
 
-        newScrollLeft = Math.max(0, newScrollLeft);
-        newScrollTop = Math.max(0, newScrollTop);
+          // Calculate scroll positions to center this scaled content
+          let newScrollLeft = contentScaledMinX - (canvasWidth - contentScaledWidth) / 2;
+          let newScrollTop = contentScaledMinY - (canvasHeight - contentScaledHeight) / 2;
 
-        console.log(`[FlowchartBuilder ScrollEffect] Target Scroll: SL:${newScrollLeft}, ST:${newScrollTop}`);
+          // Ensure scroll is not negative (which browsers usually ignore anyway)
+          newScrollLeft = Math.max(0, newScrollLeft);
+          newScrollTop = Math.max(0, newScrollTop);
 
-        setTimeout(() => {
-            if (canvasRef.current) {
-                canvasRef.current.scrollLeft = newScrollLeft;
-                canvasRef.current.scrollTop = newScrollTop;
-                console.log(`[FlowchartBuilder ScrollEffect Timeout] Applied: SL:${canvasRef.current.scrollLeft}, ST:${canvasRef.current.scrollTop}`);
+          // Apply scroll after a short delay to allow zoom to apply and canvas to re-layout potentially
+          // This is a common trick when dealing with layout changes affecting scroll calculations
+          setTimeout(() => {
+            if(canvasRef.current) {
+              canvasRef.current.scrollLeft = newScrollLeft;
+              canvasRef.current.scrollTop = newScrollTop;
+              console.log(`Auto-centering: Zoom: ${newZoom}, ScrollLeft: ${newScrollLeft}, ScrollTop: ${newScrollTop}`);
             }
-        }, 0);
-      } else {
-        console.log("[FlowchartBuilder ScrollEffect] Zero/Negative flowchart dimensions. Skipping scroll.");
-      }
-    } else {
-      if (canvasRef.current) {
-        canvasRef.current.scrollLeft = 0;
-        canvasRef.current.scrollTop = 0;
+          }, 0);
+        }
       }
     }
-  }, [flowchartData, zoomLevel]);
+  }, [newFlowchartToLoad]); // Keep only newFlowchartToLoad as dependency for this specific effect
 
+  // Effect to adjust panel visibility based on screen size
   useEffect(() => {
     const handleResize = () => {
-      setIsPaletteOpen(window.innerWidth >= 768);
-      setIsPropertiesOpen(window.innerWidth >= 768);
+      if (window.innerWidth < 768) { // md breakpoint
+        setIsPaletteOpen(false);
+        setIsPropertiesOpen(false);
+      } else {
+        setIsPaletteOpen(true);
+        setIsPropertiesOpen(true);
+      }
     };
-    handleResize();
+    handleResize(); // Initial check
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Debounce function
   const debounce = <F extends (...args: any[]) => any>(func: F, waitFor: number) => {
     let timeout: ReturnType<typeof setTimeout> | null = null;
+
     const debounced = (...args: Parameters<F>) => {
-      if (timeout !== null) clearTimeout(timeout);
+      if (timeout !== null) {
+        clearTimeout(timeout);
+        timeout = null;
+      }
       timeout = setTimeout(() => func(...args), waitFor);
     };
+
     return debounced as (...args: Parameters<F>) => ReturnType<F>;
   };
 
+  // Effect to adjust panel visibility based on screen size using debounce
   useEffect(() => {
     const handleResizeInternal = () => {
-      setIsPaletteOpen(window.innerWidth >= 768 || window.innerWidth < 768); // Keep palette open logic
-      setIsPropertiesOpen(window.innerWidth >= 768);
+      if (window.innerWidth < 768) { // md breakpoint
+        setIsPaletteOpen(true); // Changed to true for palette to be open by default on small screens
+        setIsPropertiesOpen(false);
+      } else {
+        setIsPaletteOpen(true);
+        setIsPropertiesOpen(true);
+      }
     };
     const debouncedResize = debounce(handleResizeInternal, 200);
-    debouncedResize();
+    debouncedResize(); // Initial check
     window.addEventListener('resize', debouncedResize);
     return () => window.removeEventListener('resize', debouncedResize);
   }, []);
 
+  // Effect to open properties panel when a node is selected
   useEffect(() => {
-    if (selectedNodeForProperties) setIsPropertiesOpen(true);
+    if (selectedNodeForProperties) {
+      setIsPropertiesOpen(true);
+    }
   }, [selectedNodeForProperties]);
 
+  // Effect to handle Escape key for exiting connect mode
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && isConnecting) {
@@ -339,216 +332,427 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
         setConnectingMousePosition(null);
       }
     };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isConnecting]);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isConnecting]); // Re-run if isConnecting changes, though the core logic only depends on its value
+
 
   const handleDragStart = (nodeType: FlowchartNodeType) => {
     setDraggedNodeType(nodeType);
-    if (window.innerWidth < 768) setIsPaletteOpen(false);
+    if (window.innerWidth < 768) { // md breakpoint, consistent with panel logic
+      setIsPaletteOpen(false);
+    }
   };
 
-  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     if (!draggedNodeType || !canvasRef.current) return;
+
     const rect = canvasRef.current.getBoundingClientRect();
+    // Adjust mouse coordinates for zoom
     const x = (e.clientX - rect.left) / zoomLevel;
     const y = (e.clientY - rect.top) / zoomLevel;
+
     const newNode: FlowchartNode = {
-      id: `node-${Date.now()}`, type: draggedNodeType,
-      position: { x: x - 64, y: y - 32 },
-      data: { label: draggedNodeType.charAt(0).toUpperCase() + draggedNodeType.slice(1), value: '' }
+      id: `node-${Date.now()}`,
+      type: draggedNodeType,
+      position: { x: x - 64, y: y - 32 }, // Center the node on cursor
+      data: {
+        label: draggedNodeType.charAt(0).toUpperCase() + draggedNodeType.slice(1),
+        value: ''
+      }
     };
-    setFlowchartData(prev => ({ ...prev, nodes: [...prev.nodes, newNode] }));
+
+    setFlowchartData(prev => ({
+      ...prev,
+      nodes: [...prev.nodes, newNode]
+    }));
+
     setDraggedNodeType(null);
   };
 
-  const handleZoomIn = () => setZoomLevel(prev => Math.min(MAX_ZOOM, prev + ZOOM_STEP));
-  const handleZoomOut = () => setZoomLevel(prev => Math.max(MIN_ZOOM, prev - ZOOM_STEP));
-  const handleResetZoom = () => setZoomLevel(1);
+  const handleZoomIn = () => {
+    setZoomLevel(prevZoom => Math.min(MAX_ZOOM, prevZoom + ZOOM_STEP));
+  };
+
+  const handleZoomOut = () => {
+    setZoomLevel(prevZoom => Math.max(MIN_ZOOM, prevZoom - ZOOM_STEP));
+  };
+
+  const handleResetZoom = () => {
+    setZoomLevel(1);
+  };
 
   const handleWheelZoom = (e: React.WheelEvent) => {
-    if (e.ctrlKey) {
+    if (e.ctrlKey) { // Require Ctrl key for wheel zoom to prevent accidental zoom while scrolling
       e.preventDefault();
-      if (e.deltaY < 0) handleZoomIn(); else handleZoomOut();
+      if (e.deltaY < 0) {
+        handleZoomIn();
+      } else if (e.deltaY > 0) {
+        handleZoomOut();
+      }
     }
+    // If Ctrl key is not pressed, let the default scroll behavior happen (for panning when zoomed in)
   };
 
   const handleCanvasMouseMove = (e: React.MouseEvent) => {
     if (!canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
+    // Adjust mouse coordinates for zoom
     const mouseXInCanvas = (e.clientX - rect.left) / zoomLevel;
     const mouseYInCanvas = (e.clientY - rect.top) / zoomLevel;
 
     if (draggingNodeId && dragOffset) {
       const newNodeX = mouseXInCanvas - dragOffset.x;
       const newNodeY = mouseYInCanvas - dragOffset.y;
+
       setFlowchartData(prev => ({
         ...prev,
         nodes: prev.nodes.map(n =>
-          n.id === draggingNodeId ? { ...n, position: { x: newNodeX, y: newNodeY } } : n
+          n.id === draggingNodeId
+            ? { ...n, position: { x: newNodeX, y: newNodeY } }
+            : n
         )
       }));
       didDragNodeRef.current = true;
     } else if (isConnecting && connectionStart) {
-      setConnectingMousePosition({ x: mouseXInCanvas, y: mouseYInCanvas });
+      setConnectingMousePosition({
+        x: mouseXInCanvas,
+        y: mouseYInCanvas,
+      });
     } else if (connectingMousePosition) {
       setConnectingMousePosition(null);
     }
   };
 
   const handleNodeMouseDown = (event: React.MouseEvent, nodeId: string) => {
-    event.preventDefault(); event.stopPropagation();
-    didDragNodeRef.current = false;
+    event.preventDefault();
+    event.stopPropagation();
+    didDragNodeRef.current = false; // Reset drag flag
+
     const node = flowchartData.nodes.find(n => n.id === nodeId);
     if (!node || !canvasRef.current) return;
+
     const canvasRect = canvasRef.current.getBoundingClientRect();
-    const mouseXInCanvas = event.clientX - canvasRect.left; // Not dividing by zoom here for offset calc
-    const mouseYInCanvas = event.clientY - canvasRect.top;  // Relative to unscaled canvas viewport
-    // Offset should be calculated from the node's current screen position to mouse
-    // Node's screen pos: node.position.x * zoomLevel, node.position.y * zoomLevel
-    // This is complex because of scrolling. Simpler: offset within the node itself.
-    const offsetX = (event.clientX - canvasRect.left) / zoomLevel - node.position.x;
-    const offsetY = (event.clientY - canvasRect.top) / zoomLevel - node.position.y;
+    const mouseXInCanvas = event.clientX - canvasRect.left;
+    const mouseYInCanvas = event.clientY - canvasRect.top;
+
+    const offsetX = mouseXInCanvas - node.position.x;
+    const offsetY = mouseYInCanvas - node.position.y;
 
     setDraggingNodeId(nodeId);
     setDragOffset({ x: offsetX, y: offsetY });
-    setFlowchartData(prev => ({ ...prev, nodes: prev.nodes.map(n => n.id === nodeId ? { ...n, isDragging: true } : n) }));
+
+    // Set isDragging on the node
+    setFlowchartData(prev => ({
+      ...prev,
+      nodes: prev.nodes.map(n =>
+        n.id === nodeId ? { ...n, isDragging: true } : n
+      ),
+    }));
   };
 
   const handleNodeClick = (nodeId: string) => {
-    if (didDragNodeRef.current) return;
+    if (didDragNodeRef.current) {
+      // If a drag just happened, don't process this click.
+      // The ref will be reset on the next mousedown.
+      return;
+    }
+
+  // Removed the potentially problematic redundant check.
+  // The didDragNodeRef.current check above should be sufficient
+  // to distinguish between a click and a drag-release.
+
     if (isConnecting) {
-      if (!connectionStart) setConnectionStart(nodeId);
-      else {
-        if (connectionStart !== nodeId) {
-          const newEdge: FlowchartEdge = { id: `edge-${Date.now()}`, source: connectionStart, target: nodeId, type: 'default' };
-          setFlowchartData(prev => ({ ...prev, edges: [...prev.edges, newEdge] }));
+      if (!connectionStart) {
+        // This is the first click in a connection sequence: SET SOURCE NODE
+        setConnectionStart(nodeId);
+        // Visual feedback for line preview is handled by onMouseMove (connectingMousePosition)
+      } else {
+        // This is the second click: SET TARGET NODE & CREATE EDGE
+        if (connectionStart !== nodeId) { // Prevent connecting a node to itself
+          const newEdge: FlowchartEdge = {
+            id: `edge-${Date.now()}`,
+            source: connectionStart,
+            target: nodeId,
+            type: 'default',
+          };
+          setFlowchartData(prev => ({
+            ...prev,
+            edges: [...prev.edges, newEdge],
+          }));
         }
-        setConnectionStart(null); setConnectingMousePosition(null);
+        // Reset for the next connection, but STAY in connecting mode
+        setConnectionStart(null);
+        setConnectingMousePosition(null);
       }
-    } else setSelectedNodeForProperties(nodeId);
+    } else {
+    // Not in connecting mode, so select the node for properties panel
+    setSelectedNodeForProperties(nodeId);
+  }
 
+  // Update Firebase with the clicked node ID
+  if (currentUser) {
+    const db = getDatabase(app);
+    const userPresenceRef = ref(db, `onlineUsers/${currentUser.uid}`);
+    update(userPresenceRef, {
+      currentNodeId: nodeId, // Set the currently selected node
+      lastSeen: serverTimestamp()
+    }).catch(error => {
+      console.error("Error updating current node ID in presence:", error);
+    });
+  }
+};
+
+const handleCanvasClick = (event: React.MouseEvent) => {
+  // If the click is on the canvas itself (not on a node or edge UI element)
+  if (event.target === event.currentTarget) {
+    setSelectedNodeForProperties(null); // Deselect node for properties panel
+
+    // Clear current node ID in Firebase presence
     if (currentUser) {
       const db = getDatabase(app);
       const userPresenceRef = ref(db, `onlineUsers/${currentUser.uid}`);
-      update(userPresenceRef, { currentNodeId: nodeId, lastSeen: serverTimestamp() })
-        .catch(err => console.error("Error updating presence:", err));
+      update(userPresenceRef, {
+        currentNodeId: null,
+        lastSeen: serverTimestamp()
+      }).catch(error => {
+        console.error("Error clearing current node ID in presence:", error);
+      });
     }
-  };
+  }
+};
 
-  const handleCanvasClick = (event: React.MouseEvent) => {
-    if (event.target === event.currentTarget) {
-      setSelectedNodeForProperties(null);
-      if (currentUser) {
-        const db = getDatabase(app);
-        const userPresenceRef = ref(db, `onlineUsers/${currentUser.uid}`);
-        update(userPresenceRef, { currentNodeId: null, lastSeen: serverTimestamp() })
-          .catch(err => console.error("Error clearing presence:", err));
+const handleNodeUpdate = (nodeId: string, updates: Partial<FlowchartNode['data']>) => {
+  setFlowchartData(prev => ({
+    ...prev,
+    nodes: prev.nodes.map(node =>
+      node.id === nodeId
+        ? { ...node, data: { ...node.data, ...updates } }
+        : node
+    )
+  }));
+};
+
+const handleDeleteNode = (nodeId: string) => {
+  setFlowchartData(prev => ({
+    nodes: prev.nodes.filter(node => node.id !== nodeId),
+    edges: prev.edges.filter(edge => edge.source !== nodeId && edge.target !== nodeId)
+  }));
+  setSelectedNodeForProperties(null);
+
+  // If the deleted node was the one the user had selected for presence, clear it
+  if (currentUser) {
+    const db = getDatabase(app);
+    const userPresenceRef = ref(db, `onlineUsers/${currentUser.uid}`);
+    // Check if this node was the one in presence, then clear.
+    // This requires knowing the current presence state or just clearing,
+    // for simplicity, we can just send an update to nullify if it was this node.
+    // A more robust way would be to read the presence state first or ensure App.tsx handles this.
+    // For now, let's assume if a node is deleted, it's no longer the "current" one.
+    // This might conflict if App.tsx also tries to set it based on `currentExerciseId` change.
+    // Let's refine: only clear if the deleted node IS the one in selection.
+    // The selection for properties panel (`selectedNodeForProperties`) is a good client-side proxy.
+    if (selectedNodeForProperties === nodeId) {
+       update(userPresenceRef, {
+        currentNodeId: null,
+        lastSeen: serverTimestamp()
+      }).catch(error => {
+        console.error("Error clearing current node ID in presence after delete:", error);
+      });
+    }
+  }
+};
+
+const handleImageFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const file = event.target.files?.[0];
+  if (!file) {
+    return;
+  }
+
+  console.log("Image file selected:", file.name, file.type);
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  const endpoint = `${apiBaseUrl}/api/import-image`;
+
+  console.log(`Attempting to upload image to: ${endpoint}`);
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      body: formData,
+      // Headers like 'Content-Type': 'multipart/form-data' are usually set automatically by the browser with FormData
+    });
+
+    if (!response.ok) {
+      // Try to parse error from backend
+      let errorDetail = `Error ${response.status}: ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        errorDetail = errorData.detail || errorDetail;
+      } catch (e) {
+        // Ignore if error response is not JSON
       }
+      alert(`Failed to import flowchart: ${errorDetail}`);
+      return;
     }
-  };
 
-  const handleNodeUpdate = (nodeId: string, updates: Partial<FlowchartNode['data']>) => {
-    setFlowchartData(prev => ({
-      ...prev,
-      nodes: prev.nodes.map(node => node.id === nodeId ? { ...node, data: { ...node.data, ...updates } } : node)
-    }));
-  };
+    const apiResponse: {
+      nodes: Array<{ id: string; type: FlowchartNodeType; label: string; x: number; y: number; width: number; height: number }>; // Backend Node
+      edges: Array<{ id: string; source: string; target: string; label?: string }>; // Backend Edge
+      error?: string;
+      fallback_used?: boolean;
+    } = await response.json();
 
-  const handleDeleteNode = (nodeId: string) => {
-    setFlowchartData(prev => ({
-      nodes: prev.nodes.filter(node => node.id !== nodeId),
-      edges: prev.edges.filter(edge => edge.source !== nodeId && edge.target !== nodeId)
-    }));
-    if (selectedNodeForProperties === nodeId) setSelectedNodeForProperties(null);
-    // Firebase presence update for deleted node implicitly handled by selection clearing
-  };
-
-  const handleImageFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const formData = new FormData(); formData.append('file', file);
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-    try {
-      const response = await fetch(`${apiBaseUrl}/api/import-image`, { method: 'POST', body: formData });
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({ detail: response.statusText }));
-        alert(`Failed to import: ${errData.detail}`); return;
-      }
-      const apiResponse = await response.json();
-      if (apiResponse.fallback_used && apiResponse.error) alert(`Import Alert: ${apiResponse.error}`);
-      const feNodes: FlowchartNode[] = apiResponse.nodes.map((apiNode: any) => ({
-        id: apiNode.id, type: apiNode.type, position: { x: apiNode.x, y: apiNode.y },
-        data: { label: apiNode.label },
-      }));
-      const feEdges: FlowchartEdge[] = apiResponse.edges.map((apiEdge: any) => ({
-        id: apiEdge.id, source: apiEdge.source, target: apiEdge.target,
-        label: apiEdge.label, type: 'default',
-      }));
-      updateFlowchartDataWithMLOutput({ nodes: feNodes, edges: feEdges });
-    } catch (error) {
-      alert(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      if (event.target) event.target.value = '';
+    if (apiResponse.fallback_used && apiResponse.error) {
+      alert(`Import Alert: ${apiResponse.error}`); // Show fallback toast
     }
-  };
 
-  const updateFlowchartDataWithMLOutput = (data: FlowchartData) => {
-    setFlowchartData(data); setSelectedNodeForProperties(null);
-    onGenerateCode(data);
-  };
+    // Transform API nodes and edges to frontend FlowchartData structure
+    const feNodes: FlowchartNode[] = apiResponse.nodes.map(apiNode => ({
+      id: apiNode.id,
+      type: apiNode.type, // Assuming backend type is already compatible FlowchartNodeType
+      position: { x: apiNode.x, y: apiNode.y },
+      data: { label: apiNode.label },
+      // width and height from apiNode are ignored for now, as frontend nodes have fixed size
+    }));
 
-  const triggerImageUpload = () => fileInputRef.current?.click();
-  const handleDeleteEdge = (edgeId: string) => setFlowchartData(prev => ({ ...prev, edges: prev.edges.filter(e => e.id !== edgeId) }));
+    const feEdges: FlowchartEdge[] = apiResponse.edges.map(apiEdge => ({
+      id: apiEdge.id,
+      source: apiEdge.source,
+      target: apiEdge.target,
+      label: apiEdge.label,
+      type: 'default', // Defaulting edge type, can be enhanced if API provides it
+    }));
 
-  const generateCodeFromFlowchart = () => {
-    const code = convertFlowchartToCode(flowchartData);
-    setGeneratedCode(code); onGenerateCode(flowchartData);
-  };
+    const newFlowchartData: FlowchartData = { nodes: feNodes, edges: feEdges };
 
-  const convertFlowchartToCode = (data: FlowchartData): string => {
-    let codeLines = ['function solution('];
-    const inputNodes = data.nodes.filter(n => n.type === 'input');
-    codeLines.push(inputNodes.map((_, i) => `input${i+1}`).join(', ') + ') {');
-    inputNodes.forEach((n, i) => codeLines.push(`  let ${n.data.label.toLowerCase().replace(/\s+/g, '') || `var${i+1}`} = input${i+1};`));
-    // This is a placeholder; proper sequential execution based on edges is needed.
-    data.nodes.filter(n => n.type === 'process' && n.data.value).forEach(n => codeLines.push(`  ${n.data.value};`));
-    const outputNode = data.nodes.find(n => n.type === 'output');
-    if (outputNode) codeLines.push(`  return ${outputNode.data.value || outputNode.data.label};`);
-    else codeLines.push('  // No output node defined');
-    codeLines.push('}');
-    return codeLines.join('\n');
-  };
+    console.log("Received data from API, transformed for frontend:", newFlowchartData);
+    updateFlowchartDataWithMLOutput(newFlowchartData);
+
+  } catch (error) {
+    console.error("Error importing image:", error);
+    alert(`An unexpected error occurred: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    // Reset file input to allow selecting the same file again if needed
+    if (event.target) {
+      event.target.value = '';
+    }
+  }
+};
+
+const updateFlowchartDataWithMLOutput = (data: FlowchartData) => {
+  console.log("Updating flowchart with data from API/ML:", data);
+  setFlowchartData(data);
+  setSelectedNodeForProperties(null); // Deselect any currently selected node
+  // Optionally, trigger code generation if that's desired after import
+  onGenerateCode(data); // This will call handleFlowchartChange in App.tsx
+};
+
+const triggerImageUpload = () => {
+  fileInputRef.current?.click();
+};
+
+const handleDeleteEdge = (edgeId: string) => {
+  setFlowchartData(prev => ({
+    ...prev,
+    edges: prev.edges.filter(edge => edge.id !== edgeId)
+  }));
+};
+
+const generateCodeFromFlowchart = () => {
+  const code = convertFlowchartToCode(flowchartData);
+  setGeneratedCode(code);
+  onGenerateCode(flowchartData);
+};
+
+const convertFlowchartToCode = (data: FlowchartData): string => {
+  // Simple code generation logic
+  let code = 'function solution(';
   
-  const clearCanvas = () => {
-    setFlowchartData({ nodes: [], edges: [] }); setSelectedNodeForProperties(null);
-    setGeneratedCode(''); setConnectingMousePosition(null);
-    if (currentUser) {
-      const db = getDatabase(app);
-      const userPresenceRef = ref(db, `onlineUsers/${currentUser.uid}`);
-      update(userPresenceRef, { currentNodeId: null, lastSeen: serverTimestamp() });
-    }
-  };
+  // Find input nodes to determine parameters
+  const inputNodes = data.nodes.filter(node => node.type === 'input');
+  const params = inputNodes.map((_, index) => `input${index + 1}`).join(', ');
+  code += params + ') {\n';
 
-  const getNodeStyle = (type: FlowchartNodeType) => nodePalette.find(p => p.type === type)?.color || 'bg-gray-100';
-  const selectedNodeData = selectedNodeForProperties ? flowchartData.nodes.find(n => n.id === selectedNodeForProperties) : null;
+  // Add variable declarations
+  inputNodes.forEach((node, index) => {
+    code += `  let ${node.data.label.toLowerCase().replace(/\s+/g, '')} = input${index + 1};\n`;
+  });
+
+  // Process nodes in order
+  const processNodes = data.nodes.filter(node => node.type === 'process');
+  processNodes.forEach(node => {
+    if (node.data.value) {
+      code += `  ${node.data.value}\n`;
+    }
+  });
+
+  // Find output nodes
+  const outputNodes = data.nodes.filter(node => node.type === 'output');
+  if (outputNodes.length > 0) {
+    const outputValue = outputNodes[0].data.value || outputNodes[0].data.label;
+    code += `  return ${outputValue};\n`;
+  }
+
+  code += '}';
+  return code;
+};
+
+const clearCanvas = () => {
+  setFlowchartData({ nodes: [], edges: [] });
+  setSelectedNodeForProperties(null);
+  setGeneratedCode('');
+  setConnectingMousePosition(null);
+  // Clear current node ID in Firebase presence when canvas is cleared
+  if (currentUser) {
+    const db = getDatabase(app);
+    const userPresenceRef = ref(db, `onlineUsers/${currentUser.uid}`);
+    update(userPresenceRef, {
+      currentNodeId: null,
+      lastSeen: serverTimestamp()
+    }).catch(error => {
+      console.error("Error clearing current node ID on canvas clear:", error);
+    });
+  }
+};
+
+const getNodeStyle = (nodeType: FlowchartNodeType) => {
+  const palette = nodePalette.find(p => p.type === nodeType);
+  return palette?.color || 'bg-gray-100 border-gray-300 text-gray-800';
+};
+
+const selectedNodeDataForProperties = selectedNodeForProperties
+  ? flowchartData.nodes.find(node => node.id === selectedNodeForProperties)
+  : null;
+
+  // Props for FlowchartBuilder in App.tsx likely needs to be updated
+  // for onNodeClick, onPaneClick, etc. if we were using ReactFlow directly.
+  // Since this is a custom builder, we add click handler to the canvas div.
 
   // --- DEBUGGING LOGS START ---
   if (flowchartData.nodes && flowchartData.nodes.length > 0) {
-    // console.log('[DEBUG FlowchartBuilder RENDER] First node structure from state:', JSON.stringify(flowchartData.nodes[0], null, 2));
-    // const firstNode = flowchartData.nodes[0];
-    // console.log('[DEBUG FlowchartBuilder RENDER] node.id:', firstNode.id);
-    // console.log('[DEBUG FlowchartBuilder RENDER] typeof node.position:', typeof firstNode.position);
-    // console.log('[DEBUG FlowchartBuilder RENDER] node.position content:', JSON.stringify(firstNode.position, null, 2));
-    // console.log('[DEBUG FlowchartBuilder RENDER] Does first node have position.x?', firstNode.position?.hasOwnProperty('x'));
-    // console.log('[DEBUG FlowchartBuilder RENDER] typeof node.data:', typeof firstNode.data);
-    // console.log('[DEBUG FlowchartBuilder RENDER] node.data content:', JSON.stringify(firstNode.data, null, 2));
-    // console.log('[DEBUG FlowchartBuilder RENDER] Does first node have data.label?', firstNode.data?.hasOwnProperty('label'));
+    console.log('[DEBUG FlowchartBuilder RENDER] First node structure from state:', JSON.stringify(flowchartData.nodes[0], null, 2));
+    const firstNode = flowchartData.nodes[0];
+    console.log('[DEBUG FlowchartBuilder RENDER] node.id:', firstNode.id);
+    console.log('[DEBUG FlowchartBuilder RENDER] typeof node.position:', typeof firstNode.position);
+    console.log('[DEBUG FlowchartBuilder RENDER] node.position content:', JSON.stringify(firstNode.position, null, 2));
+    console.log('[DEBUG FlowchartBuilder RENDER] Does first node have position.x?', firstNode.position?.hasOwnProperty('x'));
+    console.log('[DEBUG FlowchartBuilder RENDER] typeof node.data:', typeof firstNode.data);
+    console.log('[DEBUG FlowchartBuilder RENDER] node.data content:', JSON.stringify(firstNode.data, null, 2));
+    console.log('[DEBUG FlowchartBuilder RENDER] Does first node have data.label?', firstNode.data?.hasOwnProperty('label'));
   } else {
-    // console.log('[DEBUG FlowchartBuilder RENDER] No nodes in flowchartData state to log.');
+    console.log('[DEBUG FlowchartBuilder RENDER] No nodes in flowchartData state to log.');
   }
   // --- DEBUGGING LOGS END ---
 
@@ -556,10 +760,10 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
     <div className="bg-white rounded-lg border border-gray-200 h-full flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between p-2 sm:p-4 border-b border-gray-200">
-        <div className="flex items-center flex-shrink-0">
+        <div className="flex items-center flex-shrink-0"> {/* Added flex-shrink-0 to title container */}
           <button
             onClick={() => setIsPaletteOpen(!isPaletteOpen)}
-            className="p-1.5 hover:bg-gray-200 rounded-md mr-1 sm:mr-2 md:hidden"
+            className="p-1.5 hover:bg-gray-200 rounded-md mr-1 sm:mr-2 md:hidden" // Hidden on md and above
             title={isPaletteOpen ? "Hide Palette" : "Show Palette"}
           >
             <Palette size={20} />
@@ -569,60 +773,149 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
         </div>
         
         <div className="flex items-center flex-wrap justify-end space-x-1 sm:space-x-2 ml-2">
+          {/* Zoom Controls */}
           <div className="flex items-center border border-gray-200 rounded-md" data-tour-id="zoom-controls-container">
-            <button onClick={handleZoomOut} className="p-1.5 text-gray-600 hover:bg-gray-100 disabled:opacity-50" title="Zoom Out" disabled={zoomLevel <= MIN_ZOOM}><ZoomOut size={18} /></button>
-            <button onClick={handleResetZoom} className="p-1.5 text-gray-600 hover:bg-gray-100 border-l border-r border-gray-200" title="Reset Zoom"><RefreshCcw size={16} /></button>
-            <button onClick={handleZoomIn} className="p-1.5 text-gray-600 hover:bg-gray-100 disabled:opacity-50" title="Zoom In" disabled={zoomLevel >= MAX_ZOOM}><ZoomIn size={18} /></button>
+            <button
+              onClick={handleZoomOut}
+              className="p-1.5 text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+              title="Zoom Out"
+              disabled={zoomLevel <= MIN_ZOOM}
+            >
+              <ZoomOut size={18} />
+            </button>
+            <button
+              onClick={handleResetZoom}
+              className="p-1.5 text-gray-600 hover:bg-gray-100 border-l border-r border-gray-200"
+              title="Reset Zoom"
+            >
+              <RefreshCcw size={16} />
+            </button>
+            <button
+              onClick={handleZoomIn}
+              className="p-1.5 text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+              title="Zoom In"
+              disabled={zoomLevel >= MAX_ZOOM}
+            >
+              <ZoomIn size={18} />
+            </button>
           </div>
+
           <button
-            onClick={() => { setIsConnecting(prev => !prev); if (isConnecting) { setConnectionStart(null); setConnectingMousePosition(null); }}}
-            className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm rounded-md transition-colors ${isConnecting ? 'bg-orange-100 text-orange-700 border border-orange-300' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            onClick={() => {
+              const newIsConnecting = !isConnecting;
+              setIsConnecting(newIsConnecting);
+              if (!newIsConnecting) { // If we are turning connecting mode OFF
+                setConnectionStart(null);
+                setConnectingMousePosition(null);
+              }
+            }}
+            className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm rounded-md transition-colors ${
+              isConnecting 
+                ? 'bg-orange-100 text-orange-700 border border-orange-300' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
             data-tour-id="connect-nodes-button"
           >
             {isConnecting ? 'Connecting...' : 'Connect Nodes'}
           </button>
-          <button onClick={generateCodeFromFlowchart} disabled={flowchartData.nodes.length === 0} className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" data-tour-id="generate-code-button">
-            <Zap className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />Generate Code
+          
+          <button
+            onClick={generateCodeFromFlowchart}
+            disabled={flowchartData.nodes.length === 0}
+            className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            data-tour-id="generate-code-button"
+          >
+            <Zap className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+            Generate Code
           </button>
-          <button onClick={() => onRunCode(generatedCode)} disabled={!generatedCode || isRunning} className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-white bg-emerald-600 rounded-md hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" data-tour-id="run-code-button">
-            <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />{isRunning ? 'Running...' : 'Run'}
+          
+          <button
+            onClick={() => onRunCode(generatedCode)}
+            disabled={!generatedCode || isRunning}
+            className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-white bg-emerald-600 rounded-md hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            data-tour-id="run-code-button"
+          >
+            <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+            {isRunning ? 'Running...' : 'Run'}
           </button>
-          <button onClick={clearCanvas} className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">
-            <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />Clear
+          
+          <button
+            onClick={clearCanvas}
+            className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+          >
+            <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+            Clear
           </button>
-          <button onClick={triggerImageUpload} className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-white bg-teal-600 rounded-md hover:bg-teal-700 transition-colors" title="Import Flowchart from Image">
-            <Upload className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />Import
+          {/* Image Upload Button */}
+          <button
+            onClick={triggerImageUpload}
+            className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-white bg-teal-600 rounded-md hover:bg-teal-700 transition-colors"
+            title="This feature is coming soon!"
+          >
+            <Upload className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+            Import (WIP)
           </button>
-          <input type="file" ref={fileInputRef} accept="image/jpeg, image/png" onChange={handleImageFileSelect} data-testid="flowchart-image-upload-input" className="hidden" />
-          <button onClick={() => setIsPropertiesOpen(!isPropertiesOpen)} className="p-1.5 hover:bg-gray-200 rounded-md ml-1 sm:ml-2 md:hidden" title={isPropertiesOpen ? "Hide Properties" : "Show Properties"}>
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="image/jpeg, image/png"
+            onChange={handleImageFileSelect}
+            data-testid="flowchart-image-upload-input"
+            className="hidden"
+          />
+          <button
+            onClick={() => setIsPropertiesOpen(!isPropertiesOpen)}
+            className="p-1.5 hover:bg-gray-200 rounded-md ml-1 sm:ml-2 md:hidden" // Hidden on md and above
+            title={isPropertiesOpen ? "Hide Properties" : "Show Properties"}
+          >
             <Settings2 size={20} />
           </button>
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden"> {/* Added overflow-hidden */}
+        {/* Node Palette */}
         {isPaletteOpen && (
-          <div className={`border-r border-gray-200 p-4 flex-shrink-0 bg-white w-full sm:w-48 md:w-56 lg:w-64 absolute sm:relative z-10 sm:z-0 h-full sm:h-auto overflow-y-auto sm:overflow-y-visible ${isPaletteOpen ? 'block' : 'hidden'}`}>
+          <div
+            className={`border-r border-gray-200 p-4 flex-shrink-0 bg-white
+                        w-full sm:w-48 md:w-56 lg:w-64
+                        absolute sm:relative z-10 sm:z-0 h-full sm:h-auto overflow-y-auto sm:overflow-y-visible
+                        ${isPaletteOpen ? 'block' : 'hidden'}`}
+          >
             <h4 className="text-sm font-semibold text-gray-900 mb-4">Flowchart Elements</h4>
             <div className="space-y-2">
               {nodePalette.map((node) => (
-                <div key={node.type} draggable onDragStart={() => handleDragStart(node.type)} className={`p-3 rounded-lg border-2 border-dashed cursor-move transition-all hover:shadow-md ${node.color}`}>
+                <div
+                  key={node.type}
+                  draggable
+                  onDragStart={() => handleDragStart(node.type)}
+                  className={`p-3 rounded-lg border-2 border-dashed cursor-move transition-all hover:shadow-md ${node.color}`}
+                >
                   <div title={node.description} className="flex items-center">
-                    {node.icon}<span className="ml-2 font-medium text-sm">{node.label}</span>
+                    {node.icon}
+                    <span className="ml-2 font-medium text-sm">{node.label}</span>
                   </div>
                 </div>
               ))}
             </div>
+
+            {/* Required Nodes Checklist */}
             {exercise.requiredNodes && (
               <div className="mt-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
                 <h5 className="text-sm font-semibold text-blue-900 mb-2">Required Elements</h5>
                 <div className="space-y-1">
                   {exercise.requiredNodes.map((nodeType) => {
-                    const hasNode = flowchartData.nodes.some(n => n.type === nodeType);
-                    return (<div key={nodeType} className="flex items-center text-xs">
-                      <div className={`w-2 h-2 rounded-full mr-2 ${hasNode ? 'bg-emerald-500' : 'bg-gray-300'}`} />
-                      <span className={hasNode ? 'text-emerald-700' : 'text-gray-600'}>{nodeType.charAt(0).toUpperCase() + nodeType.slice(1)}</span>
-                    </div>);
+                    const hasNode = flowchartData.nodes.some(node => node.type === nodeType);
+                    return (
+                      <div key={nodeType} className="flex items-center text-xs">
+                        <div className={`w-2 h-2 rounded-full mr-2 ${
+                          hasNode ? 'bg-emerald-500' : 'bg-gray-300'
+                        }`} />
+                        <span className={hasNode ? 'text-emerald-700' : 'text-gray-600'}>
+                          {nodeType.charAt(0).toUpperCase() + nodeType.slice(1)}
+                        </span>
+                      </div>
+                    );
                   })}
                 </div>
               </div>
@@ -630,65 +923,164 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
           </div>
         )}
 
-        <div ref={canvasRef} className="flex-1 relative overflow-auto bg-gray-50 flowchart-dots-bg" onDragOver={handleDragOver} onDrop={handleDrop} onMouseMove={handleCanvasMouseMove} onMouseUp={handleDragEnd} onClick={handleCanvasClick} onWheel={handleWheelZoom}>
-            <div className="relative w-full h-full" style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'top left' }}>
+        {/* Canvas Container */}
+        <div
+            ref={canvasRef}
+            className="flex-1 relative overflow-auto bg-gray-50 flowchart-dots-bg" // Added overflow-auto
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            onMouseMove={handleCanvasMouseMove}
+            onMouseUp={handleDragEnd}
+            onClick={handleCanvasClick}
+            onWheel={handleWheelZoom}
+        >
+            {/* Inner Scalable Canvas Content */}
+            <div
+                className="relative w-full h-full" // w-full h-full to match parent before scaling
+                style={{
+                    transform: `scale(${zoomLevel})`,
+                    transformOrigin: 'top left',
+                    // The effective size of this div will be scaled.
+                    // Parent has overflow:auto to handle it.
+                }}
+            >
                 {isGeneratingFlowchart && (
                   <div className="absolute inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-50" style={{transform: `scale(${1/zoomLevel})`, transformOrigin: 'center center' }}>
+                    {/* Spinner itself should not scale, or scale inversely */}
                     <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
                     <p className="ml-3 text-white font-semibold">Generating Flowchart...</p>
                   </div>
                 )}
-                <svg
-                  viewBox="0 0 4000 4000"
-                  preserveAspectRatio="xMidYMid meet"
-                  className="absolute inset-0 w-full h-full pointer-events-none"
-                >
+                {/* Render Edges */}
+                {/* SVG needs to be positioned absolutely to fill its scaled container, or its dimensions adjusted */}
+                <svg className="absolute inset-0 w-full h-full pointer-events-none">
                   {isConnecting && connectionStart && connectingMousePosition && (() => {
                     const sourceNode = flowchartData.nodes.find(n => n.id === connectionStart);
-                    if (!sourceNode || !sourceNode.position) return null;
-                    const x1 = sourceNode.position.x + 64; const y1 = sourceNode.position.y + 32;
-                    return <line x1={x1} y1={y1} x2={connectingMousePosition.x} y2={connectingMousePosition.y} stroke="#2563eb" strokeWidth="2" strokeDasharray="5,5" />;
-                  })()}
-                  {flowchartData.edges.map((edge) => {
-                    const sourceNode = flowchartData.nodes.find(n => n.id === edge.source);
-                    const targetNode = flowchartData.nodes.find(n => n.id === edge.target);
-                    if (!sourceNode || !sourceNode.position || !targetNode || !targetNode.position) {
-                      console.error("FlowchartBuilder: Skipping edge render due to missing source/target node or position", edge, sourceNode, targetNode);
-                      return null;
-                    }
-                    const x1 = sourceNode.position.x + 64; const y1 = sourceNode.position.y + 32;
-                    const x2 = targetNode.position.x + 64; const y2 = targetNode.position.y + 32;
-                    return (
-                      <g key={edge.id}>
-                        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="red" strokeWidth="5" />
-                        <circle cx={(x1 + x2) / 2} cy={(y1 + y2) / 2} r="8" fill="white" stroke="#ef4444" strokeWidth="1" className="cursor-pointer pointer-events-auto" onClick={() => handleDeleteEdge(edge.id)}><title>Delete</title></circle>
-                        <text x={(x1 + x2) / 2} y={(y1 + y2) / 2 + 1} textAnchor="middle" className="text-xs fill-red-600 pointer-events-none">×</text>
-                      </g>
-                    );
-                  })}
-                  {/* <defs> Marker definition was here, removed for testing edge visibility </defs> */}
-                </svg>
+                if (!sourceNode || !sourceNode.position) return null; // Guard against missing position
+                const x1 = sourceNode.position.x + 64;
+                const y1 = sourceNode.position.y + 32;
+                return (
+                  <line
+                    x1={x1}
+                    y1={y1}
+                    x2={connectingMousePosition.x}
+                    y2={connectingMousePosition.y}
+                    stroke="#2563eb" // A distinct color like blue
+                    strokeWidth="2"
+                    strokeDasharray="5,5" // Make it a dashed line
+                  />
+                );
+              })()}
+              {flowchartData.edges.map((edge) => {
+                const sourceNode = flowchartData.nodes.find(n => n.id === edge.source);
+                const targetNode = flowchartData.nodes.find(n => n.id === edge.target);
+                
+                // Guard against missing nodes or their positions
+                if (!sourceNode || !sourceNode.position || !targetNode || !targetNode.position) {
+                  console.error("FlowchartBuilder: Skipping edge render due to missing source/target node or position", edge, sourceNode, targetNode);
+                  return null;
+                }
 
+                const x1 = sourceNode.position.x + 64;
+                const y1 = sourceNode.position.y + 32;
+                const x2 = targetNode.position.x + 64;
+                const y2 = targetNode.position.y + 32;
+
+                return (
+                  <g key={edge.id}>
+                    <line
+                      x1={x1}
+                      y1={y1}
+                      x2={x2}
+                      y2={y2}
+                      stroke="#6b7280"
+                      strokeWidth="2"
+                      markerEnd="url(#arrowhead)"
+                    />
+                    <circle
+                      cx={(x1 + x2) / 2}
+                      cy={(y1 + y2) / 2}
+                      r="8"
+                      fill="white"
+                      stroke="#ef4444"
+                      strokeWidth="1"
+                      className="cursor-pointer pointer-events-auto"
+                      onClick={() => handleDeleteEdge(edge.id)}
+                    >
+                      <title>Click to delete connection</title>
+                    </circle>
+                    <text
+                      x={(x1 + x2) / 2}
+                      y={(y1 + y2) / 2 + 1}
+                      textAnchor="middle"
+                      className="text-xs fill-red-600 pointer-events-none"
+                    >
+                      ×
+                    </text>
+                  </g>
+                );
+              })}
+              <defs>
+                <marker
+                  id="arrowhead"
+                  markerWidth="10"
+                  markerHeight="7"
+                  refX="9"
+                  refY="3.5"
+                  orient="auto"
+                >
+                  <polygon
+                    points="0 0, 10 3.5, 0 7"
+                    fill="#6b7280"
+                  />
+                </marker>
+              </defs>
+            </svg>
+
+            {/* Render Nodes */}
             {flowchartData.nodes.map((node) => {
+              // Guard against missing position and provide defaults
               const positionX = typeof node.position?.x === 'number' ? node.position.x : 0;
               const positionY = typeof node.position?.y === 'number' ? node.position.y : 0;
               if (typeof node.position?.x !== 'number' || typeof node.position?.y !== 'number') {
-                // This log is now less critical if nodes appear due to centering, but good for sanity check
-                // console.error("FlowchartBuilder: Node position issue", node);
+                console.error("FlowchartBuilder: Node missing valid position, defaulting to (0,0). Node data:", node);
               }
+
               return (
               <div
                 key={node.id}
-                className={`absolute w-32 h-16 rounded-lg border-2 cursor-pointer transition-all hover:shadow-lg z-20 ${getNodeStyle(node.type)} ${selectedNodeForProperties === node.id ? 'ring-2 ring-blue-500 ring-offset-2' : ''} ${highlightedNodeId === node.id ? 'ring-4 ring-purple-500 ring-offset-2' : ''}`}
-                style={{ left: positionX, top: positionY, transform: node.type === 'decision' ? 'rotate(45deg)' : 'none', cursor: draggingNodeId === node.id ? 'grabbing' : 'grab' }}
+                className={`absolute w-32 h-16 rounded-lg border-2 cursor-pointer transition-all hover:shadow-lg z-20 ${ // Added z-20
+                  getNodeStyle(node.type)
+                } ${selectedNodeForProperties === node.id ? 'ring-2 ring-blue-500 ring-offset-2' : ''}
+                   ${highlightedNodeId === node.id ? 'ring-4 ring-purple-500 ring-offset-2' : ''} // Highlight for dry run/presence
+                `}
+                style={{
+                  left: positionX,
+                  top: positionY,
+                  transform: node.type === 'decision' ? 'rotate(45deg)' : 'none',
+                  cursor: draggingNodeId === node.id ? 'grabbing' : 'grab' // Visual feedback for dragging
+                }}
                 onClick={() => handleNodeClick(node.id)}
                 onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
               >
-                <div className={`w-full h-full flex items-center justify-center p-2 ${node.type === 'decision' ? 'transform -rotate-45' : ''}`} title={node.data.label} >
-                  <span className="text-xs font-medium text-center leading-tight block truncate overflow-hidden text-ellipsis">{node.data.label}</span>
+                <div className={`w-full h-full flex items-center justify-center p-2 ${
+                  node.type === 'decision' ? 'transform -rotate-45' : ''
+                }`} title={node.data.label} // Show full label on hover
+                >
+                  <span className="text-xs font-medium text-center leading-tight block truncate overflow-hidden text-ellipsis">
+                    {node.data.label}
+                  </span>
                 </div>
+                
                 {selectedNodeForProperties === node.id && (
-                  <button onClick={(e) => { e.stopPropagation(); handleDeleteNode(node.id);}} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors z-30" title="Delete node">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent node click from firing again
+                      handleDeleteNode(node.id);
+                    }}
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors z-30" // Ensure delete button is on top
+                    title="Delete node"
+                  >
                     <Trash2 className="w-3 h-3" />
                   </button>
                 )}
@@ -696,52 +1088,125 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
                );
             })}
 
+
+            {/* Render Presence Bubbles for other users */}
             {otherUsersOnFlowchart.map(user => {
               if (!user.currentNodeId) return null;
               const targetNode = flowchartData.nodes.find(n => n.id === user.currentNodeId);
+              // Guard against missing targetNode or its position
               if (!targetNode || !targetNode.position) return null;
-              const positionX = targetNode.position.x; const positionY = targetNode.position.y;
-              const bubbleX = positionX + 128 - 8; const bubbleY = positionY - 8;
+
+              const positionX = typeof targetNode.position?.x === 'number' ? targetNode.position.x : 0;
+              const positionY = typeof targetNode.position?.y === 'number' ? targetNode.position.y : 0;
+
+              // Position bubble slightly offset from the target node (e.g., top-right corner)
+              // Node dimensions: w-32 (128px), h-16 (64px)
+              const bubbleX = positionX + 128 - 8; // Node width - half bubble width approx
+              const bubbleY = positionY - 8;      // Half bubble height approx above node
+
               return (
-                <div key={user.uid} className="absolute w-7 h-7 rounded-full flex items-center justify-center border-2 border-white shadow-lg z-30" style={{ left: bubbleX, top: bubbleY, backgroundColor: user.photoURL ? undefined : '#A0AEC0' }} title={user.displayName || 'User'}>
-                  {user.photoURL ? <img src={user.photoURL} alt={user.displayName || ''} className="w-full h-full rounded-full object-cover" /> : <UserIcon size={14} className="text-white" />}
+                <div
+                  key={user.uid}
+                  className="absolute w-7 h-7 rounded-full flex items-center justify-center border-2 border-white shadow-lg z-30"
+                  style={{
+                    left: bubbleX,
+                    top: bubbleY,
+                    backgroundColor: user.photoURL ? undefined : '#A0AEC0', // Default gray if no photo
+                  }}
+                  title={user.displayName || 'User'}
+                >
+                  {user.photoURL ? (
+                    <img src={user.photoURL} alt={user.displayName || ''} className="w-full h-full rounded-full object-cover" />
+                  ) : (
+                    <UserIcon size={14} className="text-white" />
+                  )}
                 </div>
               );
             })}
 
-            {flowchartData.nodes.length === 0 && !isGeneratingFlowchart && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            {/* Instructions */}
+            {flowchartData.nodes.length === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center text-gray-500">
                   <Zap className="w-12 h-12 mx-auto mb-4 opacity-50" />
                   <p className="text-lg font-medium mb-2">Start Building Your Flowchart</p>
-                  <p className="text-sm">Drag elements from the left panel or use Chat AI to generate.</p>
+                  <p className="text-sm">Drag elements from the left panel to create your flowchart</p>
                 </div>
               </div>
             )}
           </div>
         </div>
 
-        {selectedNodeData && isPropertiesOpen && (
-          <div className={`border-l border-gray-200 p-4 flex-shrink-0 bg-white w-full sm:w-60 md:w-72 lg:w-80 absolute sm:relative right-0 sm:right-auto z-10 sm:z-0 h-full sm:h-auto overflow-y-auto sm:overflow-y-visible ${isPropertiesOpen ? 'block' : 'hidden'}`}>
+        {/* Properties Panel */}
+        {selectedNodeDataForProperties && isPropertiesOpen && (
+          <div
+            className={`border-l border-gray-200 p-4 flex-shrink-0 bg-white
+                        w-full sm:w-60 md:w-72 lg:w-80
+                        absolute sm:relative right-0 sm:right-auto z-10 sm:z-0 h-full sm:h-auto overflow-y-auto sm:overflow-y-visible
+                        ${isPropertiesOpen ? 'block' : 'hidden'}`}
+          >
             <div className="flex justify-between items-center mb-4">
               <h4 className="text-sm font-semibold text-gray-900">Node Properties</h4>
-              <button onClick={() => { setSelectedNodeForProperties(null); if (currentUser) { const db = getDatabase(app); update(ref(db, `onlineUsers/${currentUser.uid}`), { currentNodeId: null, lastSeen: serverTimestamp() }); }}} className="p-1 hover:bg-gray-200 rounded-md text-gray-600 hover:text-gray-800" title="Close Properties"><X size={18} /></button>
+              <button
+                onClick={() => {
+                  setSelectedNodeForProperties(null);
+                  // Also clear from Firebase presence if user explicitly closes properties for a node
+                  if (currentUser) {
+                    const db = getDatabase(app);
+                    const userPresenceRef = ref(db, `onlineUsers/${currentUser.uid}`);
+                    update(userPresenceRef, {
+                      currentNodeId: null,
+                      lastSeen: serverTimestamp()
+                    }).catch(error => console.error("Error clearing node on prop close:", error));
+                  }
+                }}
+                className="p-1 hover:bg-gray-200 rounded-md text-gray-600 hover:text-gray-800"
+                title="Close Properties"
+              >
+                <X size={18} /> {/* Using lucide-react X icon */}
+              </button>
             </div>
+            
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Label</label>
-                <input type="text" value={selectedNodeData.data.label} onChange={(e) => handleNodeUpdate(selectedNodeData!.id, { label: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Label
+                </label>
+                <input
+                  type="text"
+                  value={selectedNodeDataForProperties.data.label}
+                  onChange={(e) => handleNodeUpdate(selectedNodeDataForProperties!.id, { label: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
               </div>
-              {(selectedNodeData.type === 'process' || selectedNodeData.type === 'output') && (
+
+              {(selectedNodeDataForProperties.type === 'process' || selectedNodeDataForProperties.type === 'output') && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{selectedNodeData.type === 'process' ? 'Expression' : 'Output Value'}</label>
-                  <textarea value={selectedNodeData.data.value || ''} onChange={(e) => handleNodeUpdate(selectedNodeData!.id, { value: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" rows={3} placeholder={selectedNodeData.type === 'process' ? 'e.g., sum = a + b' : 'e.g., sum'} />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {selectedNodeDataForProperties.type === 'process' ? 'Expression' : 'Output Value'}
+                  </label>
+                  <textarea
+                    value={selectedNodeDataForProperties.data.value || ''}
+                    onChange={(e) => handleNodeUpdate(selectedNodeDataForProperties!.id, { value: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows={3}
+                    placeholder={selectedNodeDataForProperties.type === 'process' ? 'e.g., sum = a + b' : 'e.g., sum'}
+                  />
                 </div>
               )}
-              {selectedNodeData.type === 'decision' && (
+
+              {selectedNodeDataForProperties.type === 'decision' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Condition</label>
-                  <input type="text" value={selectedNodeData.data.condition || ''} onChange={(e) => handleNodeUpdate(selectedNodeData!.id, { condition: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="e.g., n % 2 == 0" />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Condition
+                  </label>
+                  <input
+                    type="text"
+                    value={selectedNodeDataForProperties.data.condition || ''}
+                    onChange={(e) => handleNodeUpdate(selectedNodeDataForProperties!.id, { condition: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="e.g., n % 2 == 0"
+                  />
                 </div>
               )}
             </div>
@@ -749,10 +1214,13 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
         )}
       </div>
 
+      {/* Generated Code Preview - This might need to be reviewed if generatedCode is also a prop */}
       {generatedCode && (
         <div className="border-t border-gray-200 p-4 bg-gray-50">
           <h4 className="text-sm font-semibold text-gray-900 mb-2">Generated Code</h4>
-          <pre className="text-xs bg-white p-3 rounded border overflow-x-auto"><code>{generatedCode}</code></pre>
+          <pre className="text-xs bg-white p-3 rounded border overflow-x-auto">
+            <code>{generatedCode}</code>
+          </pre>
         </div>
       )}
     </div>
