@@ -26,6 +26,7 @@ import { getDatabase, ref, set, get, child, update, serverTimestamp, onValue } f
 import { app } from '../firebaseConfig';
 import { useAuth } from '../contexts/AuthContext';
 import { User as UserIcon } from 'lucide-react'; // For default presence bubble avatar
+import { ConditionChoiceModal } from './ConditionChoiceModal'; // Import the new modal
 
 // Define UserPresence structure (can be moved to types/index.ts later)
 interface UserPresence {
@@ -143,6 +144,8 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
   const MAX_ZOOM = 2;
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [pendingEdgeInfo, setPendingEdgeInfo] = useState<{ source: string, target: string } | null>(null);
+  const [showConditionChoiceModal, setShowConditionChoiceModal] = useState(false);
 
 
   // Effect to fetch other users' presence on the current flowchart
@@ -455,20 +458,34 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
       } else {
         // This is the second click: SET TARGET NODE & CREATE EDGE
         if (connectionStart !== nodeId) { // Prevent connecting a node to itself
-          const newEdge: FlowchartEdge = {
-            id: `edge-${Date.now()}`,
-            source: connectionStart,
-            target: nodeId,
-            type: 'default',
-          };
-          setFlowchartData(prev => ({
-            ...prev,
-            edges: [...prev.edges, newEdge],
-          }));
+          const sourceNode = flowchartData.nodes.find(n => n.id === connectionStart);
+          if (sourceNode && sourceNode.type === 'decision') {
+            // If source is a decision node, show modal to choose condition type
+            setPendingEdgeInfo({ source: connectionStart, target: nodeId });
+            setShowConditionChoiceModal(true);
+            // Don't reset connectionStart yet, modal will handle edge creation or cancellation
+          } else {
+            // Regular edge creation
+            const newEdge: FlowchartEdge = {
+              id: `edge-${Date.now()}`,
+              source: connectionStart,
+              target: nodeId,
+              type: 'default',
+              conditionType: null, // Default for non-decision edges
+            };
+            setFlowchartData(prev => ({
+              ...prev,
+              edges: [...prev.edges, newEdge],
+            }));
+            // Reset for the next connection, but STAY in connecting mode
+            setConnectionStart(null);
+            setConnectingMousePosition(null);
+          }
+        } else { // Clicked on the source node itself
+           // Reset for the next connection, but STAY in connecting mode
+           setConnectionStart(null);
+           setConnectingMousePosition(null);
         }
-        // Reset for the next connection, but STAY in connecting mode
-        setConnectionStart(null);
-        setConnectingMousePosition(null);
       }
     } else {
     // Not in connecting mode, so select the node for properties panel
@@ -751,6 +768,50 @@ const clearCanvas = () => {
       console.error("Error clearing current node ID on canvas clear:", error);
     });
   }
+};
+
+const handleConditionTypeSelect = (conditionType: 'true' | 'false') => {
+  if (!pendingEdgeInfo || !connectionStart) {
+    // Should not happen if modal is shown correctly
+    console.error("Pending edge info or connection start is missing.");
+    setShowConditionChoiceModal(false);
+    setPendingEdgeInfo(null);
+    setConnectionStart(null); // Reset connection mode
+    setConnectingMousePosition(null);
+    return;
+  }
+
+  const { source, target } = pendingEdgeInfo;
+
+  // Check if an edge with this conditionType already exists from this source node
+  const existingEdgeOfSameConditionType = flowchartData.edges.find(
+    edge => edge.source === source && edge.conditionType === conditionType
+  );
+
+  if (existingEdgeOfSameConditionType) {
+    alert(`A '${conditionType}' path already exists for this decision node. Please delete it first or choose a different type.`);
+    // Do not close modal, let user decide or cancel
+    return;
+  }
+
+  const newEdge: FlowchartEdge = {
+    id: `edge-${Date.now()}`,
+    source: source,
+    target: target,
+    type: 'default', // Or a specific type for decision branches if needed for styling
+    conditionType: conditionType,
+  };
+
+  setFlowchartData(prev => ({
+    ...prev,
+    edges: [...prev.edges, newEdge],
+  }));
+
+  setShowConditionChoiceModal(false);
+  setPendingEdgeInfo(null);
+  // Reset for the next connection, but STAY in connecting mode (as per original logic)
+  setConnectionStart(null);
+  setConnectingMousePosition(null);
 };
 
 const getNodeStyle = (nodeType: FlowchartNodeType) => {
@@ -1039,6 +1100,19 @@ const selectedNodeDataForProperties = selectedNodeForProperties
                       strokeWidth="2"
                       markerEnd="url(#arrowhead)"
                     />
+                    {sourceNode.type === 'decision' && edge.conditionType && (
+                      <text
+                        x={(x1 + x2) / 2} // Position in the middle of the edge
+                        y={(y1 + y2) / 2 - 5} // Slightly above the edge line
+                        textAnchor="middle"
+                        fill="#333" // Color for the label
+                        fontSize="10px"
+                        fontWeight="bold"
+                        className="pointer-events-none select-none" // Ensure text doesn't interfere with clicks and is not selectable
+                      >
+                        {edge.conditionType === 'true' ? 'True' : 'False'}
+                      </text>
+                    )}
                     <circle
                       cx={(x1 + x2) / 2}
                       cy={(y1 + y2) / 2}
@@ -1265,6 +1339,19 @@ const selectedNodeDataForProperties = selectedNodeForProperties
           </pre>
         </div>
       )}
+
+      <ConditionChoiceModal
+        isOpen={showConditionChoiceModal}
+        onClose={() => {
+          setShowConditionChoiceModal(false);
+          setPendingEdgeInfo(null);
+          // Reset connection mode if user cancels
+          setConnectionStart(null);
+          setConnectingMousePosition(null);
+        }}
+        onSelectConditionType={handleConditionTypeSelect}
+        sourceNodeId={pendingEdgeInfo?.source || null}
+      />
     </div>
   );
 };
