@@ -200,73 +200,13 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
 
   useEffect(() => {
     if (newFlowchartToLoad && (newFlowchartToLoad.nodes.length > 0 || newFlowchartToLoad.edges.length > 0)) {
+      // Data from the store (newFlowchartToLoad) is now expected to be in the correct internal format
+      // because ExerciseChat.tsx transforms it before putting it in the store.
       console.log('FlowchartBuilder: Received pre-transformed flowchart to load via props:', newFlowchartToLoad);
-      setFlowchartData(newFlowchartToLoad);
-      setSelectedNodeForProperties(null);
-
-      // Auto-center and zoom logic
-      if (newFlowchartToLoad.nodes.length > 0 && canvasRef.current) {
-        const nodes = newFlowchartToLoad.nodes;
-        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-
-        nodes.forEach(node => {
-          // Assuming node width is 128 (w-32) and height is 64 (h-16) for bounding box
-          const nodeWidth = 128;
-          const nodeHeight = 64;
-          minX = Math.min(minX, node.position.x);
-          minY = Math.min(minY, node.position.y);
-          maxX = Math.max(maxX, node.position.x + nodeWidth);
-          maxY = Math.max(maxY, node.position.y + nodeHeight);
-        });
-
-        const flowchartWidth = maxX - minX;
-        const flowchartHeight = maxY - minY;
-
-        if (flowchartWidth > 0 && flowchartHeight > 0) {
-          const canvas = canvasRef.current;
-          const canvasWidth = canvas.clientWidth;
-          const canvasHeight = canvas.clientHeight;
-
-          const PADDING = 50; // Pixels of padding around the flowchart
-
-          // Calculate zoom to fit
-          const zoomX = (canvasWidth - 2 * PADDING) / flowchartWidth;
-          const zoomY = (canvasHeight - 2 * PADDING) / flowchartHeight;
-          let newZoom = Math.min(zoomX, zoomY, MAX_ZOOM); // Cap zoom at MAX_ZOOM
-          newZoom = Math.max(newZoom, MIN_ZOOM); // Ensure zoom is not less than MIN_ZOOM
-
-          setZoomLevel(newZoom);
-
-          // Calculate scroll to center the content
-          // Content dimensions at newZoom
-          const contentScaledWidth = flowchartWidth * newZoom;
-          const contentScaledHeight = flowchartHeight * newZoom;
-
-          // Top-left of flowchart content at newZoom, relative to unscaled origin
-          const contentScaledMinX = minX * newZoom;
-          const contentScaledMinY = minY * newZoom;
-
-          // Calculate scroll positions to center this scaled content
-          let newScrollLeft = contentScaledMinX - (canvasWidth - contentScaledWidth) / 2;
-          let newScrollTop = contentScaledMinY - (canvasHeight - contentScaledHeight) / 2;
-
-          // Ensure scroll is not negative (which browsers usually ignore anyway)
-          newScrollLeft = Math.max(0, newScrollLeft);
-          newScrollTop = Math.max(0, newScrollTop);
-
-          // Apply scroll after a short delay to allow zoom to apply and canvas to re-layout potentially
-          // This is a common trick when dealing with layout changes affecting scroll calculations
-          setTimeout(() => {
-            if(canvasRef.current) {
-              canvasRef.current.scrollLeft = newScrollLeft;
-              canvasRef.current.scrollTop = newScrollTop;
-              console.log(`Auto-centering: Zoom: ${newZoom}, ScrollLeft: ${newScrollLeft}, ScrollTop: ${newScrollTop}`);
-            }
-          }, 0);
-        }
-      }
+      setFlowchartData(newFlowchartToLoad); // Directly set it
+      setSelectedNodeForProperties(null); // Reset selection
     }
-  }, [newFlowchartToLoad]); // Keep only newFlowchartToLoad as dependency for this specific effect
+  }, [newFlowchartToLoad]);
 
   // Effect to adjust panel visibility based on screen size
   useEffect(() => {
