@@ -134,7 +134,9 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
   const [isPaletteOpen, setIsPaletteOpen] = useState(true); // Default open on larger screens
   const [isPropertiesOpen, setIsPropertiesOpen] = useState(true); // Default open on larger screens
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
-  const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
+  // const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null); // Removed dragOffset state
+  const initialNodePositionRef = useRef<{ x: number; y: number } | null>(null);
+  const initialMouseWorldPositionRef = useRef<{ x: number; y: number } | null>(null);
   const didDragNodeRef = useRef(false);
   const [otherUsersOnFlowchart, setOtherUsersOnFlowchart] = useState<UserPresence[]>([]);
   const [isLoading, setIsLoading] = useState(false); // For loading indicator
@@ -190,9 +192,11 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
         ),
       }));
       setDraggingNodeId(null);
-      setDragOffset(null);
+      // setDragOffset(null); // dragOffset state removed
+      initialNodePositionRef.current = null;
+      initialMouseWorldPositionRef.current = null;
     }
-  }, [draggingNodeId, setFlowchartData, setDraggingNodeId, setDragOffset]);
+  }, [draggingNodeId, setFlowchartData, setDraggingNodeId]); // Removed setDragOffset from deps
 
   useEffect(() => {
     // This effect handles the case where the mouse is released outside the canvas or window
@@ -386,12 +390,18 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
     if (!canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
     // Adjust mouse coordinates for zoom
-    const mouseXInCanvas = (e.clientX - rect.left) / zoomLevel;
-    const mouseYInCanvas = (e.clientY - rect.top) / zoomLevel;
+    const currentMouseXInViewport = e.clientX - rect.left;
+    const currentMouseYInViewport = e.clientY - rect.top;
 
-    if (draggingNodeId && dragOffset) {
-      const newNodeX = mouseXInCanvas - dragOffset.x;
-      const newNodeY = mouseYInCanvas - dragOffset.y;
+    const currentMouseXInWorld = currentMouseXInViewport / zoomLevel;
+    const currentMouseYInWorld = currentMouseYInViewport / zoomLevel;
+
+    if (draggingNodeId && initialNodePositionRef.current && initialMouseWorldPositionRef.current) {
+      const deltaMouseWorldX = currentMouseXInWorld - initialMouseWorldPositionRef.current.x;
+      const deltaMouseWorldY = currentMouseYInWorld - initialMouseWorldPositionRef.current.y;
+
+      const newNodeX = initialNodePositionRef.current.x + deltaMouseWorldX;
+      const newNodeY = initialNodePositionRef.current.y + deltaMouseWorldY;
 
       setFlowchartData(prev => ({
         ...prev,
@@ -404,8 +414,8 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
       didDragNodeRef.current = true;
     } else if (isConnecting && connectionStart) {
       setConnectingMousePosition({
-        x: mouseXInCanvas,
-        y: mouseYInCanvas,
+        x: currentMouseXInWorld, // Use scaled coordinates for line preview too
+        y: currentMouseYInWorld,
       });
     } else if (connectingMousePosition) {
       setConnectingMousePosition(null);
@@ -421,14 +431,17 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
     if (!node || !canvasRef.current) return;
 
     const canvasRect = canvasRef.current.getBoundingClientRect();
-    const mouseXInCanvas = event.clientX - canvasRect.left;
-    const mouseYInCanvas = event.clientY - canvasRect.top;
+    const mouseXInViewport = event.clientX - canvasRect.left;
+    const mouseYInViewport = event.clientY - canvasRect.top;
 
-    const offsetX = mouseXInCanvas - node.position.x;
-    const offsetY = mouseYInCanvas - node.position.y;
+    const mouseXInWorld = mouseXInViewport / zoomLevel;
+    const mouseYInWorld = mouseYInViewport / zoomLevel;
+
+    initialNodePositionRef.current = { x: node.position.x, y: node.position.y };
+    initialMouseWorldPositionRef.current = { x: mouseXInWorld, y: mouseYInWorld };
 
     setDraggingNodeId(nodeId);
-    setDragOffset({ x: offsetX, y: offsetY });
+    // setDragOffset is removed
 
     // Set isDragging on the node
     setFlowchartData(prev => ({
