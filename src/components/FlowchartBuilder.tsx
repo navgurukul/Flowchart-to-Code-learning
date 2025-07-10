@@ -1103,7 +1103,7 @@ const selectedNodeDataForProperties = selectedNodeForProperties
                     {sourceNode.type === 'decision' && edge.conditionType && (
                       <text
                         x={(x1 + x2) / 2} // Position in the middle of the edge
-                        y={(y1 + y2) / 2 - 5} // Slightly above the edge line
+                        y={(y1 + y2) / 2 - 15} // Increased offset to move label further above
                         textAnchor="middle"
                         fill="#333" // Color for the label
                         fontSize="10px"
