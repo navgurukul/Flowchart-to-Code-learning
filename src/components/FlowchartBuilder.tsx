@@ -22,6 +22,14 @@ import {
   ZoomOut, // For Zoom Out button
   RefreshCcw // For Reset Zoom button
 } from 'lucide-react';
+
+// Define a Parallelogram icon for Input/Output nodes
+const ParallelogramIcon = () => (
+  <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+    <path d="M4 3 L18 3 L14 17 H0 Z" /> {/* Simple parallelogram path */}
+  </svg>
+);
+
 import { getDatabase, ref, set, get, child, update, serverTimestamp, onValue } from 'firebase/database'; // Added 'set', 'get', 'child'
 import { app } from '../firebaseConfig';
 import { useAuth } from '../contexts/AuthContext';
@@ -89,21 +97,21 @@ const nodePalette: NodePalette[] = [
   {
     type: 'input',
     label: 'Input',
-    icon: <ArrowRight className="w-5 h-5 rotate-180" />,
+    icon: <ParallelogramIcon />,
     color: 'bg-purple-100 border-purple-300 text-purple-800',
     description: 'Data input operation'
   },
   {
     type: 'output',
     label: 'Output',
-    icon: <ArrowRight className="w-5 h-5" />,
+    icon: <ParallelogramIcon />,
     color: 'bg-indigo-100 border-indigo-300 text-indigo-800',
     description: 'Data output operation'
   },
   {
     type: 'loop',
     label: 'Loop',
-    icon: <div className="w-5 h-5 border-2 border-current rounded-full" />,
+    icon: <Diamond className="w-5 h-5" />, // Changed to Diamond
     color: 'bg-yellow-100 border-yellow-300 text-yellow-800',
     description: 'Repetitive operation'
   }
@@ -1186,15 +1194,23 @@ const selectedNodeDataForProperties = selectedNodeForProperties
                 style={{
                   left: positionX,
                   top: positionY,
-                  transform: node.type === 'decision' ? 'rotate(45deg)' : 'none',
+                  transform:
+                    (node.type === 'decision' || node.type === 'loop') ? 'rotate(45deg)' :
+                    (node.type === 'input' || node.type === 'output') ? 'skewX(-20deg)' :
+                    'none',
                   cursor: draggingNodeId === node.id ? 'grabbing' : 'grab' // Visual feedback for dragging
                 }}
                 onClick={() => handleNodeClick(node.id)}
                 onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
               >
-                <div className={`w-full h-full flex items-center justify-center p-2 ${
-                  node.type === 'decision' ? 'transform -rotate-45' : ''
-                }`} title={node.data.label} // Show full label on hover
+                <div className={`w-full h-full flex items-center justify-center p-2`}
+                  style={{
+                    transform:
+                      (node.type === 'decision' || node.type === 'loop') ? 'rotate(-45deg)' :
+                      (node.type === 'input' || node.type === 'output') ? 'skewX(20deg)' :
+                      'none'
+                  }}
+                  title={node.data.label} // Show full label on hover
                 >
                   <span className="text-xs font-medium text-center leading-tight block truncate overflow-hidden text-ellipsis">
                     {node.data.label}
