@@ -697,13 +697,57 @@ const convertFlowchartToCode = (data: FlowchartData): string => {
   
   // Find input nodes to determine parameters
   const inputNodes = data.nodes.filter(node => node.type === 'input');
-  const params = inputNodes.map((_, index) => `input${index + 1}`).join(', ');
-  code += params + ') {\n';
+  const declaredVarNames = new Set<string>(); // Tracks all declared names (params, vars) in function scope.
+  const paramNameList: string[] = [];
 
-  // Add variable declarations
+  // Define reserved keywords (should be comprehensive for JS)
+  const reservedKeywords = new Set([
+    'await', 'break', 'case', 'catch', 'class', 'const', 'debugger', 'default', 'delete', 'do', 'else', 'enum', 'export', 'extends', 'false', 'finally', 'for', 'function', 'if', 'implements', 'import', 'in', 'instanceof', 'interface', 'let', 'new', 'null', 'package', 'private', 'protected', 'public', 'return', 'super', 'switch', 'static', 'this', 'throw', 'try', 'true', 'typeof', 'var', 'void', 'while', 'with', 'yield',
+    // Common environment globals that might be problematic if shadowed carelessly
+    'Array', 'Date', 'JSON', 'Math', 'Number', 'Object', 'String', 'RegExp', 'Promise', 'Map', 'Set', 'Symbol'
+    // 'undefined' is technically not a reserved word but often best to avoid as a var name.
+  ]);
+
   inputNodes.forEach((node, index) => {
-    code += `  let ${node.data.label.toLowerCase().replace(/\s+/g, '')} = input${index + 1};\n`;
+    let paramName = node.data.label.toLowerCase()
+      .replace(/\s+/g, '_') // Replace spaces with underscores
+      .replace(/[^a-zA-Z0-9_]/g, ''); // Remove other special characters
+
+    // Ensure it's a valid identifier start
+    if (!paramName || !/^[a-zA-Z_]/.test(paramName)) {
+      paramName = `param${index + 1}`;
+    } else {
+      // Remove leading underscores if it was not originally `_foo` (e.g. from " Foo" becoming "_Foo") unless it's the only char
+      // This can be tricky; for now, let's keep it simple: if it starts with underscore and has other chars, it's fine.
+      // If it became all underscores, e.g. "___", make it generic.
+      if (/^_+$/.test(paramName)) {
+          paramName = `param${index + 1}`;
+      }
+    }
+
+    if (reservedKeywords.has(paramName)) {
+      paramName = `_${paramName}`; // Prepend underscore if it's a reserved/problematic keyword
+    }
+
+    let uniqueParamName = paramName;
+    let counter = 1;
+    // Handle empty string case for uniqueParamName again after sanitization
+    if (!uniqueParamName) {
+        uniqueParamName = `param${index + 1}`;
+    }
+
+    while (declaredVarNames.has(uniqueParamName)) {
+      uniqueParamName = `${paramName}_${counter}`;
+      counter++;
+    }
+    declaredVarNames.add(uniqueParamName);
+    paramNameList.push(uniqueParamName);
   });
+
+  code += paramNameList.join(', ') + ') {\n';
+
+  // Input variables are now directly the parameters. No need for separate 'let' declarations for them.
+  // The declaredVarNames set already contains these parameter names.
 
   // Process nodes in order
   const processNodes = data.nodes.filter(node => node.type === 'process');
@@ -716,9 +760,36 @@ const convertFlowchartToCode = (data: FlowchartData): string => {
   // Find output nodes
   const outputNodes = data.nodes.filter(node => node.type === 'output');
   if (outputNodes.length > 0) {
-    const outputValue = outputNodes[0].data.value || outputNodes[0].data.label;
-    code += `  return ${outputValue};\n`;
+    const firstOutputNode = outputNodes[0]; // Assuming the first output node is the one to use
+    let valueToReturn: string;
+
+    if (firstOutputNode.data.value && firstOutputNode.data.value.trim() !== '') {
+      // If 'value' property exists and is not empty, assume it's a valid JS expression or variable name.
+      valueToReturn = firstOutputNode.data.value;
+    } else {
+      // Otherwise, derive a string literal from the 'label'.
+      let labelContent = firstOutputNode.data.label;
+
+      // Heuristic: If label starts with "Display " or "Output ", strip that prefix.
+      const displayOrOutputPrefixMatch = labelContent.match(/^(?:Display|Output)\s+(.*)/i);
+      if (displayOrOutputPrefixMatch && displayOrOutputPrefixMatch[1]) {
+        labelContent = displayOrOutputPrefixMatch[1];
+      }
+
+      // Heuristic: If the remaining labelContent is itself a quoted string (e.g., "Even" or 'Even'),
+      // use the content inside the quotes.
+      const quotedStringMatch = labelContent.match(/^"(.*)"$/) || labelContent.match(/^'(.*)'$/);
+      if (quotedStringMatch && quotedStringMatch[1] !== undefined) { // Ensure group [1] exists
+        labelContent = quotedStringMatch[1];
+      }
+
+      // Now, labelContent holds the intended string value (e.g., "Even" from 'Display "Even"').
+      // Escape it properly to form a valid JavaScript string literal.
+      valueToReturn = `"${labelContent.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+    }
+    code += `  return ${valueToReturn};\n`;
   }
+  // If there are no output nodes, the function implicitly returns undefined.
 
   code += '}';
   return code;
