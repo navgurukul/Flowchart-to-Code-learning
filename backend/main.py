@@ -14,6 +14,9 @@ from dotenv import load_dotenv  # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< IMPORT TH
 import firebase_admin
 from firebase_admin import credentials, auth, db
 from typing import Optional  # Added for Optional email in FirebaseUser
+from email_service import email_service  # Import email service
+from activity_tracker import activity_tracker  # Import activity tracker
+from scheduler import start_background_scheduler  # Import scheduler
 
 # --- .env DEBUG START ---
 print("DEBUG: Script starting. Attempting to load .env file...")
@@ -57,6 +60,13 @@ except Exception as e:
     print(f"ERROR: Failed to initialize Firebase Admin SDK: {e}")
 
 app = FastAPI()
+
+# Start background scheduler for email notifications
+@app.on_event("startup")
+async def startup_event():
+    """Start background tasks when the application starts"""
+    await start_background_scheduler()
+    print("INFO: Background notification scheduler started")
 
 # CORS Configuration
 origins = [
@@ -553,6 +563,82 @@ async def get_online_users():
         print(f"Error accessing Firebase Realtime Database: {e}")
         # Return a generic error message to the client
         raise HTTPException(status_code=500, detail="Failed to retrieve online user count from the database.")
+
+
+@app.post("/api/send-inactivity-notifications")
+async def send_inactivity_notifications(current_user: AuthenticatedUser = Depends(get_current_user_data)):
+    """
+    Manually trigger sending inactivity notifications to inactive users.
+    This endpoint can be called by admins or can be set up as a scheduled task.
+    """
+    try:
+        # For now, allow any authenticated user to trigger this
+        # In production, you might want to restrict this to admin users
+        
+        results = await activity_tracker.send_inactivity_notifications()
+        
+        successful_count = sum(1 for success in results.values() if success)
+        total_count = len(results)
+        
+        return {
+            "message": f"Inactivity notifications processed",
+            "total_users": total_count,
+            "successful_notifications": successful_count,
+            "failed_notifications": total_count - successful_count,
+            "results": results
+        }
+        
+    except Exception as e:
+        print(f"Error sending inactivity notifications: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to send inactivity notifications: {str(e)}")
+
+
+@app.get("/api/inactive-users")
+async def get_inactive_users(current_user: AuthenticatedUser = Depends(get_current_user_data)):
+    """
+    Get list of users who have been inactive for too long.
+    This is useful for monitoring and debugging.
+    """
+    try:
+        inactive_users = activity_tracker.get_inactive_users()
+        
+        # Convert UserActivity objects to dictionaries for JSON response
+        inactive_users_data = [
+            {
+                "uid": user.uid,
+                "email": user.email,
+                "display_name": user.display_name,
+                "current_exercise_id": user.current_exercise_id,
+                "last_active": user.last_active.isoformat(),
+                "inactive_minutes": int((datetime.now(timezone.utc) - user.last_active).total_seconds() / 60)
+            }
+            for user in inactive_users
+        ]
+        
+        return {
+            "inactive_users": inactive_users_data,
+            "count": len(inactive_users_data),
+            "threshold_minutes": activity_tracker.inactivity_threshold_minutes
+        }
+        
+    except Exception as e:
+        print(f"Error getting inactive users: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get inactive users: {str(e)}")
+
+
+@app.post("/api/update-user-activity")
+async def update_user_activity(current_user: AuthenticatedUser = Depends(get_current_user_data)):
+    """
+    Update the current user's activity timestamp.
+    This can be called when user performs actions to keep their activity fresh.
+    """
+    try:
+        activity_tracker.update_user_activity(current_user.uid)
+        return {"message": "User activity updated successfully"}
+        
+    except Exception as e:
+        print(f"Error updating user activity: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update user activity")
 
 # Comments for running the app
 # To run this application:

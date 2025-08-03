@@ -3,8 +3,10 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import toast from 'react-hot-toast';
 import { User as FirebaseUser, onAuthStateChanged, signOut as firebaseSignOut, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { auth, app } from '../firebaseConfig'; // Your Firebase auth instance and app instance
-import { getDatabase, ref, set, onDisconnect, serverTimestamp, onValue, Unsubscribe } from 'firebase/database'; // Firebase Realtime Database
+import { getDatabase, ref, set, onDisconnect, serverTimestamp, onValue, Unsubscribe, update } from 'firebase/database'; // Firebase Realtime Database
 import DomainBlockModal from '../components/DomainBlockModal'; // Import the modal
+import { notificationService } from '../services/notificationService'; // Import notification service
+import { userActivityTracker } from '../services/activityTracker'; // Import activity tracker
 
 const ALLOWED_DOMAIN = 'navgurukul.org';
 
@@ -147,6 +149,19 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
 
     const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
+        // Set the current user for notification service
+        notificationService.setCurrentUser(firebaseUser.uid);
+        
+        // Start activity tracking
+        userActivityTracker.startTracking(async () => {
+          try {
+            return await firebaseUser.getIdToken();
+          } catch (error) {
+            console.error('Error getting ID token for activity tracking:', error);
+            throw error;
+          }
+        });
+        
         // Initial check: if a user is already authenticated in Firebase, verify their domain.
         // This handles cases like page refresh.
         // if (firebaseUser.email && firebaseUser.email.split('@')[1] !== ALLOWED_DOMAIN) {
@@ -175,16 +190,36 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
           if (snapshot.val() === false) {
             return;
           }
-          onDisconnect(userStatusDatabaseRef).set({ online: false, last_changed: serverTimestamp() })
-            .then(() => {
-              set(userStatusDatabaseRef, { online: true, last_changed: serverTimestamp() });
+          
+          // Set up disconnect handlers for both status and onlineUsers
+          const onlineUsersRef = ref(db, `/onlineUsers/${firebaseUser.uid}`);
+          
+          onDisconnect(userStatusDatabaseRef).set({ online: false, last_changed: serverTimestamp() });
+          onDisconnect(onlineUsersRef).remove(); // Remove from onlineUsers when disconnected
+          
+          Promise.all([
+            set(userStatusDatabaseRef, { online: true, last_changed: serverTimestamp() }),
+            set(onlineUsersRef, {
+              uid: firebaseUser.uid,
+              displayName: firebaseUser.displayName,
+              photoURL: firebaseUser.photoURL,
+              currentFlowchartId: null,
+              currentNodeId: null,
+              lastSeen: serverTimestamp(),
+              status: 'online'
             })
-            .catch((error) => {
-              console.error("Error setting up onDisconnect or user status:", error);
-            });
+          ]).catch((error) => {
+            console.error("Error setting up user presence:", error);
+          });
         });
 
       } else {
+        // Clear the current user from notification service
+        notificationService.setCurrentUser(null);
+        
+        // Stop activity tracking
+        userActivityTracker.stopTracking();
+        
         if (presenceOnValueUnsubscribe) {
           presenceOnValueUnsubscribe();
           presenceOnValueUnsubscribe = undefined;
@@ -202,6 +237,8 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       if (presenceOnValueUnsubscribe) {
         presenceOnValueUnsubscribe();
       }
+      // Cleanup notification service when component unmounts
+      notificationService.cleanup();
     };
   }, []);
 
