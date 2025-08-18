@@ -70,3 +70,25 @@ Currently, the allowed domain is hardcoded as `@navgurukul.org` in:
 *   `backend/main.py` (server-side)
 
 If you need to change or add allowed domains, you would need to update the `ALLOWED_DOMAIN` constant in these files. For more complex scenarios (e.g., multiple allowed domains from a configuration), the implementation would need to be adjusted accordingly.
+
+## Image Analysis Documentation
+
+This repository includes comprehensive documentation for a 4-algorithm image analysis system designed for flowchart comparison. The system uses the following scoring formula:
+
+**Final Score = (Structure × 30%) + (Color Histogram × 25%) + (Edges × 25%) + (Dominant Colors × 20%)**
+
+### 📁 Documentation Files
+
+- **[docs/](./docs/)** - Complete documentation directory
+- **[docs/IMAGE_ANALYSIS_ALGORITHMS.md](./docs/IMAGE_ANALYSIS_ALGORITHMS.md)** - Detailed technical documentation
+- **[docs/PRESENTATION_SUMMARY.md](./docs/PRESENTATION_SUMMARY.md)** - Presentation-ready summary
+- **[docs/image_analyzer_implementation.py](./docs/image_analyzer_implementation.py)** - Working implementation example
+
+### The 4 Algorithms
+
+1. **Structure Analysis (30%)** - Spatial arrangement and geometric relationships
+2. **Color Histogram (25%)** - Color distribution patterns and visual consistency  
+3. **Edge Detection (25%)** - Boundary analysis and shape comparison
+4. **Dominant Colors (20%)** - Color palette similarity and visual theme
+
+This documentation provides everything needed for presentations, technical implementation, and understanding the algorithmic approach to flowchart image comparison.
