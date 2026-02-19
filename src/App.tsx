@@ -15,6 +15,9 @@ import { InputOutput } from './components/InputOutput';
 import ExerciseChat from './components/ExerciseChat'; // Import the new ExerciseChat component
 // import GuideModal from './components/GuideModal'; // Removed
 import { allExercises } from './data/exercises';
+import { lessons } from './data/lessons';
+import { LessonList } from './components/LessonList';
+import { LessonViewer } from './components/LessonViewer';
 // import { guideSteps } from './data/guideSteps'; // Removed
 import InteractiveTour, { replayInteractiveTour } from './components/InteractiveTour'; // Added
 import { SafeCodeExecutor } from './utils/codeExecutor';
@@ -45,6 +48,11 @@ function App() {
   const [progress, setProgress] = useState<StudentProgress>(defaultInitialProgress);
   const [progressLoaded, setProgressLoaded] = useState(false); // Added: Flag to track if initial progress load is complete
   const [currentExerciseId, setCurrentExerciseId] = useState<number | null>(null); // Changed: No exercise selected initially
+  
+  // --- Learning Phase State ---
+  const [isLearningMode, setIsLearningMode] = useState(true); // Start in learning mode
+  const [completedLessons, setCompletedLessons] = useState<number[]>([]);
+  const [currentLessonId, setCurrentLessonId] = useState<number | null>(1); // Start with first lesson
   const [isExerciseListOpen, setIsExerciseListOpen] = useState(true);
   const [isInputOutputOpen, setIsInputOutputOpen] = useState(false); // Default to collapsed
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
@@ -94,6 +102,36 @@ function App() {
       currentExercise: exerciseId,
       lastAccessedAt: new Date().toISOString()
     }));
+  };
+
+  // --- Learning Phase Handlers ---
+  const handleSelectLesson = (lessonId: number) => {
+    setCurrentLessonId(lessonId);
+  };
+
+  const handleCompleteLesson = () => {
+    if (currentLessonId && !completedLessons.includes(currentLessonId)) {
+      const newCompletedLessons = [...completedLessons, currentLessonId];
+      setCompletedLessons(newCompletedLessons);
+      
+      // Save to localStorage
+      if (currentUser) {
+        localStorage.setItem(`completedLessons_${currentUser.uid}`, JSON.stringify(newCompletedLessons));
+      } else {
+        localStorage.setItem('completedLessons_anonymous', JSON.stringify(newCompletedLessons));
+      }
+      
+      // Move to next lesson if available
+      const currentIndex = lessons.findIndex(l => l.id === currentLessonId);
+      if (currentIndex < lessons.length - 1) {
+        setCurrentLessonId(lessons[currentIndex + 1].id);
+      }
+    }
+  };
+
+  const handleStartExercises = () => {
+    setIsLearningMode(false);
+    setCurrentLessonId(null);
   };
 
   // Moved generateCodeFromFlowchart before handleFlowchartChange
@@ -395,6 +433,16 @@ function App() {
       if (currentUser) {
         console.log(`loadData: User logged in (UID: ${currentUser.uid}). Attempting to fetch progress.`);
 
+        // Load completed lessons
+        const savedLessons = localStorage.getItem(`completedLessons_${currentUser.uid}`);
+        if (savedLessons) {
+          try {
+            setCompletedLessons(JSON.parse(savedLessons));
+          } catch (error) {
+            console.error('Failed to parse completed lessons:', error);
+          }
+        }
+
         // 1. Try loading from Firebase Realtime Database first
         console.log("loadData: Step 1 - Attempting to load progress directly from Firebase Realtime Database.");
         try {
@@ -494,6 +542,17 @@ function App() {
 
       } else {
         console.log("loadData: User not logged in. Attempting to load progress from anonymous localStorage.");
+        
+        // Load completed lessons for anonymous user
+        const savedLessons = localStorage.getItem('completedLessons_anonymous');
+        if (savedLessons) {
+          try {
+            setCompletedLessons(JSON.parse(savedLessons));
+          } catch (error) {
+            console.error('Failed to parse anonymous completed lessons:', error);
+          }
+        }
+        
         const savedProgress = localStorage.getItem('studentProgress_anonymous');
         if (savedProgress) {
           try {
@@ -603,7 +662,97 @@ function App() {
       <Header progress={progress} onReplayTour={handleReplayTour} />
       {/* Pass handleReplayTour to Header */}
       
+      {/* Mode Toggle */}
+      <div className="bg-white border-b border-gray-200 px-6 py-3">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={() => {
+              setIsLearningMode(true);
+              setCurrentExerciseId(null);
+            }}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              isLearningMode
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            📚 Learn
+          </button>
+          <button
+            onClick={() => {
+              setIsLearningMode(false);
+              setCurrentLessonId(null);
+            }}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              !isLearningMode
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            💻 Practice
+          </button>
+          {isLearningMode && (
+            <div className="ml-auto text-sm text-gray-600">
+              {completedLessons.length}/{lessons.length} lessons completed
+            </div>
+          )}
+        </div>
+      </div>
+      
       <div className="flex-1 flex overflow-hidden">
+        {isLearningMode ? (
+          /* Learning Mode Layout */
+          <>
+            {/* Left Panel: Lesson List */}
+            <div className="w-80 border-r border-gray-200">
+              <LessonList
+                lessons={lessons}
+                completedLessons={completedLessons}
+                currentLessonId={currentLessonId}
+                onSelectLesson={handleSelectLesson}
+              />
+            </div>
+
+            {/* Main Content: Lesson Viewer */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {currentLessonId ? (
+                <>
+                  <LessonViewer
+                    lesson={lessons.find(l => l.id === currentLessonId)!}
+                    isCompleted={completedLessons.includes(currentLessonId)}
+                    onComplete={handleCompleteLesson}
+                  />
+                  
+                  {/* Show "Start Practicing" button after completing all lessons */}
+                  {completedLessons.length === lessons.length && (
+                    <div className="mt-8 text-center">
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-6 max-w-2xl mx-auto">
+                        <h3 className="text-xl font-bold text-green-900 mb-2">
+                          🎉 Congratulations!
+                        </h3>
+                        <p className="text-green-700 mb-4">
+                          You've completed all the learning materials. Ready to put your knowledge into practice?
+                        </p>
+                        <button
+                          onClick={handleStartExercises}
+                          className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
+                        >
+                          Start Practicing with Exercises
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-xl text-gray-500">Select a lesson to begin learning</p>
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          /* Exercise Mode Layout (existing code) */
+          <>
         {/* Left Panel: Exercise List */}
         <div className="flex"> {/* Container for button and panel */}
           <button
@@ -797,6 +946,8 @@ function App() {
             </>
           )}
         </div>
+      </div>
+        )}
       </div>
 
       {/* New Exercise Chat Component */}
