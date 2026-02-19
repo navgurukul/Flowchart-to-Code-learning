@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast'; // Import toast
 import { marked } from 'marked'; // Import marked library
 import useChatStore from '../store/chatStore';
-import { postRealChatMessage } from '../services/api';
+import { callGeminiDirectly } from '../services/geminiClient'; // Use direct Gemini client
 import './ExerciseChat.css';
 
 const ExerciseChat: React.FC = () => {
@@ -84,20 +84,20 @@ const ExerciseChat: React.FC = () => {
       }
 
       try {
-        const apiResponse = await postRealChatMessage({
+        const apiResponse = await callGeminiDirectly({
           message: messageContent,
           command: command,
           exerciseContext: storeExerciseContext ? {
-            currentExerciseId: storeExerciseContext.exerciseId,
+            exerciseId: storeExerciseContext.exerciseId,
             title: storeExerciseContext.title,
           } : null,
         });
 
         if (currentExerciseId) {
-          const botReply = apiResponse.reply;
-          if (command === 'generate' && botReply.isStructuredData && botReply.text) {
+          const botReplyText = apiResponse.text;
+          if (command === 'generate' && apiResponse.isStructuredData) {
             try {
-              const flowchartData = JSON.parse(botReply.text);
+              const flowchartData = JSON.parse(botReplyText);
               if (flowchartData.nodes && flowchartData.edges) {
                 setGeneratedFlowchartData(flowchartData);
                 useChatStore.getState().setIsCheatModeSource(true); // Set cheat mode source
@@ -133,19 +133,24 @@ const ExerciseChat: React.FC = () => {
              addMessage(currentExerciseId, {
                 id: Date.now().toString() + '-generate-error',
                 sender: 'assistant',
-                text: botReply.text || generateError, // Show bot's text or a generic error
+                text: botReplyText || generateError, // Show bot's text or a generic error
                 timestamp: Date.now(),
             });
           }
           else {
             // Regular message or /learn response
-            addMessage(currentExerciseId, botReply);
+            addMessage(currentExerciseId, {
+              id: Date.now().toString() + '-bot',
+              sender: 'assistant',
+              text: botReplyText,
+              timestamp: Date.now(),
+            });
           }
         }
       } catch (error) {
-        const apiError = `API Error: ${error instanceof Error ? error.message : "Sorry, I couldn't connect to the assistant."}`;
+        const apiError = `AI Error: ${error instanceof Error ? error.message : "Sorry, I couldn't connect to the AI service."}`;
         toast.error(apiError);
-        console.error("Error sending message to API:", error);
+        console.error("Error calling Gemini API:", error);
         if (currentExerciseId) {
             addMessage(currentExerciseId, {
                 id: Date.now().toString() + '-error',
