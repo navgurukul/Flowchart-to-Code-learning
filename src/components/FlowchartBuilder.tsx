@@ -1093,14 +1093,20 @@ const selectedNodeDataForProperties = selectedNodeForProperties
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Label
+                  {selectedNodeDataForProperties.type === 'input' ? 'Variable Name' : 'Label'}
                 </label>
                 <input
                   type="text"
                   value={selectedNodeDataForProperties.data.label}
                   onChange={(e) => handleNodeUpdate(selectedNodeDataForProperties!.id, { label: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder={selectedNodeDataForProperties.type === 'input' ? 'e.g., a, b, num, x' : ''}
                 />
+                {selectedNodeDataForProperties.type === 'input' && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    This will be used as the variable name in your code. Use simple names like 'a', 'b', 'num', etc.
+                  </p>
+                )}
               </div>
 
               {(selectedNodeDataForProperties.type === 'process' || selectedNodeDataForProperties.type === 'output') && (
