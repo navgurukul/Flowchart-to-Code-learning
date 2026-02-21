@@ -9,6 +9,7 @@ import DomainBlockModal from './components/DomainBlockModal'; // Import the moda
 import { Header } from './components/Header';
 import { OnlineUsersPanel } from './components/OnlineUsersPanel'; // Import the new panel
 import { GamifiedExerciseMap } from './components/GamifiedExerciseMap';
+import { SnakeFlowExerciseMap } from './components/SnakeFlowExerciseMap';
 // import { GamifiedExerciseMapV2 } from './components/GamifiedExerciseMapV2';
 import { FlowchartBuilder } from './components/FlowchartBuilder';
 import { CodeEditor } from './components/CodeEditor';
@@ -769,7 +770,7 @@ function App() {
           </button>
           {isExerciseListOpen && (
             <div data-tour-id="exercise-list-panel"> {/* Added tour ID to the wrapper */}
-              <GamifiedExerciseMap
+              <SnakeFlowExerciseMap
                 exercises={allExercises}
                 progress={progress}
                 currentExerciseId={currentExerciseId}
