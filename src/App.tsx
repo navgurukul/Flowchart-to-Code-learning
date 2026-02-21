@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { analyticsService } from './services/analytics';
 import Confetti from 'react-confetti';
 import { Toaster } from 'react-hot-toast';
 import { getDatabase, ref, get, set, update, serverTimestamp } from 'firebase/database'; // Added update and serverTimestamp
@@ -116,8 +117,14 @@ function App() {
 
   const handleCompleteLesson = () => {
     if (currentLessonId && !completedLessons.includes(currentLessonId)) {
+      const lesson = allLessons.find(l => l.id === currentLessonId);
       const newCompletedLessons = [...completedLessons, currentLessonId];
       setCompletedLessons(newCompletedLessons);
+      
+      // Track lesson completion
+      if (lesson) {
+        analyticsService.trackLessonCompleted(currentLessonId, lesson.title, 0);
+      }
       
       // Save to localStorage
       if (currentUser) {
@@ -137,6 +144,7 @@ function App() {
   const handleStartExercises = () => {
     setIsLearningMode(false);
     setCurrentLessonId(null);
+    analyticsService.trackModeSwitch('learning', 'practice');
   };
 
   // Moved generateCodeFromFlowchart before handleFlowchartChange

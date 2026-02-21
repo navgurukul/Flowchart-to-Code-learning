@@ -1,6 +1,7 @@
 // src/firebaseConfig.ts
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import { getAnalytics, Analytics } from "firebase/analytics";
 
 // TODO: Replace with your actual Firebase project configuration
 // const firebaseConfig = {
@@ -29,4 +30,11 @@ const app = initializeApp(firebaseConfig);
 // Initialize Firebase Authentication and get a reference to the service
 const auth = getAuth(app);
 
-export { app, auth };
+// Initialize Firebase Analytics
+let analytics: Analytics | null = null;
+if (typeof window !== 'undefined') {
+  analytics = getAnalytics(app);
+  console.log('✅ Firebase Analytics initialized');
+}
+
+export { app, auth, analytics };

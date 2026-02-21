@@ -5,6 +5,7 @@ import { User as FirebaseUser, onAuthStateChanged, signOut as firebaseSignOut, G
 import { auth, app } from '../firebaseConfig'; // Your Firebase auth instance and app instance
 import { getDatabase, ref, set, onDisconnect, serverTimestamp, onValue, Unsubscribe } from 'firebase/database'; // Firebase Realtime Database
 import DomainBlockModal from '../components/DomainBlockModal'; // Import the modal
+import { analyticsService } from '../services/analytics';
 
 const ALLOWED_DOMAIN = 'navgurukul.org';
 
@@ -95,6 +96,13 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
 
         // setCurrentUser immediately after successful Firebase client-side sign-in.
         setCurrentUser(mapFirebaseUserToAppUser(firebaseUser));
+
+        // Track login
+        analyticsService.trackLogin('google', firebaseUser.uid);
+        analyticsService.setUserProperties({
+          user_id: firebaseUser.uid,
+          email_domain: firebaseUser.email.split('@')[1]
+        });
 
         const welcomeMessage = firebaseUser.displayName
           ? `Welcome, ${firebaseUser.displayName.split(' ')[0]}!`
