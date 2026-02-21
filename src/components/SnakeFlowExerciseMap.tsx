@@ -86,7 +86,7 @@ export const SnakeFlowExerciseMap: React.FC<SnakeFlowExerciseMapProps> = ({
 
     // Node radius for calculating arrow position
     const nodeRadius = 40; // Half of node width (80px / 2)
-    const arrowOffset = 15; // Stop path before reaching node edge
+    const arrowOffset = 12; // Reduced offset for tighter fit
 
     // Calculate angle from 'from' to 'to' node
     const angle = Math.atan2(to.y - from.y, to.x - from.x);
@@ -97,18 +97,18 @@ export const SnakeFlowExerciseMap: React.FC<SnakeFlowExerciseMapProps> = ({
     const toX = to.x - Math.cos(angle) * (nodeRadius + arrowOffset);
     const toY = to.y - Math.sin(angle) * (nodeRadius + arrowOffset);
 
-    // Calculate control points for smooth S-curve with increased fluidity
+    // Calculate control points for moderate S-curve (tighter, not exaggerated)
     const dx = toX - fromX;
     const dy = toY - fromY;
     const distance = Math.sqrt(dx * dx + dy * dy);
     
-    // Adaptive curve offset based on distance for smoother curves
-    const curveOffset = Math.min(distance * 0.4, 160);
+    // Moderate curve offset for fluid but tight curves
+    const curveOffset = Math.min(distance * 0.35, 120);
     
-    // Control points for cubic Bezier curve
-    const cp1x = fromX + dx * 0.5 + (dy > 0 ? curveOffset : -curveOffset) * (dx > 0 ? 0.3 : -0.3);
+    // Control points for cubic Bezier curve with reduced horizontal spread
+    const cp1x = fromX + dx * 0.5 + (dy > 0 ? curveOffset : -curveOffset) * (dx > 0 ? 0.25 : -0.25);
     const cp1y = fromY + dy * 0.3;
-    const cp2x = toX - dx * 0.5 + (dy > 0 ? curveOffset : -curveOffset) * (dx > 0 ? -0.3 : 0.3);
+    const cp2x = toX - dx * 0.5 + (dy > 0 ? curveOffset : -curveOffset) * (dx > 0 ? -0.25 : 0.25);
     const cp2y = toY - dy * 0.3;
 
     const pathD = `M ${fromX} ${fromY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${toX} ${toY}`;
@@ -171,7 +171,7 @@ export const SnakeFlowExerciseMap: React.FC<SnakeFlowExerciseMapProps> = ({
           }}
         >
           <defs>
-            {/* Arrow markers for each node */}
+            {/* Arrow markers for each node - proportional to stroke width */}
             {exercises.map((exercise, index) => {
               const color = getNodeColor(index);
               const isCompleted = progress.completedExercises.includes(exercise.id);
@@ -179,17 +179,17 @@ export const SnakeFlowExerciseMap: React.FC<SnakeFlowExerciseMapProps> = ({
                 <marker
                   key={`arrow-${exercise.id}`}
                   id={`arrow-${exercise.id}`}
-                  markerWidth="12"
-                  markerHeight="12"
-                  refX="10"
-                  refY="6"
+                  markerWidth="10"
+                  markerHeight="10"
+                  refX="9"
+                  refY="5"
                   orient="auto"
                   markerUnits="strokeWidth"
                 >
                   <path
-                    d="M0,0 L0,12 L12,6 z"
+                    d="M0,0 L0,10 L9,5 z"
                     fill={isCompleted ? '#4CAF50' : color.bg}
-                    opacity={isCompleted ? 1 : 0.7}
+                    opacity={isCompleted ? 0.9 : 0.65}
                   />
                 </marker>
               );
