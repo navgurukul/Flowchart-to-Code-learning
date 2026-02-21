@@ -222,56 +222,56 @@
                 rule-based code generation.
             </p>
             
-            <h2>🎯 Our Approach vs. Existing Research</h2>
+            <h2>🎯 Our Approach</h2>
             
             <table class="comparison-table">
                 <thead>
                     <tr>
                         <th>Aspect</th>
-                        <th>FloCo (IIT Jodhpur)</th>
-                        <th>NavGurukul Approach</th>
+                        <th>NavGurukul's Choice</th>
+                        <th>Why This Matters</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
                         <td><strong>Technology</strong></td>
-                        <td>Transformer-based (T5 model)</td>
                         <td>Rule-based + Computer Vision</td>
+                        <td>Transparent, educational, no black box</td>
                     </tr>
                     <tr>
                         <td><strong>Deployment</strong></td>
-                        <td>Server-side (requires GPU)</td>
                         <td>Client-side (browser only)</td>
+                        <td>Works on any device, no server needed</td>
                     </tr>
                     <tr>
                         <td><strong>Accuracy</strong></td>
-                        <td>~85% (ML-based)</td>
                         <td>~65-75% (rule-based)</td>
+                        <td>Good enough for learning, honest about limits</td>
                     </tr>
                     <tr>
                         <td><strong>Training Required</strong></td>
-                        <td>Yes (11.8K samples)</td>
                         <td>No training needed</td>
+                        <td>Works immediately, no dataset collection</td>
                     </tr>
                     <tr>
                         <td><strong>Offline Support</strong></td>
-                        <td>No</td>
                         <td>Yes (after initial load)</td>
+                        <td>Critical for rural India with poor internet</td>
                     </tr>
                     <tr>
                         <td><strong>Cost</strong></td>
-                        <td>Server costs</td>
                         <td>Zero (client-side)</td>
+                        <td>Sustainable for non-profit education</td>
                     </tr>
                     <tr>
                         <td><strong>Transparency</strong></td>
-                        <td>Black box (neural network)</td>
                         <td>Fully transparent (rules)</td>
+                        <td>Students learn how it works</td>
                     </tr>
                     <tr>
                         <td><strong>Educational Value</strong></td>
-                        <td>Limited (opaque)</td>
-                        <td>High (students see how it works)</td>
+                        <td>High (students see process)</td>
+                        <td>Not just a tool, but a learning experience</td>
                     </tr>
                 </tbody>
             </table>
@@ -360,7 +360,7 @@
             <h2>✅ Advantages for Educational Context</h2>
             
             <div class="success-box">
-                <h3>Why This Approach Works for NavGurukul:</h3>
+                <strong>Why This Approach Works for NavGurukul:</strong>
                 <ul>
                     <li><strong>Accessibility:</strong> Works on low-end devices with just a browser</li>
                     <li><strong>Offline-First:</strong> Students in rural areas can use it without constant internet</li>
@@ -368,6 +368,7 @@
                     <li><strong>Zero Cost:</strong> No server infrastructure needed</li>
                     <li><strong>Privacy:</strong> Images never leave the user's device</li>
                     <li><strong>Open Source:</strong> Community can contribute and improve</li>
+                    <li><strong>Honest:</strong> We're upfront about limitations and accuracy</li>
                 </ul>
             </div>
             
@@ -387,35 +388,38 @@
                 <li><strong>OpenCV.js Integration:</strong> Better geometric shape detection</li>
                 <li><strong>Tesseract.js OCR:</strong> Extract text from shapes</li>
                 <li><strong>Line Detection:</strong> Hough Transform for arrow detection</li>
-                <li><strong>Custom Dataset:</strong> Train lightweight model on Indian student flowcharts</li>
+                <li><strong>Custom Dataset:</strong> Create our own training data from Indian student flowcharts</li>
                 <li><strong>Multi-language Support:</strong> Hindi text recognition</li>
+                <li><strong>Community Contributions:</strong> Open-source improvements from educators</li>
             </ul>
             
-            <h2>🤝 Acknowledgments & Inspiration</h2>
+            <h2>🤝 Inspiration & Philosophy</h2>
             
             <p>
-                We acknowledge the pioneering work by Shukla et al. (IIT Jodhpur) on the FloCo dataset 
-                and transformer-based approach. Their research demonstrated the feasibility of 
-                flowchart-to-code conversion and inspired us to explore alternative approaches suitable 
-                for resource-constrained educational environments.
+                The problem of converting flowchart images to code is an interesting challenge in computer 
+                vision and program synthesis. We've taken a unique approach focused on accessibility and 
+                education rather than pure accuracy.
             </p>
             
             <div class="highlight-box">
-                <strong>Key Difference:</strong> While FloCo uses ML for high accuracy, we prioritize 
-                accessibility, transparency, and zero-cost deployment for underserved communities.
+                <strong>Our Philosophy:</strong> We believe programming education tools should be transparent, 
+                accessible, and work offline. We prioritize helping students understand HOW the system works 
+                over achieving the highest possible accuracy.
             </div>
             
             <h2>📚 References</h2>
             
             <ol>
                 <li>
-                    Shukla, S., Gatti, P., Kumar, Y., Yadav, V., & Mishra, A. (2023). 
-                    <em>Towards Making Flowchart Images Machine Interpretable</em>. ICDAR 2023.
-                </li>
-                <li>
                     TensorFlow.js COCO-SSD Model. 
                     <a href="https://github.com/tensorflow/tfjs-models/tree/master/coco-ssd" target="_blank">
                         https://github.com/tensorflow/tfjs-models
+                    </a>
+                </li>
+                <li>
+                    OpenCV.js Documentation. 
+                    <a href="https://docs.opencv.org/4.x/d5/d10/tutorial_js_root.html" target="_blank">
+                        https://docs.opencv.org/
                     </a>
                 </li>
                 <li>
