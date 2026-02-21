@@ -671,7 +671,7 @@ function App() {
       {/* Main Layout: Sidebar + Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Vertical Sidebar - Simple with 90 degree text */}
-        <div className="w-32 bg-gradient-to-b from-white to-gray-50 flex flex-col shadow-lg font-['Inter',sans-serif] relative">
+        <div className="w-20 bg-gradient-to-b from-white to-gray-50 flex flex-col shadow-lg font-['Inter',sans-serif] relative">
           {/* Learn Section - Top Half */}
           <button
             onClick={() => {
@@ -688,7 +688,7 @@ function App() {
             {isLearningMode && (
               <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-blue-600 shadow-lg" />
             )}
-            <span className={`text-xl font-bold tracking-wider transition-all duration-300 ${
+            <span className={`text-lg font-bold tracking-wider transition-all duration-300 ${
               isLearningMode ? 'text-blue-600 drop-shadow-sm' : 'text-gray-600'
             }`} style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap' }}>
               Learn
@@ -711,7 +711,7 @@ function App() {
             {!isLearningMode && (
               <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-purple-500 to-purple-600 shadow-lg" />
             )}
-            <span className={`text-xl font-bold tracking-wider transition-all duration-300 ${
+            <span className={`text-lg font-bold tracking-wider transition-all duration-300 ${
               !isLearningMode ? 'text-purple-600 drop-shadow-sm' : 'text-gray-600'
             }`} style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap' }}>
               Practice
