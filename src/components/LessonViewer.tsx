@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { FlowchartShapesShowcase } from './FlowchartShapes3D';
+import { LessonQuiz, QuizQuestion } from './LessonQuiz';
 
 interface LessonViewerProps {
   lesson: Lesson;
@@ -95,8 +96,14 @@ export const LessonViewer: React.FC<LessonViewerProps> = ({
         </ReactMarkdown>
       </div>
 
-      {/* Complete Button */}
-      {!isCompleted && (
+      {/* Complete Button or Quiz */}
+      {lesson.quiz && lesson.quiz.length > 0 ? (
+        <LessonQuiz
+          questions={lesson.quiz}
+          onComplete={onComplete}
+          isCompleted={isCompleted}
+        />
+      ) : !isCompleted && (
         <div className="flex justify-center pt-6 border-t border-gray-200">
           <button
             onClick={onComplete}

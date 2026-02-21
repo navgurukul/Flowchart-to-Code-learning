@@ -1,3 +1,5 @@
+import { QuizQuestion } from '../components/LessonQuiz';
+
 export interface Lesson {
   id: number;
   title: string;
@@ -8,6 +10,7 @@ export interface Lesson {
   order: number;
   section?: string; // e.g., "Section 1: Introduction"
   subsection?: string; // e.g., "Subsection 1"
+  quiz?: QuizQuestion[]; // Optional quiz questions
 }
 
 export const lessons: Lesson[] = [
@@ -51,7 +54,36 @@ A flowchart is a visual diagram that represents a process, algorithm, or workflo
 Before computers can execute instructions, programmers must think through the logic. Flowcharts bridge the gap between human thinking and computer execution by providing a visual representation of logic that both humans and computers can understand.
 
 Think of a flowchart as a roadmap for your program - it shows where you start, what decisions you need to make, and where you end up.
-    `
+    `,
+    quiz: [
+      {
+        id: 1,
+        question: "What is a flowchart?",
+        type: "multiple-choice",
+        options: [
+          "A type of programming language",
+          "A visual diagram representing a process or algorithm",
+          "A database management tool",
+          "A text editor for code"
+        ],
+        correctAnswer: 1,
+        explanation: "A flowchart is a visual diagram that represents a process, algorithm, or workflow using standardized symbols."
+      },
+      {
+        id: 2,
+        question: "Flowcharts help with problem solving by breaking down problems into _____ steps.",
+        type: "fill-blank",
+        correctAnswer: "visual",
+        explanation: "Flowcharts break down problems into visual steps, making it easier to identify logical errors."
+      },
+      {
+        id: 3,
+        question: "Every flowchart must have a start and an end point.",
+        type: "true-false",
+        correctAnswer: "True",
+        explanation: "Every flowchart must have exactly one start point and one end point to show where the process begins and ends."
+      }
+    ]
   },
   {
     id: 2,
