@@ -705,7 +705,7 @@ function App() {
         </div>
       </div>
       
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden h-[calc(100vh-120px)]">
         {isLearningMode ? (
           /* Learning Mode Layout */
           <>
@@ -783,7 +783,7 @@ function App() {
 
         {/* Main Content Area */}
         {currentExercise ? (
-          <div className="flex-1 p-6 space-y-6 overflow-y-auto">
+          <div className="flex-1 p-6 space-y-6 overflow-y-auto h-full">
             {/* Exercise Title & Details */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
               <div className="flex items-center justify-between">
