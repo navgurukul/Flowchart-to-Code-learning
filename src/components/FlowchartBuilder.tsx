@@ -208,6 +208,14 @@ export const FlowchartBuilder: React.FC<FlowchartBuilderProps> = ({
     }
   }, [newFlowchartToLoad]); // Dependency array includes newFlowchartToLoad
 
+  // Clear flowchart when exercise changes
+  useEffect(() => {
+    console.log('FlowchartBuilder: Exercise changed, clearing flowchart');
+    setFlowchartData({ nodes: [], edges: [] });
+    setSelectedNodeForProperties(null);
+    setGeneratedCode('');
+  }, [exercise.id]); // Reset when exercise ID changes
+
   // Effect to adjust panel visibility based on screen size
   useEffect(() => {
     const handleResize = () => {
