@@ -84,17 +84,34 @@ export const SnakeFlowExerciseMap: React.FC<SnakeFlowExerciseMapProps> = ({
 
     if (!from || !to) return null;
 
-    // Calculate control points for smooth S-curve
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
+    // Node radius for calculating arrow position
+    const nodeRadius = 40; // Half of node width (80px / 2)
+    const arrowOffset = 15; // Stop path before reaching node edge
+
+    // Calculate angle from 'from' to 'to' node
+    const angle = Math.atan2(to.y - from.y, to.x - from.x);
+    
+    // Adjust start and end points to be at edge of circles
+    const fromX = from.x + Math.cos(angle) * nodeRadius;
+    const fromY = from.y + Math.sin(angle) * nodeRadius;
+    const toX = to.x - Math.cos(angle) * (nodeRadius + arrowOffset);
+    const toY = to.y - Math.sin(angle) * (nodeRadius + arrowOffset);
+
+    // Calculate control points for smooth S-curve with increased fluidity
+    const dx = toX - fromX;
+    const dy = toY - fromY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Adaptive curve offset based on distance for smoother curves
+    const curveOffset = Math.min(distance * 0.4, 160);
     
     // Control points for cubic Bezier curve
-    const cp1x = from.x + dx * 0.5;
-    const cp1y = from.y + dy * 0.25;
-    const cp2x = to.x - dx * 0.5;
-    const cp2y = to.y - dy * 0.25;
+    const cp1x = fromX + dx * 0.5 + (dy > 0 ? curveOffset : -curveOffset) * (dx > 0 ? 0.3 : -0.3);
+    const cp1y = fromY + dy * 0.3;
+    const cp2x = toX - dx * 0.5 + (dy > 0 ? curveOffset : -curveOffset) * (dx > 0 ? -0.3 : 0.3);
+    const cp2y = toY - dy * 0.3;
 
-    const pathD = `M ${from.x} ${from.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${to.x} ${to.y}`;
+    const pathD = `M ${fromX} ${fromY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${toX} ${toY}`;
 
     return (
       <g key={`connection-${fromId}-${toId}`}>
@@ -106,13 +123,13 @@ export const SnakeFlowExerciseMap: React.FC<SnakeFlowExerciseMapProps> = ({
           strokeLinecap="round"
           strokeLinejoin="round"
           markerEnd={`url(#arrow-${fromId})`}
-          opacity={isCompleted ? 1 : 0.6}
+          opacity={isCompleted ? 1 : 0.7}
           className="transition-all duration-500"
           style={{
             strokeDasharray: isCompleted ? '0' : '1000',
             strokeDashoffset: isCompleted ? '0' : '1000',
-            animation: isCompleted ? 'none' : 'drawPath 1s ease-out forwards',
-            animationDelay: `${fromId * 0.1}s`,
+            animation: isCompleted ? 'none' : 'drawPath 1.5s ease-out forwards',
+            animationDelay: `${fromId * 0.15}s`,
           }}
         />
       </g>
@@ -162,17 +179,17 @@ export const SnakeFlowExerciseMap: React.FC<SnakeFlowExerciseMapProps> = ({
                 <marker
                   key={`arrow-${exercise.id}`}
                   id={`arrow-${exercise.id}`}
-                  markerWidth="10"
-                  markerHeight="10"
-                  refX="9"
-                  refY="3"
+                  markerWidth="12"
+                  markerHeight="12"
+                  refX="10"
+                  refY="6"
                   orient="auto"
                   markerUnits="strokeWidth"
                 >
                   <path
-                    d="M0,0 L0,6 L9,3 z"
+                    d="M0,0 L0,12 L12,6 z"
                     fill={isCompleted ? '#4CAF50' : color.bg}
-                    opacity={isCompleted ? 1 : 0.6}
+                    opacity={isCompleted ? 1 : 0.7}
                   />
                 </marker>
               );
@@ -209,14 +226,16 @@ export const SnakeFlowExerciseMap: React.FC<SnakeFlowExerciseMapProps> = ({
                   className={`
                     w-20 h-20 rounded-full flex flex-col items-center justify-center
                     transition-all duration-300 relative
-                    ${isLocked ? 'cursor-not-allowed' : 'cursor-pointer hover:scale-110'}
-                    ${isCurrent ? 'scale-110 ring-4 ring-yellow-400 ring-offset-2' : ''}
+                    ${isLocked ? 'cursor-not-allowed opacity-75' : 'cursor-pointer hover:scale-110'}
+                    ${isCurrent ? 'scale-110 animate-pulse-subtle' : ''}
                   `}
                   style={{
                     backgroundColor: isLocked ? '#B0BEC5' : isCompleted ? '#4CAF50' : color.bg,
                     boxShadow: isCurrent 
-                      ? `0 8px 24px ${color.shadow}, 0 0 0 4px rgba(255, 193, 7, 0.3)`
-                      : `0 4px 12px ${isLocked ? 'rgba(176, 190, 197, 0.3)' : color.shadow}`,
+                      ? `0 8px 24px ${color.shadow}, 0 0 0 6px rgba(41, 121, 255, 0.15)`
+                      : isLocked
+                      ? '0 2px 8px rgba(176, 190, 197, 0.2)'
+                      : `0 4px 12px ${color.shadow}`,
                   }}
                   title={`${exercise.title}${isLocked ? ' (Locked)' : ''}${isDryRunMode ? ' (Dry Run Active)' : ''}`}
                 >
@@ -237,11 +256,12 @@ export const SnakeFlowExerciseMap: React.FC<SnakeFlowExerciseMapProps> = ({
                   {/* Glow effect for current */}
                   {isCurrent && (
                     <div
-                      className="absolute inset-0 rounded-full animate-pulse"
+                      className="absolute inset-0 rounded-full"
                       style={{
                         background: `radial-gradient(circle, ${color.bg}40 0%, transparent 70%)`,
-                        filter: 'blur(8px)',
+                        filter: 'blur(12px)',
                         zIndex: -1,
+                        animation: 'pulse-glow 2s ease-in-out infinite',
                       }}
                     />
                   )}
@@ -274,6 +294,30 @@ export const SnakeFlowExerciseMap: React.FC<SnakeFlowExerciseMapProps> = ({
           to {
             stroke-dashoffset: 0;
           }
+        }
+        
+        @keyframes pulse-glow {
+          0%, 100% {
+            opacity: 0.6;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 1;
+            transform: scale(1.1);
+          }
+        }
+        
+        @keyframes pulse-subtle {
+          0%, 100% {
+            transform: scale(1.1);
+          }
+          50% {
+            transform: scale(1.15);
+          }
+        }
+        
+        .animate-pulse-subtle {
+          animation: pulse-subtle 2s ease-in-out infinite;
         }
       `}</style>
     </div>
