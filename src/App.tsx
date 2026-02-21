@@ -16,6 +16,7 @@ import ExerciseChat from './components/ExerciseChat'; // Import the new Exercise
 // import GuideModal from './components/GuideModal'; // Removed
 import { allExercises } from './data/exercises';
 import { lessons } from './data/lessons';
+import { arithmeticLessons } from './data/lessonsArithmetic';
 import { LessonList } from './components/LessonList';
 import { LessonViewer } from './components/LessonViewer';
 // import { guideSteps } from './data/guideSteps'; // Removed
@@ -26,6 +27,9 @@ import { DryRunState, DryRunVariableMap } from './types/dryRun';
 import { FlowchartSimulator } from './engine/dryRun/FlowchartSimulator';
 import { DryRunInputModal } from './components/dryRun/DryRunInputModal';
 import useChatStore from './store/chatStore'; // Import the chat store
+
+// Combine all lessons and sort by order
+const allLessons = [...lessons, ...arithmeticLessons].sort((a, b) => a.order - b.order);
 
 function App() {
   const { currentUser, loading: authLoading, showDomainBlockModal, closeDomainBlockModal } = useAuth();
@@ -122,9 +126,9 @@ function App() {
       }
       
       // Move to next lesson if available
-      const currentIndex = lessons.findIndex(l => l.id === currentLessonId);
-      if (currentIndex < lessons.length - 1) {
-        setCurrentLessonId(lessons[currentIndex + 1].id);
+      const currentIndex = allLessons.findIndex(l => l.id === currentLessonId);
+      if (currentIndex < allLessons.length - 1) {
+        setCurrentLessonId(allLessons[currentIndex + 1].id);
       }
     }
   };
@@ -706,7 +710,7 @@ function App() {
             {/* Left Panel: Lesson List */}
             <div className="w-80 border-r border-gray-200">
               <LessonList
-                lessons={lessons}
+                lessons={allLessons}
                 completedLessons={completedLessons}
                 currentLessonId={currentLessonId}
                 onSelectLesson={handleSelectLesson}
@@ -718,7 +722,7 @@ function App() {
               {currentLessonId ? (
                 <>
                   <LessonViewer
-                    lesson={lessons.find(l => l.id === currentLessonId)!}
+                    lesson={allLessons.find(l => l.id === currentLessonId)!}
                     isCompleted={completedLessons.includes(currentLessonId)}
                     onComplete={handleCompleteLesson}
                   />
