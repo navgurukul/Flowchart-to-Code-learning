@@ -96,6 +96,29 @@ export const GamifiedExerciseMapV2: React.FC<GamifiedExerciseMapProps> = ({
     const fromPos = getPositionForIndex(snake.from - 1);
     const toPos = getPositionForIndex(snake.to - 1);
     
+    // Extract colors from gradient string
+    const getColorFromGradient = (gradientStr: string, position: 'from' | 'to') => {
+      const parts = gradientStr.split(' ');
+      if (position === 'from') {
+        const fromColor = parts.find(p => p.startsWith('from-'));
+        return fromColor ? fromColor.replace('from-', '') : 'orange-500';
+      } else {
+        const toColor = parts.find(p => p.startsWith('to-'));
+        return toColor ? toColor.replace('to-', '') : 'red-500';
+      }
+    };
+    
+    const fromColor = getColorFromGradient(snake.color, 'from');
+    const toColor = getColorFromGradient(snake.color, 'to');
+    
+    // Map Tailwind colors to hex
+    const colorMap: Record<string, string> = {
+      'orange-500': '#f97316',
+      'red-500': '#ef4444',
+      'red-600': '#dc2626',
+      'orange-600': '#ea580c',
+    };
+    
     return (
       <svg
         key={`snake-${snake.from}-${snake.to}`}
@@ -109,8 +132,8 @@ export const GamifiedExerciseMapV2: React.FC<GamifiedExerciseMapProps> = ({
       >
         <defs>
           <linearGradient id={`snakeGradient-${snake.from}`} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" className={snake.color.split(' ')[0].replace('from-', 'stop-')} />
-            <stop offset="100%" className={snake.color.split(' ')[2].replace('to-', 'stop-')} />
+            <stop offset="0%" stopColor={colorMap[fromColor] || '#f97316'} />
+            <stop offset="100%" stopColor={colorMap[toColor] || '#ef4444'} />
           </linearGradient>
         </defs>
         <path
