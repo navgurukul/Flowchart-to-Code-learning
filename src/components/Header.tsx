@@ -118,14 +118,23 @@ export const Header: React.FC<HeaderProps> = ({ progress, onReplayTour }) => { /
     <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3"> {/* Adjusted padding for smaller screens */}
       <div className="flex items-center justify-between">
         {/* Left Section: Logo and Title */}
-        <div className="flex items-center">
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg p-2 mr-3 sm:mr-4">
+        <div className="flex items-center space-x-4">
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg p-2">
             <Target className="w-6 h-6 text-white" />
           </div>
           <div>
             <h1 className="text-lg sm:text-xl font-bold text-gray-900">
               ProblemSolver Lab
             </h1>
+          </div>
+          {/* NavGurukul Labs Logo */}
+          <div className="hidden md:flex items-center pl-4 border-l border-gray-300">
+            <svg width="180" height="28" viewBox="0 0 960 400" className="h-6" xmlns="http://www.w3.org/2000/svg">
+              <text x="90" y="240" fontFamily="Arial, sans-serif" fontSize="120" fontWeight="bold" fill="#FF5722">ai.</text>
+              <text x="200" y="240" fontFamily="Arial, sans-serif" fontSize="120" fontWeight="bold" fill="#000000">navgurukil</text>
+              <rect x="770" y="180" width="180" height="80" rx="10" stroke="#000000" strokeWidth="4" fill="none"/>
+              <text x="785" y="235" fontFamily="Arial, sans-serif" fontSize="48" fontWeight="bold" fill="#000000">LABS</text>
+            </svg>
           </div>
         </div>
 
