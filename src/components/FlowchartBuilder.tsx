@@ -20,7 +20,8 @@ import {
   Upload, // Added for image upload
   ZoomIn, // For Zoom In button
   ZoomOut, // For Zoom Out button
-  RefreshCcw // For Reset Zoom button
+  RefreshCcw, // For Reset Zoom button
+  Sparkles // For AI indicator
 } from 'lucide-react';
 import { getDatabase, ref, update, serverTimestamp, onValue } from 'firebase/database'; // Added onValue
 import { app } from '../firebaseConfig';
@@ -516,7 +517,10 @@ const handleImageFileSelect = async (event: React.ChangeEvent<HTMLInputElement>)
     return;
   }
 
-  console.log("Image file selected:", file.name, file.type);
+  console.log("🤖 AI Processing: Image file selected:", file.name, file.type);
+  
+  // Show AI processing message
+  alert("🤖 AI is analyzing your hand-drawn flowchart using YOLO model...");
 
   const formData = new FormData();
   formData.append('file', file);
@@ -524,7 +528,7 @@ const handleImageFileSelect = async (event: React.ChangeEvent<HTMLInputElement>)
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
   const endpoint = `${apiBaseUrl}/api/import-image`;
 
-  console.log(`Attempting to upload image to: ${endpoint}`);
+  console.log(`🚀 Uploading to AI endpoint: ${endpoint}`);
 
   try {
     const response = await fetch(endpoint, {
@@ -542,7 +546,7 @@ const handleImageFileSelect = async (event: React.ChangeEvent<HTMLInputElement>)
       } catch (e) {
         // Ignore if error response is not JSON
       }
-      alert(`Failed to import flowchart: ${errorDetail}`);
+      alert(`❌ AI Import Failed: ${errorDetail}`);
       return;
     }
 
@@ -554,7 +558,9 @@ const handleImageFileSelect = async (event: React.ChangeEvent<HTMLInputElement>)
     } = await response.json();
 
     if (apiResponse.fallback_used && apiResponse.error) {
-      alert(`Import Alert: ${apiResponse.error}`); // Show fallback toast
+      alert(`⚠️ AI Import Alert: ${apiResponse.error}`); // Show fallback toast
+    } else {
+      alert(`✨ AI successfully converted your hand-drawn flowchart to digital!`);
     }
 
     // Transform API nodes and edges to frontend FlowchartData structure
@@ -576,12 +582,12 @@ const handleImageFileSelect = async (event: React.ChangeEvent<HTMLInputElement>)
 
     const newFlowchartData: FlowchartData = { nodes: feNodes, edges: feEdges };
 
-    console.log("Received data from API, transformed for frontend:", newFlowchartData);
+    console.log("✅ AI conversion complete! Transformed data:", newFlowchartData);
     updateFlowchartDataWithMLOutput(newFlowchartData);
 
   } catch (error) {
-    console.error("Error importing image:", error);
-    alert(`An unexpected error occurred: ${error instanceof Error ? error.message : String(error)}`);
+    console.error("❌ AI Import Error:", error);
+    alert(`❌ AI Import Error: ${error instanceof Error ? error.message : String(error)}`);
   } finally {
     // Reset file input to allow selecting the same file again if needed
     if (event.target) {
@@ -591,7 +597,7 @@ const handleImageFileSelect = async (event: React.ChangeEvent<HTMLInputElement>)
 };
 
 const updateFlowchartDataWithMLOutput = (data: FlowchartData) => {
-  console.log("Updating flowchart with data from API/ML:", data);
+  console.log("🎨 Updating flowchart with AI-converted data:", data);
   setFlowchartData(data);
   setSelectedNodeForProperties(null); // Deselect any currently selected node
   // Optionally, trigger code generation if that's desired after import
@@ -769,14 +775,16 @@ const selectedNodeDataForProperties = selectedNodeForProperties
             <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
             Clear
           </button>
-          {/* Image Upload Button */}
+          {/* AI-Powered Image Upload Button */}
           <button
             onClick={triggerImageUpload}
-            className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-white bg-teal-600 rounded-md hover:bg-teal-700 transition-colors"
-            title="This feature is coming soon!"
+            className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-white bg-gradient-to-r from-purple-600 to-blue-600 rounded-md hover:from-purple-700 hover:to-blue-700 transition-all shadow-sm hover:shadow-md"
+            title="AI-Powered: Convert your hand-drawn flowchart to digital using YOLO model"
           >
+            <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 mr-1 animate-pulse" />
             <Upload className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-            Import (WIP)
+            <span className="hidden sm:inline">AI Import</span>
+            <span className="sm:hidden">Import</span>
           </button>
           <input
             type="file"
