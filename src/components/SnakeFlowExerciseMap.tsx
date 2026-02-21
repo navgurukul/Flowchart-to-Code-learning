@@ -171,7 +171,7 @@ export const SnakeFlowExerciseMap: React.FC<SnakeFlowExerciseMapProps> = ({
           }}
         >
           <defs>
-            {/* Arrow markers for each node - proportional to stroke width */}
+            {/* Arrow markers for each node - smaller size */}
             {exercises.map((exercise, index) => {
               const color = getNodeColor(index);
               const isCompleted = progress.completedExercises.includes(exercise.id);
@@ -179,15 +179,15 @@ export const SnakeFlowExerciseMap: React.FC<SnakeFlowExerciseMapProps> = ({
                 <marker
                   key={`arrow-${exercise.id}`}
                   id={`arrow-${exercise.id}`}
-                  markerWidth="10"
-                  markerHeight="10"
-                  refX="9"
-                  refY="5"
+                  markerWidth="8"
+                  markerHeight="8"
+                  refX="7"
+                  refY="4"
                   orient="auto"
                   markerUnits="strokeWidth"
                 >
                   <path
-                    d="M0,0 L0,10 L9,5 z"
+                    d="M0,0 L0,8 L7,4 z"
                     fill={isCompleted ? '#4CAF50' : color.bg}
                     opacity={isCompleted ? 0.9 : 0.65}
                   />
