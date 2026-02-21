@@ -97,15 +97,19 @@ export const SnakeFlowExerciseMap: React.FC<SnakeFlowExerciseMapProps> = ({
     const toX = to.x - Math.cos(angle) * (nodeRadius + arrowOffset);
     const toY = to.y - Math.sin(angle) * (nodeRadius + arrowOffset);
 
-    // Calculate control points for moderate S-curve (tighter, not exaggerated)
+    // Calculate control points with natural variation (like a real snake)
     const dx = toX - fromX;
     const dy = toY - fromY;
     const distance = Math.sqrt(dx * dx + dy * dy);
     
-    // Moderate curve offset for fluid but tight curves
-    const curveOffset = Math.min(distance * 0.35, 120);
+    // Add natural variation to curve offset based on node index
+    // Creates organic snake movement - some curves tighter, some wider
+    const variationPattern = [1.0, 0.8, 1.2, 0.9, 1.1, 0.85, 1.15, 0.95, 1.05];
+    const variation = variationPattern[fromId % variationPattern.length];
+    const baseCurveOffset = Math.min(distance * 0.35, 120);
+    const curveOffset = baseCurveOffset * variation;
     
-    // Control points for cubic Bezier curve with reduced horizontal spread
+    // Control points for cubic Bezier curve with natural variation
     const cp1x = fromX + dx * 0.5 + (dy > 0 ? curveOffset : -curveOffset) * (dx > 0 ? 0.25 : -0.25);
     const cp1y = fromY + dy * 0.3;
     const cp2x = toX - dx * 0.5 + (dy > 0 ? curveOffset : -curveOffset) * (dx > 0 ? -0.25 : 0.25);
