@@ -85,8 +85,8 @@ export const SnakeFlowExerciseMap: React.FC<SnakeFlowExerciseMapProps> = ({
     if (!from || !to) return null;
 
     // Node radius for calculating arrow position
-    const nodeRadius = 40;
-    const arrowOffset = 12;
+    const nodeRadius = 40; // Half of node width (80px / 2)
+    const arrowOffset = 12; // Reduced offset for tighter fit
 
     // Calculate angle from 'from' to 'to' node
     const angle = Math.atan2(to.y - from.y, to.x - from.x);
@@ -97,16 +97,21 @@ export const SnakeFlowExerciseMap: React.FC<SnakeFlowExerciseMapProps> = ({
     const toX = to.x - Math.cos(angle) * (nodeRadius + arrowOffset);
     const toY = to.y - Math.sin(angle) * (nodeRadius + arrowOffset);
 
-    // Calculate control points for smooth diagonal curve
+    // Calculate control points for moderate S-curve (tighter, not exaggerated)
     const dx = toX - fromX;
     const dy = toY - fromY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
     
-    // For diagonal snake pattern: smooth curve that goes across and down
-    // Use quadratic bezier for simpler, cleaner curves
-    const cpX = fromX + dx * 0.5;
-    const cpY = fromY + dy * 0.3; // Control point closer to start for natural arc
+    // Moderate curve offset for fluid but tight curves
+    const curveOffset = Math.min(distance * 0.35, 120);
+    
+    // Control points for cubic Bezier curve with reduced horizontal spread
+    const cp1x = fromX + dx * 0.5 + (dy > 0 ? curveOffset : -curveOffset) * (dx > 0 ? 0.25 : -0.25);
+    const cp1y = fromY + dy * 0.3;
+    const cp2x = toX - dx * 0.5 + (dy > 0 ? curveOffset : -curveOffset) * (dx > 0 ? -0.25 : 0.25);
+    const cp2y = toY - dy * 0.3;
 
-    const pathD = `M ${fromX} ${fromY} Q ${cpX} ${cpY}, ${toX} ${toY}`;
+    const pathD = `M ${fromX} ${fromY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${toX} ${toY}`;
 
     return (
       <g key={`connection-${fromId}-${toId}`}>
@@ -201,7 +206,7 @@ export const SnakeFlowExerciseMap: React.FC<SnakeFlowExerciseMapProps> = ({
         </svg>
 
         {/* Exercise Nodes */}
-        <div className="relative" style={{ zIndex: 1, minHeight: '100%' }}>
+        <div className="relative space-y-16" style={{ zIndex: 1 }}>
           {exercises.map((exercise, index) => {
             const isLocked = isExerciseLocked(index);
             const isCompleted = progress.completedExercises.includes(exercise.id);
@@ -212,13 +217,7 @@ export const SnakeFlowExerciseMap: React.FC<SnakeFlowExerciseMapProps> = ({
             return (
               <div
                 key={exercise.id}
-                className={`absolute flex ${isLeftAligned ? 'justify-start' : 'justify-end'}`}
-                style={{
-                  top: `${index * 140}px`,
-                  left: 0,
-                  right: 0,
-                  width: '100%',
-                }}
+                className={`flex ${isLeftAligned ? 'justify-start' : 'justify-end'}`}
               >
                 <button
                   data-node-id={exercise.id}
@@ -270,8 +269,6 @@ export const SnakeFlowExerciseMap: React.FC<SnakeFlowExerciseMapProps> = ({
               </div>
             );
           })}
-          {/* Add padding at bottom for last node */}
-          <div style={{ height: `${exercises.length * 140 + 100}px` }} />
         </div>
       </div>
 
