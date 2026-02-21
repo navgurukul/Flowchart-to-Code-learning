@@ -66,21 +66,35 @@ export const GamifiedExerciseMap: React.FC<GamifiedExerciseMapProps> = ({
               // Y coordinate for the center of the next node
               const nextY = (nodeSize / 2) + ((index + 1) * (nodeSize + verticalSpacing));
 
-              // Control point for Quadratic Bezier Curve
-              // For a smooth "S" curve, the control point should be horizontally in the middle
-              // and vertically halfway between the current and next node.
-              const controlX = mapWidth / 2;
-              const controlY = (currentY + nextY) / 2;
+              // Enhanced snake-like curve using Cubic Bezier for smoother S-curves
+              // Control points create a more pronounced snake effect
+              const midY = (currentY + nextY) / 2;
+              
+              // First control point - extends horizontally from current node
+              const cp1X = currentX + (isCurrentNodeOnLeft ? 40 : -40);
+              const cp1Y = currentY + (nextY - currentY) * 0.3;
+              
+              // Second control point - extends horizontally toward next node
+              const cp2X = nextX + (!isCurrentNodeOnLeft ? 40 : -40);
+              const cp2Y = nextY - (nextY - currentY) * 0.3;
 
-              const pathD = `M${currentX},${currentY} Q${controlX},${controlY} ${nextX},${nextY}`;
+              // Cubic Bezier path for smooth snake-like curves
+              const pathD = `M${currentX},${currentY} C${cp1X},${cp1Y} ${cp2X},${cp2Y} ${nextX},${nextY}`;
+
+              // Determine path color based on completion status
+              const isPathCompleted = progress.completedExercises.includes(exercise.id);
+              const pathColor = isPathCompleted ? '#10B981' : '#CBD5E1'; // green-500 or gray-300
+              const pathWidth = isPathCompleted ? '4' : '3';
 
               return (
                 <path
                   key={`path-${exercise.id}`}
                   d={pathD}
-                  stroke="#CBD5E1" // tailwind gray-300
-                  strokeWidth="3"
+                  stroke={pathColor}
+                  strokeWidth={pathWidth}
                   fill="none"
+                  strokeLinecap="round"
+                  className="transition-all duration-300"
                 />
               );
             })}
