@@ -19,7 +19,8 @@ const firebaseConfig = {
   storageBucket: "flowchart-to-code-learning.firebasestorage.app",
   messagingSenderId: "866932681402",
   appId: "1:866932681402:web:9230638822bbb560657083",
-  measurementId: "G-451LJX49FH"
+  measurementId: "G-451LJX49FH",
+  databaseURL: "https://flowchart-to-code-learning-default-rtdb.firebaseio.com" // Added Realtime Database URL
 };
 
 // Initialize Firebase

@@ -147,42 +147,36 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
 
     const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
-        // Initial check: if a user is already authenticated in Firebase, verify their domain.
-        // This handles cases like page refresh.
-        // if (firebaseUser.email && firebaseUser.email.split('@')[1] !== ALLOWED_DOMAIN) {
-        //   toast.error(`Access restricted to ${ALLOWED_DOMAIN} domain.`);
-        //   setShowDomainBlockModal(true);
-        //   await firebaseSignOut(auth); // Sign out from Firebase
-        //   setCurrentUser(null); // Clear local user state
-        //   setLoading(false);
-        //   return; // Stop further processing for this user
-        // }
         // Domain check removed. All domains are allowed.
-        // If domain is okay or email is not yet available (should be rare for Google Auth)
         setCurrentUser(mapFirebaseUserToAppUser(firebaseUser));
 
-        const db = getDatabase(app);
-        const userStatusDatabaseRef = ref(db, '/status/' + firebaseUser.uid);
-        userStatusDatabaseRefClean = userStatusDatabaseRef; // Save for potential cleanup
-        const presenceRef = ref(db, '.info/connected');
+        // Try to set up presence, but don't fail if database isn't configured
+        try {
+          const db = getDatabase(app);
+          const userStatusDatabaseRef = ref(db, '/status/' + firebaseUser.uid);
+          userStatusDatabaseRefClean = userStatusDatabaseRef; // Save for potential cleanup
+          const presenceRef = ref(db, '.info/connected');
 
-        // Clean up previous listener if any
-        if (presenceOnValueUnsubscribe) {
-          presenceOnValueUnsubscribe();
-        }
-
-        presenceOnValueUnsubscribe = onValue(presenceRef, (snapshot) => {
-          if (snapshot.val() === false) {
-            return;
+          // Clean up previous listener if any
+          if (presenceOnValueUnsubscribe) {
+            presenceOnValueUnsubscribe();
           }
-          onDisconnect(userStatusDatabaseRef).set({ online: false, last_changed: serverTimestamp() })
-            .then(() => {
-              set(userStatusDatabaseRef, { online: true, last_changed: serverTimestamp() });
-            })
-            .catch((error) => {
-              console.error("Error setting up onDisconnect or user status:", error);
-            });
-        });
+
+          presenceOnValueUnsubscribe = onValue(presenceRef, (snapshot) => {
+            if (snapshot.val() === false) {
+              return;
+            }
+            onDisconnect(userStatusDatabaseRef).set({ online: false, last_changed: serverTimestamp() })
+              .then(() => {
+                set(userStatusDatabaseRef, { online: true, last_changed: serverTimestamp() });
+              })
+              .catch((error) => {
+                console.warn("Realtime Database not configured. Presence features disabled.", error);
+              });
+          });
+        } catch (error) {
+          console.warn("Realtime Database not configured. Presence features disabled.", error);
+        }
 
       } else {
         if (presenceOnValueUnsubscribe) {
