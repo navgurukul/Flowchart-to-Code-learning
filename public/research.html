@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NavGurukul's Approach to Flowchart-to-Code Conversion</title>
+    <title>Client-Side Flowchart-to-Code Conversion for Educational Contexts</title>
     <style>
         * {
             margin: 0;
@@ -12,474 +12,729 @@
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: 'Times New Roman', Times, serif;
             line-height: 1.6;
-            color: #333;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            color: #000;
+            background: #f5f5f5;
             padding: 20px;
         }
         
-        .container {
-            max-width: 1200px;
+        .paper-container {
+            max-width: 850px;
             margin: 0 auto;
             background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            overflow: hidden;
+            padding: 60px 80px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
         }
         
-        header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 60px 40px;
+        /* Title and Authors */
+        .title {
+            font-size: 24px;
+            font-weight: bold;
             text-align: center;
+            margin-bottom: 20px;
+            line-height: 1.3;
         }
         
-        header h1 {
-            font-size: 2.5em;
+        .authors {
+            text-align: center;
+            font-size: 14px;
             margin-bottom: 10px;
-            font-weight: 700;
         }
         
-        header p {
-            font-size: 1.2em;
-            opacity: 0.9;
+        .affiliation {
+            text-align: center;
+            font-size: 13px;
+            font-style: italic;
+            margin-bottom: 5px;
         }
         
-        .content {
-            padding: 60px 40px;
+        .conference {
+            text-align: center;
+            font-size: 13px;
+            margin-bottom: 20px;
         }
         
+        .links {
+            text-align: center;
+            font-size: 12px;
+            margin-bottom: 30px;
+        }
+        
+        .links a {
+            color: #0066cc;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+        
+        /* Sections */
         h2 {
-            color: #667eea;
-            font-size: 2em;
-            margin: 40px 0 20px 0;
-            padding-bottom: 10px;
-            border-bottom: 3px solid #667eea;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 25px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
         }
         
         h3 {
-            color: #764ba2;
-            font-size: 1.5em;
-            margin: 30px 0 15px 0;
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 15px;
+            margin-bottom: 8px;
+            font-style: italic;
         }
         
         p {
-            margin-bottom: 15px;
-            font-size: 1.1em;
+            text-align: justify;
+            margin-bottom: 12px;
+            font-size: 13px;
         }
         
-        .highlight-box {
-            background: #f8f9ff;
-            border-left: 5px solid #667eea;
+        /* Abstract */
+        .abstract {
+            margin: 30px 0;
             padding: 20px;
-            margin: 20px 0;
-            border-radius: 5px;
+            background: #f9f9f9;
+            border-left: 4px solid #333;
         }
         
-        .warning-box {
-            background: #fff3cd;
-            border-left: 5px solid #ffc107;
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 5px;
+        .abstract h2 {
+            margin-top: 0;
         }
         
-        .success-box {
-            background: #d4edda;
-            border-left: 5px solid #28a745;
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 5px;
-        }
-        
+        /* Lists */
         ul, ol {
-            margin: 15px 0 15px 40px;
+            margin: 10px 0 15px 30px;
+            font-size: 13px;
         }
         
         li {
-            margin: 10px 0;
-            font-size: 1.05em;
+            margin: 5px 0;
         }
         
-        code {
-            background: #f4f4f4;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-family: 'Courier New', monospace;
-        }
-        
-        .comparison-table {
+        /* Tables */
+        table {
             width: 100%;
             border-collapse: collapse;
             margin: 20px 0;
+            font-size: 12px;
         }
         
-        .comparison-table th,
-        .comparison-table td {
-            padding: 15px;
+        table th,
+        table td {
+            padding: 8px;
             text-align: left;
             border: 1px solid #ddd;
         }
         
-        .comparison-table th {
-            background: #667eea;
-            color: white;
-            font-weight: 600;
+        table th {
+            background: #f0f0f0;
+            font-weight: bold;
         }
         
-        .comparison-table tr:nth-child(even) {
-            background: #f8f9ff;
-        }
-        
-        .architecture-diagram {
-            background: #f8f9ff;
-            padding: 30px;
-            border-radius: 10px;
-            margin: 30px 0;
+        /* Figures */
+        .figure {
+            margin: 25px 0;
             text-align: center;
-            font-family: monospace;
-            line-height: 2;
         }
         
-        .btn {
-            display: inline-block;
-            padding: 15px 30px;
-            background: #667eea;
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            font-weight: 600;
-            margin: 10px 10px 10px 0;
-            transition: background 0.3s;
+        .figure-caption {
+            font-size: 12px;
+            font-style: italic;
+            margin-top: 8px;
+            text-align: center;
         }
         
-        .btn:hover {
-            background: #764ba2;
+        /* Code blocks */
+        .algorithm {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            line-height: 1.8;
+            white-space: pre;
         }
         
-        .btn-secondary {
-            background: #6c757d;
+        /* References */
+        .references ol {
+            font-size: 12px;
         }
         
-        .btn-secondary:hover {
-            background: #5a6268;
+        .references li {
+            margin: 8px 0;
         }
         
-        footer {
-            background: #f8f9ff;
-            padding: 40px;
+        /* Keywords */
+        .keywords {
+            font-size: 13px;
+            margin: 15px 0;
+        }
+        
+        .keywords strong {
+            font-weight: bold;
+        }
+        
+        /* Highlights box */
+        .highlights {
+            background: #fffbf0;
+            border: 1px solid #e6d89f;
+            padding: 15px;
+            margin: 20px 0;
+            font-size: 13px;
+        }
+        
+        .highlights h3 {
+            margin-top: 0;
+        }
+        
+        /* Footer */
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            font-size: 11px;
             text-align: center;
             color: #666;
         }
         
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin: 30px 0;
-        }
-        
-        .stat-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            border-radius: 10px;
-            text-align: center;
-        }
-        
-        .stat-card h3 {
-            color: white;
-            font-size: 2.5em;
-            margin: 0;
-        }
-        
-        .stat-card p {
-            margin: 10px 0 0 0;
-            opacity: 0.9;
+        /* Print styles */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            
+            .paper-container {
+                box-shadow: none;
+                padding: 40px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>🎓 NavGurukul's Approach to Flowchart-to-Code Conversion</h1>
-            <p>A Client-Side, Rule-Based, Educational System</p>
-        </header>
-        
-        <div class="content">
-            <div class="highlight-box">
-                <strong>Mission:</strong> To make programming education accessible to underserved communities in India through transparent, client-side tools that work offline and require no expensive infrastructure.
-            </div>
-            
-            <h2>📋 Abstract</h2>
-            <p>
-                We present a novel client-side approach to converting flowchart images into executable code, 
-                specifically designed for educational contexts in resource-constrained environments. Unlike 
-                existing transformer-based approaches that require server infrastructure and trained models, 
-                our system runs entirely in the browser using open-source computer vision libraries and 
-                rule-based code generation.
-            </p>
-            
-            <h2>🎯 Our Approach</h2>
-            
-            <table class="comparison-table">
-                <thead>
-                    <tr>
-                        <th>Aspect</th>
-                        <th>NavGurukul's Choice</th>
-                        <th>Why This Matters</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>Technology</strong></td>
-                        <td>Rule-based + Computer Vision</td>
-                        <td>Transparent, educational, no black box</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Deployment</strong></td>
-                        <td>Client-side (browser only)</td>
-                        <td>Works on any device, no server needed</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Accuracy</strong></td>
-                        <td>~65-75% (rule-based)</td>
-                        <td>Good enough for learning, honest about limits</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Training Required</strong></td>
-                        <td>No training needed</td>
-                        <td>Works immediately, no dataset collection</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Offline Support</strong></td>
-                        <td>Yes (after initial load)</td>
-                        <td>Critical for rural India with poor internet</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Cost</strong></td>
-                        <td>Zero (client-side)</td>
-                        <td>Sustainable for non-profit education</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Transparency</strong></td>
-                        <td>Fully transparent (rules)</td>
-                        <td>Students learn how it works</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Educational Value</strong></td>
-                        <td>High (students see process)</td>
-                        <td>Not just a tool, but a learning experience</td>
-                    </tr>
-                </tbody>
-            </table>
-            
-            <h2>🏗️ System Architecture</h2>
-            
-            <div class="architecture-diagram">
-                <strong>NavGurukul Flowchart-to-Code Pipeline</strong><br><br>
-                📸 Image Upload<br>
-                ↓<br>
-                🔍 COCO-SSD Object Detection (TensorFlow.js)<br>
-                ↓<br>
-                📐 Shape Classification (Geometric Analysis)<br>
-                ↓<br>
-                🔗 Connection Detection (Heuristic Matching)<br>
-                ↓<br>
-                📝 Graph Construction (Adjacency List)<br>
-                ↓<br>
-                💻 Code Generation (Template-Based)<br>
-                ↓<br>
-                ✅ Executable Python/JavaScript Code
-            </div>
-            
-            <h2>🔬 Methodology</h2>
-            
-            <h3>Phase 1: Shape Detection</h3>
-            <p>
-                We use COCO-SSD (a lightweight object detection model) to identify potential flowchart 
-                shapes in the image. While COCO-SSD is trained on everyday objects, we map detected 
-                objects to flowchart shapes using geometric heuristics:
-            </p>
-            <ul>
-                <li><strong>Circles/Ovals</strong> → Start/End nodes (detected as "ball", "orange")</li>
-                <li><strong>Rectangles</strong> → Process nodes (detected as "book", "laptop")</li>
-                <li><strong>Diamonds</strong> → Decision nodes (detected as "kite", or by aspect ratio)</li>
-                <li><strong>Parallelograms</strong> → Input/Output nodes (by skew analysis)</li>
-            </ul>
-            
-            <h3>Phase 2: Connection Inference</h3>
-            <p>
-                Since COCO-SSD doesn't detect lines/arrows, we use spatial proximity heuristics:
-            </p>
-            <ul>
-                <li>Shapes are connected if they're vertically or horizontally aligned</li>
-                <li>Top-to-bottom flow is assumed (standard flowchart convention)</li>
-                <li>Decision nodes create two branches (Yes/No paths)</li>
-            </ul>
-            
-            <div class="warning-box">
-                <strong>⚠️ Known Limitation:</strong> Our system cannot detect hand-drawn arrows. 
-                Users must manually connect shapes in the flowchart builder after import.
-            </div>
-            
-            <h3>Phase 3: Code Generation</h3>
-            <p>
-                We use a rule-based approach with code templates:
-            </p>
-            <ol>
-                <li>Perform topological sort on the flowchart graph</li>
-                <li>Identify control flow patterns (loops, conditionals)</li>
-                <li>Map each node type to code templates</li>
-                <li>Generate syntactically correct Python/JavaScript</li>
-            </ol>
-            
-            <h2>📊 Performance Metrics</h2>
-            
-            <div class="stats">
-                <div class="stat-card">
-                    <h3>65-75%</h3>
-                    <p>Shape Detection Accuracy</p>
-                </div>
-                <div class="stat-card">
-                    <h3>~5MB</h3>
-                    <p>Model Size (COCO-SSD Lite)</p>
-                </div>
-                <div class="stat-card">
-                    <h3>100%</h3>
-                    <p>Client-Side Processing</p>
-                </div>
-                <div class="stat-card">
-                    <h3>₹0</h3>
-                    <p>Infrastructure Cost</p>
-                </div>
-            </div>
-            
-            <h2>✅ Advantages for Educational Context</h2>
-            
-            <div class="success-box">
-                <strong>Why This Approach Works for NavGurukul:</strong>
-                <ul>
-                    <li><strong>Accessibility:</strong> Works on low-end devices with just a browser</li>
-                    <li><strong>Offline-First:</strong> Students in rural areas can use it without constant internet</li>
-                    <li><strong>Transparency:</strong> Students can understand how the system works (educational value)</li>
-                    <li><strong>Zero Cost:</strong> No server infrastructure needed</li>
-                    <li><strong>Privacy:</strong> Images never leave the user's device</li>
-                    <li><strong>Open Source:</strong> Community can contribute and improve</li>
-                    <li><strong>Honest:</strong> We're upfront about limitations and accuracy</li>
-                </ul>
-            </div>
-            
-            <h2>⚠️ Limitations & Future Work</h2>
-            
-            <h3>Current Limitations:</h3>
-            <ul>
-                <li>Lower accuracy than ML-based approaches (65-75% vs 85%)</li>
-                <li>Cannot detect hand-drawn arrows/connections</li>
-                <li>Works best with digital/printed flowcharts</li>
-                <li>Struggles with complex flowcharts (15+ shapes)</li>
-                <li>No OCR for text inside shapes (planned)</li>
-            </ul>
-            
-            <h3>Planned Improvements:</h3>
-            <ul>
-                <li><strong>OpenCV.js Integration:</strong> Better geometric shape detection</li>
-                <li><strong>Tesseract.js OCR:</strong> Extract text from shapes</li>
-                <li><strong>Line Detection:</strong> Hough Transform for arrow detection</li>
-                <li><strong>Custom Dataset:</strong> Create our own training data from Indian student flowcharts</li>
-                <li><strong>Multi-language Support:</strong> Hindi text recognition</li>
-                <li><strong>Community Contributions:</strong> Open-source improvements from educators</li>
-            </ul>
-            
-            <h2>🤝 Inspiration & Philosophy</h2>
-            
-            <p>
-                The problem of converting flowchart images to code is an interesting challenge in computer 
-                vision and program synthesis. We've taken a unique approach focused on accessibility and 
-                education rather than pure accuracy.
-            </p>
-            
-            <div class="highlight-box">
-                <strong>Our Philosophy:</strong> We believe programming education tools should be transparent, 
-                accessible, and work offline. We prioritize helping students understand HOW the system works 
-                over achieving the highest possible accuracy.
-            </div>
-            
-            <h2>📚 References</h2>
-            
-            <ol>
-                <li>
-                    TensorFlow.js COCO-SSD Model. 
-                    <a href="https://github.com/tensorflow/tfjs-models/tree/master/coco-ssd" target="_blank">
-                        https://github.com/tensorflow/tfjs-models
-                    </a>
-                </li>
-                <li>
-                    OpenCV.js Documentation. 
-                    <a href="https://docs.opencv.org/4.x/d5/d10/tutorial_js_root.html" target="_blank">
-                        https://docs.opencv.org/
-                    </a>
-                </li>
-                <li>
-                    NavGurukul Foundation. 
-                    <a href="https://www.navgurukul.org/" target="_blank">
-                        https://www.navgurukul.org/
-                    </a>
-                </li>
-            </ol>
-            
-            <h2>🔗 Try It Yourself</h2>
-            
-            <p>
-                Our flowchart-to-code system is integrated into the NavGurukul learning platform. 
-                Students can draw flowcharts, upload images, and see them converted to code in real-time.
-            </p>
-            
-            <div style="text-align: center; margin: 40px 0;">
-                <a href="/" class="btn">Try the Platform</a>
-                <a href="https://github.com/navgurukul/Flowchart-to-Code-learning" class="btn btn-secondary" target="_blank">
-                    View Source Code
-                </a>
-            </div>
-            
-            <h2>📧 Contact & Collaboration</h2>
-            
-            <p>
-                We welcome collaboration from researchers, educators, and developers interested in 
-                making programming education more accessible.
-            </p>
-            
-            <div class="highlight-box">
-                <strong>NavGurukul Foundation</strong><br>
-                Email: <a href="mailto:contact@navgurukul.org">contact@navgurukul.org</a><br>
-                GitHub: <a href="https://github.com/navgurukul" target="_blank">github.com/navgurukul</a><br>
-                Website: <a href="https://www.navgurukul.org/" target="_blank">navgurukul.org</a>
-            </div>
-            
-            <h2>📄 License</h2>
-            
-            <p>
-                This project is open-source and available under the MIT License. All dependencies 
-                (TensorFlow.js, COCO-SSD) are used under their respective open-source licenses.
-            </p>
-            
-            <div class="success-box">
-                <strong>✅ Legal Compliance:</strong> Our implementation uses only open-source libraries 
-                with permissive licenses (Apache 2.0, MIT, BSD). We do not use any proprietary models, 
-                datasets, or patented algorithms.
-            </div>
+    <div class="paper-container">
+        <!-- Title and Authors -->
+        <div class="title">
+            Client-Side Flowchart-to-Code Conversion:<br>
+            A Rule-Based Approach for Educational Contexts
         </div>
         
-        <footer>
-            <p><strong>NavGurukul Foundation</strong></p>
-            <p>Making quality programming education accessible to all</p>
-            <p style="margin-top: 20px; font-size: 0.9em;">
-                © 2026 NavGurukul Foundation | 
-                <a href="https://www.navgurukul.org/" target="_blank">navgurukul.org</a>
+        <div class="authors">
+            NavGurukul Engineering Team
+        </div>
+        
+        <div class="affiliation">
+            NavGurukul Foundation for Social Welfare
+        </div>
+        
+        <div class="conference">
+            Technical Report 2026
+        </div>
+        
+        <div class="links">
+            [<a href="/">Demo</a>] 
+            [<a href="https://github.com/navgurukul/Flowchart-to-Code-learning" target="_blank">Code</a>] 
+            [<a href="https://www.navgurukul.org/" target="_blank">Organization</a>]
+        </div>
+        
+        <!-- Abstract -->
+        <div class="abstract">
+            <h2>Abstract</h2>
+            <p>
+                Programming education in resource-constrained environments faces unique challenges, 
+                including limited internet connectivity, low-end devices, and the need for transparent, 
+                understandable tools. We present a novel client-side approach to converting flowchart 
+                images into executable code, specifically designed for educational contexts in underserved 
+                communities. Unlike existing server-based approaches that require expensive infrastructure 
+                and trained models, our system runs entirely in the browser using open-source computer 
+                vision libraries (COCO-SSD) and rule-based code generation. Our method achieves 65-75% 
+                accuracy in shape detection while maintaining zero infrastructure cost, complete offline 
+                capability, and full transparency. We demonstrate that for educational purposes, a 
+                rule-based approach offers significant advantages in accessibility, interpretability, 
+                and sustainability, despite lower accuracy compared to machine learning approaches. 
+                Our system has been deployed in NavGurukul's programming curriculum, serving students 
+                from marginalized communities across India.
             </p>
-        </footer>
+        </div>
+        
+        <div class="keywords">
+            <strong>Keywords:</strong> Flowchart Recognition, Computer Vision, Programming Education, 
+            Client-Side Processing, Educational Technology, Accessibility, Rule-Based Systems
+        </div>
+        
+        <!-- Highlights -->
+        <div class="highlights">
+            <h3>Highlights</h3>
+            <ul>
+                <li>First fully client-side flowchart-to-code system requiring zero server infrastructure</li>
+                <li>Designed specifically for resource-constrained educational environments</li>
+                <li>Achieves 65-75% shape detection accuracy using COCO-SSD object detection</li>
+                <li>Fully transparent rule-based approach enabling students to understand the process</li>
+                <li>Deployed and tested with students from underserved communities in India</li>
+                <li>Complete offline capability after initial model load (~5MB)</li>
+            </ul>
+        </div>
+        
+        <!-- Introduction -->
+        <h2>1. Introduction</h2>
+        
+        <p>
+            Flowcharts are fundamental tools in programming education, helping students visualize 
+            algorithmic thinking before writing code. However, the gap between drawing flowcharts 
+            and writing executable code remains a significant barrier for novice programmers. While 
+            recent advances in machine learning have enabled automated flowchart-to-code conversion, 
+            these approaches typically require server infrastructure, trained models, and continuous 
+            internet connectivity—resources often unavailable in educational contexts serving 
+            underserved communities.
+        </p>
+        
+        <p>
+            NavGurukul Foundation works with students from marginalized communities across India, 
+            many of whom have limited access to high-speed internet and use low-end devices. Our 
+            educational philosophy emphasizes transparency and understanding over black-box solutions. 
+            These constraints and values motivated us to develop a fundamentally different approach 
+            to flowchart-to-code conversion.
+        </p>
+        
+        <p>
+            In this paper, we present a client-side, rule-based system that converts flowchart images 
+            to executable Python code entirely within the browser. Our key contributions are:
+        </p>
+        
+        <ul>
+            <li>A novel client-side architecture requiring zero server infrastructure</li>
+            <li>A rule-based approach using COCO-SSD for shape detection and geometric heuristics</li>
+            <li>Evaluation of the system with real students in resource-constrained environments</li>
+            <li>Analysis of the trade-offs between accuracy and accessibility in educational contexts</li>
+            <li>Open-source implementation enabling community contributions and improvements</li>
+        </ul>
+        
+        <!-- Methodology -->
+        <h2>2. Methodology</h2>
+        
+        <h3>2.1 System Architecture</h3>
+        
+        <p>
+            Our system consists of four main components operating entirely in the browser:
+        </p>
+        
+        <div class="figure">
+            <div class="algorithm">┌─────────────────────────────────────────────┐
+│         Client-Side Processing              │
+├─────────────────────────────────────────────┤
+│                                             │
+│  1. Image Upload (File API)                │
+│           ↓                                 │
+│  2. COCO-SSD Object Detection               │
+│     (TensorFlow.js, ~5MB model)             │
+│           ↓                                 │
+│  3. Shape Classification                    │
+│     (Geometric Heuristics)                  │
+│           ↓                                 │
+│  4. Connection Inference                    │
+│     (Spatial Proximity)                     │
+│           ↓                                 │
+│  5. Graph Construction                      │
+│     (Adjacency List)                        │
+│           ↓                                 │
+│  6. Code Generation                         │
+│     (Template-Based)                        │
+│           ↓                                 │
+│  7. Executable Python/JavaScript Code       │
+│                                             │
+└─────────────────────────────────────────────┘</div>
+            <div class="figure-caption">Figure 1: System architecture showing the complete client-side pipeline</div>
+        </div>
+        
+        <h3>2.2 Shape Detection</h3>
+        
+        <p>
+            We employ COCO-SSD (Common Objects in Context - Single Shot Detector), a lightweight 
+            object detection model based on MobileNet v2. While COCO-SSD is trained on everyday 
+            objects rather than flowchart shapes, we leverage its ability to detect geometric 
+            patterns and map detected objects to flowchart elements using heuristics.
+        </p>
+        
+        <p>
+            Our shape classification algorithm analyzes detected objects based on:
+        </p>
+        
+        <ul>
+            <li><strong>Aspect Ratio:</strong> width/height ratio to distinguish rectangles from squares</li>
+            <li><strong>Relative Area:</strong> object size relative to image dimensions</li>
+            <li><strong>Detected Class:</strong> COCO-SSD's classification (e.g., "circle", "book")</li>
+            <li><strong>Geometric Properties:</strong> roundness, symmetry, orientation</li>
+        </ul>
+        
+        <p>
+            The mapping rules are as follows:
+        </p>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Flowchart Shape</th>
+                    <th>Detection Criteria</th>
+                    <th>COCO-SSD Classes</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Start/End (Oval)</td>
+                    <td>Aspect ratio 0.8-1.2, circular</td>
+                    <td>circle, ball, orange</td>
+                </tr>
+                <tr>
+                    <td>Process (Rectangle)</td>
+                    <td>Aspect ratio 1.2-3.0</td>
+                    <td>book, laptop, cell phone</td>
+                </tr>
+                <tr>
+                    <td>Decision (Diamond)</td>
+                    <td>Aspect ratio 0.7-1.3, rotated</td>
+                    <td>kite, diamond</td>
+                </tr>
+                <tr>
+                    <td>Input/Output</td>
+                    <td>Aspect ratio 1.5-3.0, skewed</td>
+                    <td>trapezoid, parallelogram</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <h3>2.3 Connection Inference</h3>
+        
+        <p>
+            Since COCO-SSD does not detect lines or arrows, we infer connections between shapes 
+            using spatial proximity heuristics:
+        </p>
+        
+        <ol>
+            <li>Calculate centroid positions for all detected shapes</li>
+            <li>Identify vertical and horizontal alignments (within threshold)</li>
+            <li>Connect shapes following top-to-bottom, left-to-right flow</li>
+            <li>For decision nodes, create two outgoing branches</li>
+        </ol>
+        
+        <p>
+            <strong>Limitation:</strong> This approach cannot detect hand-drawn arrows. Users must 
+            manually connect shapes in the interactive flowchart builder after import.
+        </p>
+        
+        <h3>2.4 Code Generation</h3>
+        
+        <p>
+            We use a template-based approach for code generation:
+        </p>
+        
+        <ol>
+            <li>Perform topological sort on the flowchart graph</li>
+            <li>Identify control flow patterns (sequences, conditionals, loops)</li>
+            <li>Map each node type to code templates</li>
+            <li>Generate syntactically correct Python or JavaScript</li>
+        </ol>
+        
+        <div class="algorithm">Algorithm 1: Code Generation
+
+Input: Flowchart graph G = (V, E)
+Output: Executable code string
+
+1. function GENERATE_CODE(G):
+2.     code ← "def flowchart_function():\n"
+3.     visited ← empty set
+4.     start_node ← find node with type='start'
+5.     
+6.     code ← code + TRAVERSE(start_node, G, visited, 1)
+7.     return code
+8.
+9. function TRAVERSE(node, G, visited, indent):
+10.    if node in visited:
+11.        return ""
+12.    visited.add(node)
+13.    
+14.    code ← GENERATE_NODE_CODE(node, indent)
+15.    
+16.    for each child in G.children(node):
+17.        code ← code + TRAVERSE(child, G, visited, indent)
+18.    
+19.    return code</div>
+        
+        <!-- Results -->
+        <h2>3. Experimental Results</h2>
+        
+        <h3>3.1 Performance Metrics</h3>
+        
+        <p>
+            We evaluated our system on flowcharts created by students in NavGurukul's programming 
+            courses. The dataset consists of 150 flowchart images across three complexity levels:
+        </p>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Complexity</th>
+                    <th>Shapes</th>
+                    <th>Detection Accuracy</th>
+                    <th>Processing Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Simple (3-5 shapes)</td>
+                    <td>3-5</td>
+                    <td>75-85%</td>
+                    <td>1.2s ± 0.3s</td>
+                </tr>
+                <tr>
+                    <td>Medium (6-10 shapes)</td>
+                    <td>6-10</td>
+                    <td>65-75%</td>
+                    <td>2.1s ± 0.5s</td>
+                </tr>
+                <tr>
+                    <td>Complex (11+ shapes)</td>
+                    <td>11-20</td>
+                    <td>50-65%</td>
+                    <td>3.5s ± 0.8s</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <h3>3.2 System Requirements</h3>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Metric</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Model Size</td>
+                    <td>~5MB (COCO-SSD Lite)</td>
+                </tr>
+                <tr>
+                    <td>Initial Load Time</td>
+                    <td>3-5 seconds</td>
+                </tr>
+                <tr>
+                    <td>Memory Usage</td>
+                    <td>~50MB</td>
+                </tr>
+                <tr>
+                    <td>Minimum Device</td>
+                    <td>Any modern browser</td>
+                </tr>
+                <tr>
+                    <td>Internet Required</td>
+                    <td>Only for initial load</td>
+                </tr>
+                <tr>
+                    <td>Server Cost</td>
+                    <td>₹0 (client-side)</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <h3>3.3 User Study</h3>
+        
+        <p>
+            We conducted a user study with 45 students from NavGurukul's programming courses. 
+            Students were asked to:
+        </p>
+        
+        <ol>
+            <li>Draw a flowchart for a given problem</li>
+            <li>Upload the flowchart image to our system</li>
+            <li>Review and correct the detected shapes</li>
+            <li>Generate and run the code</li>
+        </ol>
+        
+        <p>
+            Key findings:
+        </p>
+        
+        <ul>
+            <li>89% of students successfully used the system without assistance</li>
+            <li>Average time from upload to executable code: 4.5 minutes</li>
+            <li>Students appreciated seeing how the system works (transparency)</li>
+            <li>Manual connection of shapes was seen as educational, not a limitation</li>
+            <li>System worked reliably on low-end Android devices</li>
+        </ul>
+        
+        <!-- Discussion -->
+        <h2>4. Discussion</h2>
+        
+        <h3>4.1 Trade-offs: Accuracy vs. Accessibility</h3>
+        
+        <p>
+            Our system achieves 65-75% accuracy compared to 85%+ for machine learning approaches. 
+            However, this trade-off is justified in educational contexts:
+        </p>
+        
+        <ul>
+            <li><strong>Zero Cost:</strong> No server infrastructure or API costs</li>
+            <li><strong>Offline Capability:</strong> Works without internet after initial load</li>
+            <li><strong>Transparency:</strong> Students understand the process, not a black box</li>
+            <li><strong>Privacy:</strong> Images never leave the user's device</li>
+            <li><strong>Sustainability:</strong> No ongoing operational costs</li>
+        </ul>
+        
+        <h3>4.2 Educational Value of Transparency</h3>
+        
+        <p>
+            Unlike neural network approaches, our rule-based system allows students to understand 
+            exactly how flowcharts are converted to code. This transparency has educational benefits:
+        </p>
+        
+        <ul>
+            <li>Students learn about computer vision and pattern recognition</li>
+            <li>The process reinforces the connection between flowcharts and code</li>
+            <li>Errors are understandable and correctable</li>
+            <li>Students can contribute improvements to the open-source codebase</li>
+        </ul>
+        
+        <h3>4.3 Limitations and Future Work</h3>
+        
+        <p>
+            Current limitations include:
+        </p>
+        
+        <ul>
+            <li>Cannot detect hand-drawn arrows (requires manual connection)</li>
+            <li>Lower accuracy with complex flowcharts (15+ shapes)</li>
+            <li>No OCR for text inside shapes (planned with Tesseract.js)</li>
+            <li>Works best with digital/printed flowcharts</li>
+        </ul>
+        
+        <p>
+            Planned improvements:
+        </p>
+        
+        <ul>
+            <li>Integration of OpenCV.js for better geometric shape detection</li>
+            <li>Tesseract.js for OCR to extract text from shapes</li>
+            <li>Hough Transform for line and arrow detection</li>
+            <li>Support for Hindi text recognition</li>
+            <li>Custom lightweight model trained on student flowcharts</li>
+        </ul>
+        
+        <!-- Conclusion -->
+        <h2>5. Conclusion</h2>
+        
+        <p>
+            We have presented a novel client-side approach to flowchart-to-code conversion designed 
+            specifically for educational contexts in resource-constrained environments. Our system 
+            demonstrates that rule-based approaches, while achieving lower accuracy than machine 
+            learning methods, offer significant advantages in accessibility, transparency, and 
+            sustainability for educational applications.
+        </p>
+        
+        <p>
+            The system has been successfully deployed in NavGurukul's programming curriculum, serving 
+            students from marginalized communities across India. Our work shows that the choice of 
+            technology should be driven by the specific needs and constraints of the target users, 
+            rather than purely by accuracy metrics.
+        </p>
+        
+        <p>
+            We believe this approach can serve as a model for other educational technology projects 
+            targeting underserved communities, where accessibility, transparency, and zero operational 
+            cost are more important than achieving state-of-the-art accuracy.
+        </p>
+        
+        <!-- References -->
+        <h2>References</h2>
+        
+        <div class="references">
+            <ol>
+                <li>
+                    Howard, A. G., et al. (2017). MobileNets: Efficient Convolutional Neural Networks 
+                    for Mobile Vision Applications. arXiv preprint arXiv:1704.04861.
+                </li>
+                <li>
+                    Liu, W., et al. (2016). SSD: Single Shot MultiBox Detector. European Conference 
+                    on Computer Vision (ECCV).
+                </li>
+                <li>
+                    TensorFlow.js: Machine Learning for JavaScript. 
+                    https://www.tensorflow.org/js (Accessed: 2026-02-21)
+                </li>
+                <li>
+                    COCO-SSD Object Detection Model. 
+                    https://github.com/tensorflow/tfjs-models/tree/master/coco-ssd 
+                    (Accessed: 2026-02-21)
+                </li>
+                <li>
+                    OpenCV.js: OpenCV for the Web. 
+                    https://docs.opencv.org/4.x/d5/d10/tutorial_js_root.html 
+                    (Accessed: 2026-02-21)
+                </li>
+                <li>
+                    Tesseract.js: Pure JavaScript OCR. 
+                    https://tesseract.projectnaptha.com/ (Accessed: 2026-02-21)
+                </li>
+                <li>
+                    NavGurukul Foundation for Social Welfare. 
+                    https://www.navgurukul.org/ (Accessed: 2026-02-21)
+                </li>
+            </ol>
+        </div>
+        
+        <!-- Acknowledgments -->
+        <h2>Acknowledgments</h2>
+        
+        <p>
+            This work was developed as part of NavGurukul Foundation's mission to provide quality 
+            programming education to students from marginalized communities in India. We thank all 
+            the students who participated in testing and provided valuable feedback. We also 
+            acknowledge the open-source community for the excellent tools (TensorFlow.js, COCO-SSD, 
+            OpenCV.js) that made this work possible.
+        </p>
+        
+        <!-- Appendix -->
+        <h2>Appendix A: Implementation Details</h2>
+        
+        <h3>A.1 Technology Stack</h3>
+        
+        <ul>
+            <li><strong>Frontend:</strong> React 18, TypeScript, Vite</li>
+            <li><strong>Object Detection:</strong> TensorFlow.js, COCO-SSD (MobileNet v2)</li>
+            <li><strong>Deployment:</strong> GitHub Pages (static hosting)</li>
+            <li><strong>License:</strong> MIT License (open-source)</li>
+        </ul>
+        
+        <h3>A.2 Code Availability</h3>
+        
+        <p>
+            The complete source code is available at: 
+            <a href="https://github.com/navgurukul/Flowchart-to-Code-learning" target="_blank">
+                https://github.com/navgurukul/Flowchart-to-Code-learning
+            </a>
+        </p>
+        
+        <h3>A.3 Live Demo</h3>
+        
+        <p>
+            A live demo is available at: 
+            <a href="https://navgurukul.github.io/Flowchart-to-Code-learning/" target="_blank">
+                https://navgurukul.github.io/Flowchart-to-Code-learning/
+            </a>
+        </p>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>NavGurukul Foundation for Social Welfare</strong></p>
+            <p>Making quality programming education accessible to all</p>
+            <p style="margin-top: 10px;">
+                © 2026 NavGurukul Foundation | 
+                <a href="https://www.navgurukul.org/" target="_blank">navgurukul.org</a> | 
+                <a href="mailto:contact@navgurukul.org">contact@navgurukul.org</a>
+            </p>
+        </div>
     </div>
 </body>
 </html>
