@@ -148,3 +148,23 @@
   visibility: hidden !important;
   z-index: -1 !important; /* Also send it to the back, just in case */
 }
+
+
+/* Shimmer animation for progress bar */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}
+
+/* Delay for staggered animations */
+.delay-1000 {
+  animation-delay: 1s;
+}

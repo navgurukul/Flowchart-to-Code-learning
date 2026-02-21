@@ -153,18 +153,82 @@ export const GamifiedExerciseMapV2: React.FC<GamifiedExerciseMapProps> = ({
   return (
     <div className="w-80 bg-gradient-to-b from-blue-50 to-purple-50 border-r border-gray-200 flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="p-6 bg-white/80 backdrop-blur-sm border-b border-gray-200">
-        <h2 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-2 text-center">
-          🎮 Exercise Quest
-        </h2>
-        <div className="flex items-center justify-center space-x-4 text-sm">
-          <div className="flex items-center">
-            <Star className="w-4 h-4 text-yellow-500 mr-1" />
-            <span className="font-semibold">{progress.completedExercises.length}/{exercises.length}</span>
+      <div className="p-6 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 border-b border-purple-700 relative overflow-hidden">
+        {/* Animated background pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-0 right-0 w-40 h-40 bg-white rounded-full blur-3xl animate-pulse delay-1000"></div>
+        </div>
+        
+        <div className="relative z-10">
+          {/* Title with icon */}
+          <div className="flex items-center justify-center mb-4">
+            <div className="bg-white/20 backdrop-blur-sm rounded-full p-3 mr-3 shadow-lg">
+              <Trophy className="w-6 h-6 text-yellow-300 animate-bounce" />
+            </div>
+            <h2 className="text-2xl font-bold text-white drop-shadow-lg">
+              Exercise Quest
+            </h2>
           </div>
-          <div className="flex items-center">
-            <Trophy className="w-4 h-4 text-yellow-600 mr-1" />
-            <span className="font-semibold">{progress.totalScore} pts</span>
+          
+          {/* Progress Stats */}
+          <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20 shadow-xl">
+            {/* Progress Bar */}
+            <div className="mb-3">
+              <div className="flex items-center justify-between text-xs text-white/90 mb-2">
+                <span className="font-semibold">Progress</span>
+                <span className="font-bold">{progress.completedExercises.length}/{exercises.length}</span>
+              </div>
+              <div className="w-full bg-white/20 rounded-full h-3 overflow-hidden shadow-inner">
+                <div 
+                  className="h-full bg-gradient-to-r from-green-400 via-emerald-500 to-teal-500 rounded-full transition-all duration-500 ease-out relative overflow-hidden"
+                  style={{ width: `${(progress.completedExercises.length / exercises.length) * 100}%` }}
+                >
+                  {/* Animated shine effect */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Completed */}
+              <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm border border-white/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-white/70 mb-1">Completed</p>
+                    <p className="text-2xl font-bold text-white">{progress.completedExercises.length}</p>
+                  </div>
+                  <CheckCircle className="w-8 h-8 text-green-400" />
+                </div>
+              </div>
+              
+              {/* Total Points */}
+              <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm border border-white/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-white/70 mb-1">Points</p>
+                    <p className="text-2xl font-bold text-yellow-300">{progress.totalScore}</p>
+                  </div>
+                  <Star className="w-8 h-8 text-yellow-400 fill-yellow-400" />
+                </div>
+              </div>
+            </div>
+            
+            {/* Motivational Message */}
+            <div className="mt-3 text-center">
+              <p className="text-xs text-white/80 font-medium">
+                {progress.completedExercises.length === 0 
+                  ? "🚀 Start your journey!" 
+                  : progress.completedExercises.length === exercises.length
+                  ? "🎉 Quest Complete! You're a champion!"
+                  : progress.completedExercises.length < 10
+                  ? "💪 Keep going! You're doing great!"
+                  : progress.completedExercises.length < 25
+                  ? "🔥 You're on fire! Halfway there!"
+                  : "⭐ Almost there! Finish strong!"}
+              </p>
+            </div>
           </div>
         </div>
       </div>
