@@ -264,41 +264,17 @@ export const FlowchartShapesShowcase: React.FC = () => {
         🖱️ Drag any shape to rotate and view from all angles!
       </p>
 
-      {/* AR Coming Soon Banner - Clean & Simple */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 rounded-xl shadow-xl mb-8 border border-purple-500/20">
-        {/* Animated background pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0" style={{
-            backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
-            backgroundSize: '32px 32px'
-          }} />
-        </div>
-        
-        {/* Content */}
-        <div className="relative px-8 py-6 flex items-center justify-between">
-          {/* Left: Icon + Text */}
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-lg flex items-center justify-center shadow-lg">
-              <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <div>
-              <h4 className="text-xl font-bold text-white">
-                View these shapes in AR on your Android phone
-              </h4>
-              <p className="text-purple-300 text-sm">Coming soon</p>
-            </div>
-          </div>
-          
-          {/* Right: Badge */}
-          <div className="hidden md:flex items-center space-x-2 bg-gradient-to-r from-purple-500 to-pink-500 px-5 py-2.5 rounded-full shadow-lg">
-            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-            </svg>
-            <span className="text-white font-semibold text-sm">In Development</span>
-          </div>
-        </div>
+      {/* AR Coming Soon - Simple CTA */}
+      <div className="flex justify-center mb-8">
+        <button
+          disabled
+          className="inline-flex items-center space-x-3 px-6 py-3 bg-gray-100 text-gray-500 rounded-lg border border-gray-200 cursor-not-allowed"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+          </svg>
+          <span className="font-medium">FlowchartAR Android - Coming Soon</span>
+        </button>
       </div>
 
       {/* Start/End */}
