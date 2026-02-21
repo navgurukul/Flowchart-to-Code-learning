@@ -246,7 +246,7 @@
                 Programming education in resource-constrained environments faces unique challenges, 
                 including limited internet connectivity, low-end devices, and the need for transparent, 
                 understandable tools. We present a novel client-side approach to converting flowchart 
-                images into executable code, specifically designed for educational contexts in underserved 
+                images into executable JavaScript code, specifically designed for educational contexts in underserved 
                 communities. Unlike existing server-based approaches that require expensive infrastructure 
                 and trained models, our system runs entirely in the browser using open-source computer 
                 vision libraries (COCO-SSD) and rule-based code generation. Our method achieves 65-75% 
@@ -300,7 +300,7 @@
         
         <p>
             In this paper, we present a client-side, rule-based system that converts flowchart images 
-            to executable Python code entirely within the browser. Our key contributions are:
+            to executable JavaScript code entirely within the browser. Our key contributions are:
         </p>
         
         <ul>
@@ -342,7 +342,7 @@
 │  6. Code Generation                         │
 │     (Template-Based)                        │
 │           ↓                                 │
-│  7. Executable Python/JavaScript Code       │
+│  7. Executable JavaScript Code              │
 │                                             │
 └─────────────────────────────────────────────┘</div>
             <div class="figure-caption">Figure 1: System architecture showing the complete client-side pipeline</div>
@@ -426,14 +426,14 @@
         <h3>2.4 Code Generation</h3>
         
         <p>
-            We use a template-based approach for code generation:
+            We use a template-based approach for JavaScript code generation:
         </p>
         
         <ol>
             <li>Perform topological sort on the flowchart graph</li>
             <li>Identify control flow patterns (sequences, conditionals, loops)</li>
-            <li>Map each node type to code templates</li>
-            <li>Generate syntactically correct Python or JavaScript</li>
+            <li>Map each node type to JavaScript code templates</li>
+            <li>Generate syntactically correct JavaScript code</li>
         </ol>
         
         <div class="algorithm">Algorithm 1: Code Generation
@@ -630,7 +630,8 @@ Output: Executable code string
             specifically for educational contexts in resource-constrained environments. Our system 
             demonstrates that rule-based approaches, while achieving lower accuracy than machine 
             learning methods, offer significant advantages in accessibility, transparency, and 
-            sustainability for educational applications.
+            sustainability for educational applications. The system generates executable JavaScript 
+            code that students can immediately run and understand.
         </p>
         
         <p>
