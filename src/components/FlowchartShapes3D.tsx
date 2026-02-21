@@ -264,8 +264,8 @@ export const FlowchartShapesShowcase: React.FC = () => {
         🖱️ Drag any shape to rotate and view from all angles!
       </p>
 
-      {/* AR Coming Soon Banner - Professional Design */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 rounded-2xl shadow-2xl mb-8 border border-purple-500/20">
+      {/* AR Coming Soon Banner - Clean & Simple */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 rounded-xl shadow-xl mb-8 border border-purple-500/20">
         {/* Animated background pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0" style={{
@@ -275,58 +275,28 @@ export const FlowchartShapesShowcase: React.FC = () => {
         </div>
         
         {/* Content */}
-        <div className="relative px-8 py-10">
-          {/* Header */}
-          <div className="flex items-center justify-center mb-6">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-xl flex items-center justify-center shadow-lg">
-                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <div>
-                <h4 className="text-2xl font-bold text-white tracking-tight">
-                  Android AR Experience
-                </h4>
-                <p className="text-purple-300 text-sm font-medium">Coming Soon</p>
-              </div>
-            </div>
-          </div>
-          
-          {/* Description */}
-          <p className="text-center text-gray-300 text-base leading-relaxed max-w-2xl mx-auto mb-8">
-            Experience flowchart shapes in <span className="text-purple-300 font-semibold">Augmented Reality</span>. 
-            Place 3D shapes in your physical space, walk around them, and explore their geometry from every angle 
-            using your Android device.
-          </p>
-          
-          {/* Features Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10">
-              <div className="text-purple-400 text-2xl mb-2">🎯</div>
-              <h5 className="text-white font-semibold text-sm mb-1">Real-World Scale</h5>
-              <p className="text-gray-400 text-xs">View shapes at actual size in your environment</p>
-            </div>
-            <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10">
-              <div className="text-purple-400 text-2xl mb-2">🔄</div>
-              <h5 className="text-white font-semibold text-sm mb-1">360° Interaction</h5>
-              <p className="text-gray-400 text-xs">Walk around and examine from all angles</p>
-            </div>
-            <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10">
-              <div className="text-purple-400 text-2xl mb-2">📚</div>
-              <h5 className="text-white font-semibold text-sm mb-1">Enhanced Learning</h5>
-              <p className="text-gray-400 text-xs">Better understanding through immersive 3D</p>
-            </div>
-          </div>
-          
-          {/* CTA Badge */}
-          <div className="flex justify-center">
-            <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-3 rounded-full shadow-lg">
-              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+        <div className="relative px-8 py-6 flex items-center justify-between">
+          {/* Left: Icon + Text */}
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-lg flex items-center justify-center shadow-lg">
+              <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
               </svg>
-              <span className="text-white font-semibold text-sm">Mobile App in Development</span>
             </div>
+            <div>
+              <h4 className="text-xl font-bold text-white">
+                View these shapes in AR on your Android phone
+              </h4>
+              <p className="text-purple-300 text-sm">Coming soon</p>
+            </div>
+          </div>
+          
+          {/* Right: Badge */}
+          <div className="hidden md:flex items-center space-x-2 bg-gradient-to-r from-purple-500 to-pink-500 px-5 py-2.5 rounded-full shadow-lg">
+            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+            </svg>
+            <span className="text-white font-semibold text-sm">In Development</span>
           </div>
         </div>
       </div>
