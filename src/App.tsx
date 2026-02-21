@@ -108,6 +108,27 @@ function App() {
       currentExercise: exerciseId,
       lastAccessedAt: new Date().toISOString()
     }));
+    
+    // Load saved flowchart for this exercise
+    if (currentUser) {
+      const db = getDatabase(app);
+      const flowchartRef = ref(db, `userFlowcharts/${currentUser.uid}/exercise_${exerciseId}`);
+      get(flowchartRef).then(snapshot => {
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          if (data.flowchart) {
+            console.log(`Loading saved flowchart for exercise ${exerciseId}:`, data.flowchart);
+            setCurrentFlowchart(data.flowchart);
+            setAiFlowchartToLoad(data.flowchart);
+            // Generate code from loaded flowchart
+            const code = generateCodeFromFlowchart(data.flowchart);
+            setGeneratedCode(code);
+          }
+        }
+      }).catch(error => {
+        console.error("Error loading flowchart from Firebase:", error);
+      });
+    }
   };
 
   // --- Learning Phase Handlers ---
@@ -232,7 +253,19 @@ function App() {
     // Generate code from flowchart
     const code = generateCodeFromFlowchart(flowchart);
     setGeneratedCode(code);
-  }, [generateCodeFromFlowchart]);
+    
+    // Save flowchart data per exercise
+    if (currentExerciseId !== null && currentUser) {
+      const db = getDatabase(app);
+      const flowchartRef = ref(db, `userFlowcharts/${currentUser.uid}/exercise_${currentExerciseId}`);
+      set(flowchartRef, {
+        flowchart,
+        lastUpdated: serverTimestamp()
+      }).catch(error => {
+        console.error("Error saving flowchart to Firebase:", error);
+      });
+    }
+  }, [generateCodeFromFlowchart, currentExerciseId, currentUser]);
 
   const handleRunCode = async (code: string) => {
     setIsRunning(true);
