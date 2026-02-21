@@ -662,75 +662,100 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col relative">
+    <div className="min-h-screen bg-gray-50 flex relative">
       <Toaster position="top-center" reverseOrder={false} />
       {showConfetti && <Confetti width={windowSize.width} height={windowSize.height} recycle={false} />}
-      <Header progress={progress} onReplayTour={handleReplayTour} />
-      {/* Pass handleReplayTour to Header */}
       
-      {/* Mode Toggle */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center space-x-3 max-w-7xl mx-auto">
-          <button
-            onClick={() => {
-              setIsLearningMode(true);
-              setCurrentExerciseId(null);
-            }}
-            className={`group relative px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
-              isLearningMode
-                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30 scale-105'
-                : 'bg-white text-gray-700 hover:bg-gray-50 hover:shadow-md border border-gray-200'
-            }`}
-          >
-            <div className="flex items-center space-x-2">
-              <span className="text-xl">📖</span>
-              <span>Learn</span>
-            </div>
-            {isLearningMode && (
-              <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-12 h-1 bg-white rounded-full" />
-            )}
-          </button>
-          
-          <button
-            onClick={() => {
-              setIsLearningMode(false);
-              setCurrentLessonId(null);
-            }}
-            className={`group relative px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
-              !isLearningMode
-                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30 scale-105'
-                : 'bg-white text-gray-700 hover:bg-gray-50 hover:shadow-md border border-gray-200'
-            }`}
-          >
-            <div className="flex items-center space-x-2">
-              <span className="text-xl">⚡</span>
-              <span>Practice</span>
-            </div>
-            {!isLearningMode && (
-              <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-12 h-1 bg-white rounded-full" />
-            )}
-          </button>
-          
-          {isLearningMode && (
-            <div className="ml-auto flex items-center space-x-2 bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
-              <div className="flex items-center space-x-2">
-                <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-500"
-                    style={{ width: `${(completedLessons.length / lessons.length) * 100}%` }}
-                  />
-                </div>
-                <span className="text-sm font-medium text-gray-700">
-                  {completedLessons.length}/{lessons.length}
-                </span>
-              </div>
-              <span className="text-lg">🎯</span>
-            </div>
-          )}
+      {/* Vertical Navigation Rail */}
+      <div className="w-20 bg-gradient-to-b from-blue-600 to-indigo-700 flex flex-col items-center py-6 space-y-4 shadow-xl">
+        {/* Logo/Brand */}
+        <div className="mb-4">
+          <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg">
+            <span className="text-2xl">📊</span>
+          </div>
         </div>
+        
+        {/* Learn Tab */}
+        <button
+          onClick={() => {
+            setIsLearningMode(true);
+            setCurrentExerciseId(null);
+          }}
+          className={`group relative w-14 h-14 rounded-xl flex flex-col items-center justify-center transition-all duration-300 ${
+            isLearningMode
+              ? 'bg-white text-blue-600 shadow-lg scale-110'
+              : 'text-white hover:bg-white/20'
+          }`}
+          title="Learn"
+        >
+          <span className="text-2xl mb-0.5">📖</span>
+          <span className="text-[10px] font-semibold">Learn</span>
+          {isLearningMode && (
+            <div className="absolute -right-1 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-white rounded-full" />
+          )}
+        </button>
+        
+        {/* Practice Tab */}
+        <button
+          onClick={() => {
+            setIsLearningMode(false);
+            setCurrentLessonId(null);
+          }}
+          className={`group relative w-14 h-14 rounded-xl flex flex-col items-center justify-center transition-all duration-300 ${
+            !isLearningMode
+              ? 'bg-white text-purple-600 shadow-lg scale-110'
+              : 'text-white hover:bg-white/20'
+          }`}
+          title="Practice"
+        >
+          <span className="text-2xl mb-0.5">⚡</span>
+          <span className="text-[10px] font-semibold">Practice</span>
+          {!isLearningMode && (
+            <div className="absolute -right-1 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-white rounded-full" />
+          )}
+        </button>
+        
+        {/* Progress Indicator (for Learn mode) */}
+        {isLearningMode && (
+          <div className="mt-auto mb-4 flex flex-col items-center space-y-2">
+            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+              <div className="relative w-10 h-10">
+                <svg className="transform -rotate-90" viewBox="0 0 36 36">
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="16"
+                    fill="none"
+                    stroke="rgba(255,255,255,0.3)"
+                    strokeWidth="3"
+                  />
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="16"
+                    fill="none"
+                    stroke="white"
+                    strokeWidth="3"
+                    strokeDasharray={`${(completedLessons.length / lessons.length) * 100}, 100`}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">
+                    {Math.round((completedLessons.length / lessons.length) * 100)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       
-      <div className="flex-1 flex overflow-hidden h-[calc(100vh-120px)]">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col">
+        <Header progress={progress} onReplayTour={handleReplayTour} />
+        
+        <div className="flex-1 flex overflow-hidden h-[calc(100vh-80px)]">
         {isLearningMode ? (
           /* Learning Mode Layout */
           <>
@@ -979,6 +1004,7 @@ function App() {
         </div>
         </>
         )}
+      </div>
       </div>
 
       {/* Chat Feature Disabled - Not using Gemini API */}
