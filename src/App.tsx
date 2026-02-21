@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, PlaySquare, StepForwa
 import { useAuth } from './contexts/AuthContext';
 import DomainBlockModal from './components/DomainBlockModal'; // Import the modal
 import { Header } from './components/Header';
+import { Footer } from './components/Footer';
 import { OnlineUsersPanel } from './components/OnlineUsersPanel'; // Import the new panel
 import { GamifiedExerciseMap } from './components/GamifiedExerciseMap';
 import { SnakeFlowExerciseMap } from './components/SnakeFlowExerciseMap';
@@ -981,6 +982,7 @@ function App() {
         onTourComplete={() => setForceTourStart(false)} // Reset flag when tour completes or is skipped
       />
       <DomainBlockModal isOpen={showDomainBlockModal} onClose={closeDomainBlockModal} />
+      <Footer />
     </div>
   );
 }
