@@ -1,6 +1,60 @@
-# Flowchart-to-Code-learning
+# 🎓 Flowchart-to-Code Learning Platform
 
-## Security and Domain Restriction
+An interactive educational platform for learning programming through flowcharts. Students can visualize algorithms, build flowcharts, and understand code execution step-by-step.
+
+## 🌐 Live Demo
+
+**🚀 Try it now:** https://navgurukul.github.io/Flowchart-to-Code-learning/
+
+## ✨ Features
+
+- 📊 **Interactive Flowchart Builder** - Drag-and-drop interface to create flowcharts
+- 🎮 **Gamified Exercise Map** - 50 exercises with snake-like progression paths
+- 📚 **17 Comprehensive Lessons** - From basics to advanced topics
+- 🤖 **AI-Powered Import** - Convert hand-drawn flowcharts using YOLO model
+- 🎯 **Dry Run Mode** - Step-by-step execution visualization
+- 👥 **Real-time Collaboration** - See other users working on exercises
+- 🏆 **Progress Tracking** - Track completed exercises and lessons
+- 🔐 **Domain-Restricted Access** - Secure access for @navgurukul.org users
+
+## 🚀 Quick Start
+
+### For Students
+
+1. Visit: https://navgurukul.github.io/Flowchart-to-Code-learning/
+2. Sign in with your @navgurukul.org Google account
+3. Start with the "Learn" tab to understand flowchart basics
+4. Move to "Practice" tab to solve exercises
+5. Build flowcharts and see them execute in real-time!
+
+### For Developers
+
+```bash
+# Clone the repository
+git clone https://github.com/navgurukul/Flowchart-to-Code-learning.git
+cd Flowchart-to-Code-learning
+
+# Install dependencies
+npm install
+
+# Run development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+## 📖 Documentation
+
+- **[Quick Start Guide](QUICK_START.md)** - Get started quickly
+- **[Deployment Guide](GITHUB_PAGES_DEPLOYMENT.md)** - Deploy to GitHub Pages
+- **[Frontend Setup](FRONTEND_ONLY_SETUP.md)** - Frontend-only setup
+- **[Complete Curriculum](COMPLETE_CURRICULUM.md)** - Full learning path
+
+## 🔒 Security and Domain Restriction
 
 This application is configured to restrict access to users with `@navgurukul.org` email addresses. This is enforced on both the client-side and server-side.
 

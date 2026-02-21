@@ -33,9 +33,7 @@ jobs:
 
       - name: Build
         run: npm run build
-        env:
-          # Add your Gemini API key as a GitHub secret
-          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+        # Note: VITE_GEMINI_API_KEY not required - chat feature is disabled
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

@@ -33,22 +33,13 @@ Your Flowchart-to-Code Learning app is **ready to deploy** to GitHub Pages!
 
 ## 🎯 Next Steps to Go Live
 
-### Step 1: Add Gemini API Key (Required for Chat Feature)
-
-1. Go to: https://github.com/navgurukul/Flowchart-to-Code-learning/settings/secrets/actions
-2. Click **"New repository secret"**
-3. Add:
-   - **Name:** `VITE_GEMINI_API_KEY`
-   - **Secret:** Your Gemini API key from https://aistudio.google.com/app/apikey
-4. Click **"Add secret"**
-
-### Step 2: Enable GitHub Pages
+### Step 1: Enable GitHub Pages
 
 1. Go to: https://github.com/navgurukul/Flowchart-to-Code-learning/settings/pages
 2. Under **"Source"**, select: **GitHub Actions**
 3. Click **"Save"**
 
-### Step 3: Trigger Deployment
+### Step 2: Trigger Deployment
 
 The deployment will start automatically since you just pushed! 
 
@@ -56,6 +47,8 @@ The deployment will start automatically since you just pushed!
 - Go to: https://github.com/navgurukul/Flowchart-to-Code-learning/actions
 - Look for "Deploy to GitHub Pages" workflow
 - Wait 2-3 minutes for completion
+
+**Note:** Chat feature is disabled, so no API key is required!
 
 ---
 
@@ -160,13 +153,13 @@ Open http://localhost:4173 to test.
 
 ## 🎯 Quick Checklist
 
-- [ ] Add `VITE_GEMINI_API_KEY` to GitHub Secrets
 - [ ] Enable GitHub Pages (Source: GitHub Actions)
 - [ ] Wait for deployment to complete (~3 minutes)
 - [ ] Visit https://navgurukul.github.io/Flowchart-to-Code-learning/
-- [ ] Test all features (flowchart builder, exercises, chat)
-- [ ] Restrict API key to your domain
+- [ ] Test all features (flowchart builder, exercises, lessons)
 - [ ] Share with your team! 🎉
+
+**Note:** Chat feature is disabled, so no API key setup needed!
 
 ---
 

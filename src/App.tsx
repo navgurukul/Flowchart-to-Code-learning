@@ -954,8 +954,8 @@ function App() {
         )}
       </div>
 
-      {/* New Exercise Chat Component */}
-      <ExerciseChat />
+      {/* Chat Feature Disabled - Not using Gemini API */}
+      {/* <ExerciseChat /> */}
 
       {/* Removed old chat toggle button and ChatWindow component */}
 
