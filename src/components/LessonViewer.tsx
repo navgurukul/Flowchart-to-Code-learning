@@ -2,6 +2,8 @@ import React from 'react';
 import { Lesson } from '../data/lessons';
 import { BookOpen, Clock, CheckCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { FlowchartShapesShowcase } from './FlowchartShapes3D';
 
 interface LessonViewerProps {
@@ -63,13 +65,28 @@ export const LessonViewer: React.FC<LessonViewerProps> = ({
             ul: ({node, ...props}) => <ul className="list-disc list-inside mb-4 space-y-2" {...props} />,
             ol: ({node, ...props}) => <ol className="list-decimal list-inside mb-4 space-y-2" {...props} />,
             li: ({node, ...props}) => <li className="text-gray-700" {...props} />,
-            code: ({node, inline, ...props}: any) => 
-              inline ? (
-                <code className="bg-gray-100 text-red-600 px-1.5 py-0.5 rounded text-sm font-mono" {...props} />
+            code: ({node, inline, className, children, ...props}: any) => {
+              const match = /language-(\w+)/.exec(className || '');
+              const language = match ? match[1] : 'javascript';
+              
+              return inline ? (
+                <code className="bg-gray-100 text-red-600 px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
+                  {children}
+                </code>
               ) : (
-                <code className="block bg-gray-900 text-gray-100 p-4 rounded-lg mb-4 overflow-x-auto text-sm font-mono" {...props} />
-              ),
-            pre: ({node, ...props}) => <pre className="mb-4" {...props} />,
+                <SyntaxHighlighter
+                  style={vscDarkPlus}
+                  language={language}
+                  PreTag="div"
+                  className="rounded-lg mb-4 text-sm"
+                  showLineNumbers={true}
+                  {...props}
+                >
+                  {String(children).replace(/\n$/, '')}
+                </SyntaxHighlighter>
+              );
+            },
+            pre: ({node, ...props}) => <div className="mb-4" {...props} />,
             strong: ({node, ...props}) => <strong className="font-semibold text-gray-900" {...props} />,
             blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-blue-500 pl-4 italic text-gray-600 my-4" {...props} />
           }}

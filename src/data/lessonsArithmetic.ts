@@ -18,15 +18,15 @@ export const arithmeticLessons: Lesson[] = [
 Addition is one of the four basic arithmetic operations. It combines two or more numbers to produce their sum.
 
 ### Basic Syntax
-\`\`\`
+\`\`\`javascript
 result = number1 + number2
 \`\`\`
 
 ### Examples
-\`\`\`
-sum = 5 + 3        → 8
-total = 10 + 20    → 30
-answer = 7 + 8 + 9 → 24
+\`\`\`javascript
+sum = 5 + 3        // → 8
+total = 10 + 20    // → 30
+answer = 7 + 8 + 9 // → 24
 \`\`\`
 
 ## Addition in Flowcharts
@@ -42,48 +42,48 @@ Use the **Process (Rectangle)** symbol:
 ## Types of Addition
 
 ### Adding Literals
-\`\`\`
-result = 5 + 10  → 15
+\`\`\`javascript
+result = 5 + 10  // → 15
 \`\`\`
 
 ### Adding Variables
-\`\`\`
+\`\`\`javascript
 a = 5
 b = 10
-sum = a + b  → 15
+sum = a + b  // → 15
 \`\`\`
 
 ### Adding Multiple Values
-\`\`\`
+\`\`\`javascript
 total = a + b + c + d
 \`\`\`
 
 ### Accumulation (Running Total)
-\`\`\`
+\`\`\`javascript
 total = 0
-total = total + 10  → 10
-total = total + 20  → 30
-total = total + 15  → 45
+total = total + 10  // → 10
+total = total + 20  // → 30
+total = total + 15  // → 45
 \`\`\`
 
 ## Properties of Addition
 
 ### Commutative Property
 Order doesn't matter:
-\`\`\`
-5 + 3 = 3 + 5  → Both equal 8
+\`\`\`javascript
+5 + 3 = 3 + 5  // Both equal 8
 a + b = b + a
 \`\`\`
 
 ### Associative Property
 Grouping doesn't matter:
-\`\`\`
-(2 + 3) + 4 = 2 + (3 + 4)  → Both equal 9
+\`\`\`javascript
+(2 + 3) + 4 = 2 + (3 + 4)  // Both equal 9
 \`\`\`
 
 ### Identity Property
 Adding zero doesn't change the value:
-\`\`\`
+\`\`\`javascript
 5 + 0 = 5
 x + 0 = x
 \`\`\`
@@ -91,13 +91,13 @@ x + 0 = x
 ## Common Addition Patterns
 
 ### Counter Increment
-\`\`\`
+\`\`\`javascript
 count = 0
-count = count + 1  → Increment by 1
+count = count + 1  // Increment by 1
 \`\`\`
 
 ### Accumulator
-\`\`\`
+\`\`\`javascript
 sum = 0
 sum = sum + value1
 sum = sum + value2
@@ -105,7 +105,7 @@ sum = sum + value3
 \`\`\`
 
 ### Compound Addition
-\`\`\`
+\`\`\`javascript
 total = total + amount
 // Shorthand:
 total += amount
@@ -114,16 +114,16 @@ total += amount
 ## Real-World Examples
 
 ### Shopping Cart
-\`\`\`
+\`\`\`javascript
 cartTotal = 0
 cartTotal = cartTotal + item1Price
 cartTotal = cartTotal + item2Price
 cartTotal = cartTotal + item3Price
-Display "Total: $", cartTotal
+console.log("Total: $" + cartTotal)
 \`\`\`
 
 ### Score Calculation
-\`\`\`
+\`\`\`javascript
 totalScore = 0
 totalScore = totalScore + round1Score
 totalScore = totalScore + round2Score
@@ -131,7 +131,7 @@ totalScore = totalScore + round3Score
 \`\`\`
 
 ### Distance Traveled
-\`\`\`
+\`\`\`javascript
 totalDistance = 0
 totalDistance = totalDistance + day1Distance
 totalDistance = totalDistance + day2Distance
@@ -140,48 +140,54 @@ totalDistance = totalDistance + day2Distance
 ## Addition with Different Data Types
 
 ### Integer Addition
-\`\`\`
+\`\`\`javascript
 5 + 3 = 8
 \`\`\`
 
 ### Decimal Addition
-\`\`\`
+\`\`\`javascript
 5.5 + 3.2 = 8.7
 \`\`\`
 
 ### Mixed Addition
-\`\`\`
+\`\`\`javascript
 5 + 3.5 = 8.5
 \`\`\`
 
 ### String Concatenation (Not Addition!)
 In some languages, + joins strings:
-\`\`\`
+\`\`\`javascript
 "Hello" + " " + "World" = "Hello World"
 \`\`\`
 
 ## Common Mistakes
 
 ### Type Confusion
-\`\`\`
-❌ "5" + "3" = "53"  (String concatenation)
-✅ 5 + 3 = 8         (Numeric addition)
+\`\`\`javascript
+// ❌ String concatenation
+"5" + "3" = "53"
+
+// ✅ Numeric addition
+5 + 3 = 8
 \`\`\`
 
 ### Uninitialized Variables
-\`\`\`
-❌ sum = sum + 10  (What if sum has no value?)
-✅ sum = 0
-   sum = sum + 10
+\`\`\`javascript
+// ❌ What if sum has no value?
+sum = sum + 10
+
+// ✅ Initialize first
+sum = 0
+sum = sum + 10
 \`\`\`
 
 ### Order of Operations
-\`\`\`
+\`\`\`javascript
 result = 2 + 3 * 4
-→ 2 + 12 = 14  (Multiplication first!)
+// → 2 + 12 = 14  (Multiplication first!)
 
 result = (2 + 3) * 4
-→ 5 * 4 = 20   (Parentheses first!)
+// → 5 * 4 = 20   (Parentheses first!)
 \`\`\`
 
 ## Practice Exercise
@@ -211,15 +217,15 @@ This reinforces input, addition, and output!
 Subtraction finds the difference between two numbers by removing one value from another.
 
 ### Basic Syntax
-\`\`\`
+\`\`\`javascript
 result = number1 - number2
 \`\`\`
 
 ### Examples
-\`\`\`
-difference = 10 - 3  → 7
-remaining = 50 - 20  → 30
-change = 100 - 75    → 25
+\`\`\`javascript
+difference = 10 - 3  // → 7
+remaining = 50 - 20  // → 30
+change = 100 - 75    // → 25
 \`\`\`
 
 ## Subtraction in Flowcharts
@@ -233,25 +239,25 @@ change = 100 - 75    → 25
 ## Types of Subtraction
 
 ### Simple Subtraction
-\`\`\`
-result = 15 - 7  → 8
+\`\`\`javascript
+result = 15 - 7  // → 8
 \`\`\`
 
 ### Variable Subtraction
-\`\`\`
+\`\`\`javascript
 a = 20
 b = 8
-difference = a - b  → 12
+difference = a - b  // → 12
 \`\`\`
 
 ### Decrement Pattern
-\`\`\`
+\`\`\`javascript
 count = 10
-count = count - 1  → 9
+count = count - 1  // → 9
 \`\`\`
 
 ### Compound Subtraction
-\`\`\`
+\`\`\`javascript
 balance = balance - withdrawal
 // Shorthand:
 balance -= withdrawal
@@ -261,21 +267,21 @@ balance -= withdrawal
 
 ### NOT Commutative
 Order DOES matter:
-\`\`\`
+\`\`\`javascript
 10 - 3 = 7
-3 - 10 = -7  ← Different result!
+3 - 10 = -7  // ← Different result!
 \`\`\`
 
 ### NOT Associative
 Grouping matters:
-\`\`\`
+\`\`\`javascript
 (10 - 5) - 2 = 3
-10 - (5 - 2) = 7  ← Different!
+10 - (5 - 2) = 7  // ← Different!
 \`\`\`
 
 ### Identity Property
 Subtracting zero doesn't change the value:
-\`\`\`
+\`\`\`javascript
 10 - 0 = 10
 x - 0 = x
 \`\`\`
@@ -283,20 +289,20 @@ x - 0 = x
 ## Common Subtraction Patterns
 
 ### Counter Decrement
-\`\`\`
+\`\`\`javascript
 count = 10
-count = count - 1  → Decrement by 1
+count = count - 1  // Decrement by 1
 \`\`\`
 
 ### Balance Tracking
-\`\`\`
+\`\`\`javascript
 balance = 1000
 balance = balance - purchase1
 balance = balance - purchase2
 \`\`\`
 
 ### Remaining Items
-\`\`\`
+\`\`\`javascript
 inventory = 100
 inventory = inventory - sold
 \`\`\`
@@ -304,41 +310,41 @@ inventory = inventory - sold
 ## Real-World Examples
 
 ### Bank Account
-\`\`\`
+\`\`\`javascript
 balance = 1000
 withdrawal = 250
 balance = balance - withdrawal
-Display "Remaining: $", balance  → $750
+console.log("Remaining: $" + balance)  // → $750
 \`\`\`
 
 ### Countdown Timer
-\`\`\`
+\`\`\`javascript
 timeLeft = 60
-timeLeft = timeLeft - 1  → 59 seconds
-timeLeft = timeLeft - 1  → 58 seconds
+timeLeft = timeLeft - 1  // → 59 seconds
+timeLeft = timeLeft - 1  // → 58 seconds
 \`\`\`
 
 ### Inventory Management
-\`\`\`
+\`\`\`javascript
 stock = 50
 sold = 12
 stock = stock - sold
-Display "Items left:", stock  → 38
+console.log("Items left: " + stock)  // → 38
 \`\`\`
 
 ## Negative Numbers
 
 Subtraction can produce negative results:
-\`\`\`
+\`\`\`javascript
 balance = 100
 withdrawal = 150
-balance = balance - withdrawal  → -50 (overdrawn!)
+balance = balance - withdrawal  // → -50 (overdrawn!)
 \`\`\`
 
 ### Checking for Negatives
-\`\`\`
+\`\`\`javascript
 if (balance - withdrawal < 0) {
-  Display "Insufficient funds"
+  console.log("Insufficient funds")
 } else {
   balance = balance - withdrawal
 }
@@ -347,21 +353,27 @@ if (balance - withdrawal < 0) {
 ## Common Mistakes
 
 ### Wrong Order
-\`\`\`
-❌ difference = 5 - 10  → -5 (might not be intended)
-✅ difference = 10 - 5  → 5
+\`\`\`javascript
+// ❌ Might not be intended
+difference = 5 - 10  // → -5
+
+// ✅ Check your order
+difference = 10 - 5  // → 5
 \`\`\`
 
 ### Uninitialized Variables
-\`\`\`
-❌ count = count - 1  (What if count has no value?)
-✅ count = 10
-   count = count - 1
+\`\`\`javascript
+// ❌ What if count has no value?
+count = count - 1
+
+// ✅ Initialize first
+count = 10
+count = count - 1
 \`\`\`
 
 ### Forgetting Negative Results
-\`\`\`
-Always check if result can be negative!
+\`\`\`javascript
+// Always check if result can be negative!
 \`\`\`
 
 ## Practice Exercise

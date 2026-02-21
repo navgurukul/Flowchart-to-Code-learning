@@ -88,7 +88,7 @@ export const OnlineUsersPanel: React.FC<OnlineUsersPanelProps> = ({ currentUserI
                 <p className="text-sm font-medium text-gray-900 truncate" title={user.displayName || 'Anonymous User'}>
                   {user.displayName || 'Anonymous User'}
                 </p>
-                {user.currentFlowchartId && (
+                {user.currentFlowchartId && typeof user.currentFlowchartId === 'string' && user.currentFlowchartId.trim() !== '' && (
                   <p className="text-xs text-gray-500 truncate" title={`On: ${user.currentFlowchartId.replace('exercise-', 'Exercise ')}`}>
                     On: {user.currentFlowchartId.replace('exercise-', 'Exercise ')}
                   </p>

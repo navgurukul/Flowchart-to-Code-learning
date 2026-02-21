@@ -119,7 +119,7 @@ export const SnakeFlowExerciseMap: React.FC<SnakeFlowExerciseMapProps> = ({
     );
   };
 
-  const isExerciseLocked = (exerciseId: number, exerciseIndex: number): boolean => {
+  const isExerciseLocked = (exerciseIndex: number): boolean => {
     if (exerciseIndex === 0) return false;
     const previousExerciseId = exercises[exerciseIndex - 1]?.id;
     if (previousExerciseId === undefined) return true;
@@ -191,7 +191,7 @@ export const SnakeFlowExerciseMap: React.FC<SnakeFlowExerciseMapProps> = ({
         {/* Exercise Nodes */}
         <div className="relative space-y-16" style={{ zIndex: 1 }}>
           {exercises.map((exercise, index) => {
-            const isLocked = isExerciseLocked(exercise.id, index);
+            const isLocked = isExerciseLocked(index);
             const isCompleted = progress.completedExercises.includes(exercise.id);
             const isCurrent = currentExerciseId === exercise.id;
             const isLeftAligned = index % 2 === 0;
