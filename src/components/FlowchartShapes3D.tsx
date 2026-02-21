@@ -264,6 +264,24 @@ export const FlowchartShapesShowcase: React.FC = () => {
         🖱️ Drag any shape to rotate and view from all angles!
       </p>
 
+      {/* AR Coming Soon Banner */}
+      <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg p-6 text-white shadow-lg mb-8">
+        <div className="flex items-center justify-center space-x-3 mb-2">
+          <span className="text-3xl">📱</span>
+          <h4 className="text-xl font-bold">Android AR Experience Coming Soon!</h4>
+          <span className="text-3xl">✨</span>
+        </div>
+        <p className="text-center text-purple-100 text-sm">
+          View these flowchart shapes in Augmented Reality on your Android phone. 
+          Place them in your room, walk around them, and understand their 3D structure like never before!
+        </p>
+        <div className="flex justify-center mt-4">
+          <span className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium">
+            🚀 Stay tuned for the mobile app launch
+          </span>
+        </div>
+      </div>
+
       {/* Start/End */}
       <div className="flex flex-col items-center space-y-4 py-4">
         <FlowchartShape3D type="start" size="lg" interactive={true} />
