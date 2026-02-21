@@ -2,6 +2,7 @@ import React from 'react';
 import { Lesson } from '../data/lessons';
 import { BookOpen, Clock, CheckCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { FlowchartShapesShowcase } from './FlowchartShapes3D';
 
 interface LessonViewerProps {
   lesson: Lesson;
@@ -46,6 +47,13 @@ export const LessonViewer: React.FC<LessonViewerProps> = ({
 
       {/* Content */}
       <div className="prose prose-blue max-w-none mb-8">
+        {/* Show 3D Flowchart Shapes for flowchart-related lessons */}
+        {(lesson.category === 'flowcharts' || lesson.title.toLowerCase().includes('flowchart')) && (
+          <div className="mb-8">
+            <FlowchartShapesShowcase />
+          </div>
+        )}
+        
         <ReactMarkdown
           components={{
             h1: ({node, ...props}) => <h1 className="text-2xl font-bold text-gray-900 mt-6 mb-4" {...props} />,

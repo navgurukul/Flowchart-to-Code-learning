@@ -252,7 +252,7 @@ export const GamifiedExerciseMapV2: React.FC<GamifiedExerciseMapProps> = ({
                         {isCurrent && <Zap className="w-5 h-5 text-yellow-300 absolute top-1 left-1 animate-bounce" />}
                         <span className="text-2xl font-bold text-white">{exercise.id}</span>
                         <span className="text-xs font-medium text-white/90 text-center line-clamp-2 mt-1">
-                          {exercise.title.split(' ').slice(0, 2).join(' ')}
+                          {exercise.title ? exercise.title.split(' ').slice(0, 2).join(' ') : `Ex ${exercise.id}`}
                         </span>
                       </>
                     )}
