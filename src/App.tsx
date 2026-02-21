@@ -669,37 +669,62 @@ function App() {
       {/* Pass handleReplayTour to Header */}
       
       {/* Mode Toggle */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3">
-        <div className="flex items-center space-x-4">
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center space-x-3 max-w-7xl mx-auto">
           <button
             onClick={() => {
               setIsLearningMode(true);
               setCurrentExerciseId(null);
             }}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`group relative px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
               isLearningMode
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30 scale-105'
+                : 'bg-white text-gray-700 hover:bg-gray-50 hover:shadow-md border border-gray-200'
             }`}
           >
-            📚 Learn
+            <div className="flex items-center space-x-2">
+              <span className="text-xl">📖</span>
+              <span>Learn</span>
+            </div>
+            {isLearningMode && (
+              <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-12 h-1 bg-white rounded-full" />
+            )}
           </button>
+          
           <button
             onClick={() => {
               setIsLearningMode(false);
               setCurrentLessonId(null);
             }}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`group relative px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
               !isLearningMode
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30 scale-105'
+                : 'bg-white text-gray-700 hover:bg-gray-50 hover:shadow-md border border-gray-200'
             }`}
           >
-            💻 Practice
+            <div className="flex items-center space-x-2">
+              <span className="text-xl">⚡</span>
+              <span>Practice</span>
+            </div>
+            {!isLearningMode && (
+              <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-12 h-1 bg-white rounded-full" />
+            )}
           </button>
+          
           {isLearningMode && (
-            <div className="ml-auto text-sm text-gray-600">
-              {completedLessons.length}/{lessons.length} lessons completed
+            <div className="ml-auto flex items-center space-x-2 bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
+              <div className="flex items-center space-x-2">
+                <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-500"
+                    style={{ width: `${(completedLessons.length / lessons.length) * 100}%` }}
+                  />
+                </div>
+                <span className="text-sm font-medium text-gray-700">
+                  {completedLessons.length}/{lessons.length}
+                </span>
+              </div>
+              <span className="text-lg">🎯</span>
             </div>
           )}
         </div>
