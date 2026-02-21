@@ -8,6 +8,7 @@ Your Flowchart-to-Code Learning app is **ready to deploy** to GitHub Pages!
 - **Owner:** navgurukul
 - **Repo:** Flowchart-to-Code-learning
 - **Branch:** main
+- **Deployment:** GitHub Actions
 
 ### 🌐 Live URL (once deployed)
 **https://navgurukul.github.io/Flowchart-to-Code-learning/**
