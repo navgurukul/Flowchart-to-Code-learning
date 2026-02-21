@@ -9,7 +9,7 @@ import DomainBlockModal from './components/DomainBlockModal'; // Import the moda
 import { Header } from './components/Header';
 import { OnlineUsersPanel } from './components/OnlineUsersPanel'; // Import the new panel
 import { GamifiedExerciseMap } from './components/GamifiedExerciseMap';
-import { GamifiedExerciseMapV2 } from './components/GamifiedExerciseMapV2';
+// import { GamifiedExerciseMapV2 } from './components/GamifiedExerciseMapV2';
 import { FlowchartBuilder } from './components/FlowchartBuilder';
 import { CodeEditor } from './components/CodeEditor';
 import { InputOutput } from './components/InputOutput';
@@ -769,7 +769,7 @@ function App() {
           </button>
           {isExerciseListOpen && (
             <div data-tour-id="exercise-list-panel"> {/* Added tour ID to the wrapper */}
-              <GamifiedExerciseMapV2
+              <GamifiedExerciseMap
                 exercises={allExercises}
                 progress={progress}
                 currentExerciseId={currentExerciseId}
