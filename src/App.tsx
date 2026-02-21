@@ -935,10 +935,18 @@ function App() {
           )}
           <button
             onClick={() => setIsOnlineUsersPanelOpen(!isOnlineUsersPanelOpen)}
-            className="p-2 bg-gray-200 hover:bg-gray-300 h-full flex items-center justify-center z-10"
+            className={`group relative px-3 py-2 h-full flex items-center justify-center transition-all duration-200 ${
+              isOnlineUsersPanelOpen 
+                ? 'bg-blue-50 hover:bg-blue-100 border-l-2 border-blue-500' 
+                : 'bg-gray-50 hover:bg-gray-100 border-l border-gray-200'
+            }`}
             title={isOnlineUsersPanelOpen ? "Hide Online Users" : "Show Online Users"}
           >
-            {isOnlineUsersPanelOpen ? <ChevronRight size={20} /> : <Users size={20} />}
+            {isOnlineUsersPanelOpen ? (
+              <ChevronRight size={20} className="text-blue-600" />
+            ) : (
+              <Users size={20} className="text-gray-600 group-hover:text-blue-600 transition-colors" />
+            )}
           </button>
 
           {/* Existing Input/Output Panel */}
@@ -955,11 +963,19 @@ function App() {
               )}
               <button
                 onClick={() => setIsInputOutputOpen(!isInputOutputOpen)}
-                className="p-2 bg-gray-200 hover:bg-gray-300 h-full flex items-center justify-center z-10"
+                className={`group relative px-3 py-2 h-full flex items-center justify-center transition-all duration-200 ${
+                  isInputOutputOpen 
+                    ? 'bg-green-50 hover:bg-green-100 border-l-2 border-green-500' 
+                    : 'bg-gray-50 hover:bg-gray-100 border-l border-gray-200'
+                }`}
                 title={isInputOutputOpen ? "Collapse Input/Output Panel" : "Expand Input/Output Panel"}
                 data-tour-id="toggle-input-output-button"
               >
-                {isInputOutputOpen ? <ChevronRight size={20} /> : <PanelRight size={20} />}
+                {isInputOutputOpen ? (
+                  <ChevronRight size={20} className="text-green-600" />
+                ) : (
+                  <PanelRight size={20} className="text-gray-600 group-hover:text-green-600 transition-colors" />
+                )}
               </button>
             </>
           )}
