@@ -27,93 +27,32 @@ export interface TourStep {
 // I'll use attribute selectors or more specific class combinations where possible.
 
 const tourStepsConfig: TourStep[] = [
-  {
-    id: 'connect-nodes',
-    title: 'Connect Nodes',
-    text: 'Click and drag from connection points (small circles) on nodes to link them. Enable "Sticky Connect" mode to easily chain multiple nodes.',
-    attachTo: {
-      element: '[data-tour-id="connect-nodes-button"]', // Example: Needs verification - Could be a button or a panel section.
-      on: 'bottom',
-    },
-    classes: 'shepherd-step-custom',
-    highlightClass: 'shepherd-highlight',
-  },
-  {
-    id: 'generate-code',
-    title: 'Generate Code',
-    text: 'Once your flowchart is ready, click here to automatically convert your visual logic into Python code.',
-    attachTo: {
-      element: '[data-tour-id="generate-code-button"]', // Example: Needs verification
-      on: 'bottom',
-    },
-    classes: 'shepherd-step-custom',
-    highlightClass: 'shepherd-highlight',
-  },
-  {
-    id: 'run-code',
-    title: 'Run Code',
-    text: 'Execute the generated code. The results, including any output or errors, will appear in the Input/Output panel.',
-    attachTo: {
-      element: '[data-tour-id="run-code-button"]', // Example: Needs verification
-      on: 'bottom',
-    },
-    classes: 'shepherd-step-custom',
-    highlightClass: 'shepherd-highlight',
-  },
-  {
-    id: 'zoom-controls',
-    title: 'Zoom Controls',
-    text: 'Use these controls to zoom in and out, helping you navigate large or complex flowcharts easily.',
-    attachTo: {
-      element: '[data-tour-id="zoom-controls-container"]', // Example: Needs verification - This might be a div containing zoom buttons.
-      on: 'left',
-    },
-    classes: 'shepherd-step-custom',
-    highlightClass: 'shepherd-highlight',
-    // This step should only appear if zoom controls are actually present in the UI.
-    // when: {
-    //   show: () => !!document.querySelector('[data-tour-id="zoom-controls-container"]'),
-    // },
-  },
-  {
-    id: 'show-code-editor',
-    title: 'Show/Hide Code Editor',
-    text: 'Toggle this to view or hide the code editor. You can inspect the generated code or even make minor edits (if enabled).',
-    attachTo: {
-      element: '[data-tour-id="toggle-code-editor-button"]', // Example: Needs verification
-      on: 'bottom',
-    },
-    classes: 'shepherd-step-custom',
-    highlightClass: 'shepherd-highlight',
-  },
-  {
-    id: 'show-input-output',
-    title: 'Show/Hide Input & Output',
-    text: 'Toggle this panel to see your code\'s output, test results, and any error messages. Essential for debugging!',
-    attachTo: {
-      element: '[data-tour-id="toggle-input-output-button"]', // Example: Needs verification - Likely near the right panel toggle.
-      on: 'left',
-    },
-    classes: 'shepherd-step-custom',
-    highlightClass: 'shepherd-highlight',
-  },
+  // Temporarily disabled - tour elements need to be added to UI
+  // {
+  //   id: 'connect-nodes',
+  //   title: 'Connect Nodes',
+  //   text: 'Click and drag from connection points (small circles) on nodes to link them. Enable "Sticky Connect" mode to easily chain multiple nodes.',
+  //   attachTo: {
+  //     element: '[data-tour-id="connect-nodes-button"]',
+  //     on: 'bottom',
+  //   },
+  //   classes: 'shepherd-step-custom',
+  //   highlightClass: 'shepherd-highlight',
+  // },
   {
     id: 'finish-tour',
-    title: 'You\'re All Set!',
-    text: 'Great job! You\'ve learned the basics. We recommend starting with Exercise 1 to practice your new skills. Good luck!',
+    title: 'Welcome to Flowchart Learning! 🎮',
+    text: 'Start with Exercise 1 to learn flowchart basics. Complete exercises to unlock more challenges and climb the ladder to success!',
     attachTo: {
-      // This step might not attach to a specific element, or it could attach to the exercise list.
-      // For now, let's assume it's a general message, possibly centered.
-      // If Shepherd.js requires an element, we might need a dummy invisible element or attach to the body/app root.
-      element: '[data-tour-id="exercise-list-panel"]', // Example: Attaching to the exercise list as a final prompt. Needs verification.
+      element: '[data-tour-id="exercise-list-panel"]',
       on: 'top',
     },
-    classes: 'shepherd-step-custom shepherd-step-final', // Custom class for potentially different styling
+    classes: 'shepherd-step-custom shepherd-step-final',
     highlightClass: 'shepherd-highlight',
-    buttons: [ // Shepherd.js typically adds Next/Back. This is for custom buttons like "Finish".
+    buttons: [
       {
-        text: 'Finish Tour',
-        action: 'cancel', // 'cancel' usually closes the tour
+        text: 'Start Learning!',
+        action: 'cancel',
         classes: 'shepherd-button-primary',
       },
     ],

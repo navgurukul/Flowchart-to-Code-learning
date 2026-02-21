@@ -148,8 +148,15 @@ export const GamifiedExerciseMapV2: React.FC<GamifiedExerciseMapProps> = ({
 
       {/* Scrollable Game Board */}
       <div ref={canvasRef} className="flex-1 overflow-y-auto p-6 relative">
-        {/* SVG Path Background */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
+        {/* Check if exercises exist */}
+        {!exercises || exercises.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-gray-500">No exercises available</p>
+          </div>
+        ) : (
+          <>
+            {/* SVG Path Background */}
+            <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
           <defs>
             <linearGradient id="pathGradient" x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.3" />
@@ -274,7 +281,9 @@ export const GamifiedExerciseMapV2: React.FC<GamifiedExerciseMapProps> = ({
             );
           })}
         </div>
-      </div>
+      </>
+    )}
+  </div>
 
       {/* Legend */}
       <div className="p-4 bg-white/80 backdrop-blur-sm border-t border-gray-200 text-xs space-y-2">
