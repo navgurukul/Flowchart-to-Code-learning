@@ -11,6 +11,8 @@
     "test": "vitest"
   },
   "dependencies": {
+    "@tensorflow-models/coco-ssd": "^2.2.3",
+    "@tensorflow/tfjs": "^4.22.0",
     "@types/marked": "^5.0.2",
     "@types/react-syntax-highlighter": "^15.5.13",
     "expr-eval": "^2.0.2",

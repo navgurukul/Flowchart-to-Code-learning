@@ -519,75 +519,64 @@ const handleImageFileSelect = async (event: React.ChangeEvent<HTMLInputElement>)
 
   console.log("🤖 AI Processing: Image file selected:", file.name, file.type);
   
+  // Validate file type
+  if (!file.type.startsWith('image/')) {
+    alert('❌ Please select an image file (JPG, PNG, etc.)');
+    return;
+  }
+
   // Show AI processing message
-  alert("🤖 AI is analyzing your hand-drawn flowchart using YOLO model...");
-
-  const formData = new FormData();
-  formData.append('file', file);
-
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-  const endpoint = `${apiBaseUrl}/api/import-image`;
-
-  console.log(`🚀 Uploading to AI endpoint: ${endpoint}`);
+  alert("🤖 AI is analyzing your hand-drawn flowchart in your browser...");
 
   try {
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      body: formData,
-      // Headers like 'Content-Type': 'multipart/form-data' are usually set automatically by the browser with FormData
-    });
+    // Import the YOLO service dynamically
+    const { yoloService } = await import('../services/yoloDetection');
 
-    if (!response.ok) {
-      // Try to parse error from backend
-      let errorDetail = `Error ${response.status}: ${response.statusText}`;
-      try {
-        const errorData = await response.json();
-        errorDetail = errorData.detail || errorDetail;
-      } catch (e) {
-        // Ignore if error response is not JSON
-      }
-      alert(`❌ AI Import Failed: ${errorDetail}`);
+    // Run detection in browser
+    const result = await yoloService.detectFlowchartShapes(file);
+
+    if (result.shapes.length === 0) {
+      alert('⚠️ No flowchart shapes detected. Try:\n• Drawing shapes more clearly\n• Using darker lines\n• Taking a photo with better lighting');
       return;
     }
 
-    const apiResponse: {
-      nodes: Array<{ id: string; type: FlowchartNodeType; label: string; x: number; y: number; width: number; height: number }>; // Backend Node
-      edges: Array<{ id: string; source: string; target: string; label?: string }>; // Backend Edge
-      error?: string;
-      fallback_used?: boolean;
-    } = await response.json();
+    console.log(`✅ Detected ${result.shapes.length} shapes:`, result.shapes);
 
-    if (apiResponse.fallback_used && apiResponse.error) {
-      alert(`⚠️ AI Import Alert: ${apiResponse.error}`); // Show fallback toast
-    } else {
-      alert(`✨ AI successfully converted your hand-drawn flowchart to digital!`);
-    }
+    // Convert detected shapes to flowchart nodes
+    const feNodes: FlowchartNode[] = result.shapes.map((shape, index) => {
+      const [x, y, width, height] = shape.bbox;
+      
+      // Scale positions to fit canvas (assuming 800x600 canvas)
+      const scaleX = 800 / result.imageWidth;
+      const scaleY = 600 / result.imageHeight;
+      
+      return {
+        id: `ai-${index}-${Date.now()}`,
+        type: shape.type,
+        position: { 
+          x: Math.max(50, Math.min(700, x * scaleX)),
+          y: Math.max(50, Math.min(500, y * scaleY))
+        },
+        data: { 
+          label: shape.type.toUpperCase(),
+          confidence: Math.round(shape.confidence * 100)
+        }
+      };
+    });
 
-    // Transform API nodes and edges to frontend FlowchartData structure
-    const feNodes: FlowchartNode[] = apiResponse.nodes.map(apiNode => ({
-      id: apiNode.id,
-      type: apiNode.type, // Assuming backend type is already compatible FlowchartNodeType
-      position: { x: apiNode.x, y: apiNode.y },
-      data: { label: apiNode.label },
-      // width and height from apiNode are ignored for now, as frontend nodes have fixed size
-    }));
+    const newFlowchartData: FlowchartData = { 
+      nodes: feNodes, 
+      edges: [] // User will connect them manually
+    };
 
-    const feEdges: FlowchartEdge[] = apiResponse.edges.map(apiEdge => ({
-      id: apiEdge.id,
-      source: apiEdge.source,
-      target: apiEdge.target,
-      label: apiEdge.label,
-      type: 'default', // Defaulting edge type, can be enhanced if API provides it
-    }));
-
-    const newFlowchartData: FlowchartData = { nodes: feNodes, edges: feEdges };
+    alert(`✨ AI detected ${feNodes.length} flowchart shapes!\n\nYou can now:\n• Edit labels\n• Connect shapes with arrows\n• Adjust positions`);
 
     console.log("✅ AI conversion complete! Transformed data:", newFlowchartData);
     updateFlowchartDataWithMLOutput(newFlowchartData);
 
   } catch (error) {
     console.error("❌ AI Import Error:", error);
-    alert(`❌ AI Import Error: ${error instanceof Error ? error.message : String(error)}`);
+    alert(`❌ AI Import Error: ${error instanceof Error ? error.message : 'Failed to analyze image. Please try again.'}`);
   } finally {
     // Reset file input to allow selecting the same file again if needed
     if (event.target) {
@@ -779,7 +768,7 @@ const selectedNodeDataForProperties = selectedNodeForProperties
           <button
             onClick={triggerImageUpload}
             className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-white bg-gradient-to-r from-purple-600 to-blue-600 rounded-md hover:from-purple-700 hover:to-blue-700 transition-all shadow-sm hover:shadow-md"
-            title="AI-Powered: Convert your hand-drawn flowchart to digital using YOLO model"
+            title="AI-Powered: Detect flowchart shapes from images using browser-based AI (no upload needed!)"
           >
             <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 mr-1 animate-pulse" />
             <Upload className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
