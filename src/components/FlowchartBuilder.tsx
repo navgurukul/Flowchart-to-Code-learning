@@ -27,6 +27,7 @@ import { getDatabase, ref, update, serverTimestamp, onValue } from 'firebase/dat
 import { app } from '../firebaseConfig';
 import { useAuth } from '../contexts/AuthContext';
 import { User as UserIcon } from 'lucide-react'; // For default presence bubble avatar
+import { yoloService } from '../services/yoloDetection'; // Static import for YOLO service
 
 // Define UserPresence structure (can be moved to types/index.ts later)
 interface UserPresence {
@@ -537,10 +538,7 @@ const handleImageFileSelect = async (event: React.ChangeEvent<HTMLInputElement>)
   alert("🤖 AI is analyzing your hand-drawn flowchart in your browser...");
 
   try {
-    // Import the YOLO service dynamically
-    const { yoloService } = await import('../services/yoloDetection');
-
-    // Run detection in browser
+    // Use the statically imported YOLO service
     const result = await yoloService.detectFlowchartShapes(file);
 
     if (result.shapes.length === 0) {
