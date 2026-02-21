@@ -59,7 +59,6 @@ function App() {
   const [isLearningMode, setIsLearningMode] = useState(true); // Start in learning mode
   const [completedLessons, setCompletedLessons] = useState<number[]>([]);
   const [currentLessonId, setCurrentLessonId] = useState<number | null>(1); // Start with first lesson
-  const [isExerciseListOpen, setIsExerciseListOpen] = useState(true);
   const [isInputOutputOpen, setIsInputOutputOpen] = useState(false); // Default to collapsed
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -662,100 +661,66 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex relative">
+    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden relative">
       <Toaster position="top-center" reverseOrder={false} />
       {showConfetti && <Confetti width={windowSize.width} height={windowSize.height} recycle={false} />}
       
-      {/* Vertical Navigation Rail */}
-      <div className="w-20 bg-gradient-to-b from-blue-600 to-indigo-700 flex flex-col items-center py-6 space-y-4 shadow-xl">
-        {/* Logo/Brand */}
-        <div className="mb-4">
-          <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg">
-            <span className="text-2xl">📊</span>
-          </div>
+      {/* Top Header */}
+      <Header progress={progress} onReplayTour={handleReplayTour} />
+      
+      {/* Main Layout: Sidebar + Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Vertical Sidebar - Simple with 90 degree text */}
+        <div className="w-32 bg-gradient-to-b from-white to-gray-50 flex flex-col shadow-lg font-['Inter',sans-serif] relative">
+          {/* Learn Section - Top Half */}
+          <button
+            onClick={() => {
+              setIsLearningMode(true);
+              setCurrentExerciseId(null);
+            }}
+            className={`h-1/2 flex items-center justify-center border-b border-gray-100 transition-all duration-300 relative ${
+              isLearningMode
+                ? 'bg-gradient-to-r from-blue-50 to-blue-100 shadow-inner'
+                : 'hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100'
+            }`}
+          >
+            {/* Active indicator bar */}
+            {isLearningMode && (
+              <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-blue-600 shadow-lg" />
+            )}
+            <span className={`text-xl font-bold tracking-wider transition-all duration-300 ${
+              isLearningMode ? 'text-blue-600 drop-shadow-sm' : 'text-gray-600'
+            }`} style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap' }}>
+              Learn
+            </span>
+          </button>
+          
+          {/* Practice Section - Bottom Half */}
+          <button
+            onClick={() => {
+              setIsLearningMode(false);
+              setCurrentLessonId(null);
+            }}
+            className={`h-1/2 flex items-center justify-center transition-all duration-300 relative ${
+              !isLearningMode
+                ? 'bg-gradient-to-r from-purple-50 to-purple-100 shadow-inner'
+                : 'hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100'
+            }`}
+          >
+            {/* Active indicator bar */}
+            {!isLearningMode && (
+              <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-purple-500 to-purple-600 shadow-lg" />
+            )}
+            <span className={`text-xl font-bold tracking-wider transition-all duration-300 ${
+              !isLearningMode ? 'text-purple-600 drop-shadow-sm' : 'text-gray-600'
+            }`} style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap' }}>
+              Practice
+            </span>
+          </button>
         </div>
         
-        {/* Learn Tab */}
-        <button
-          onClick={() => {
-            setIsLearningMode(true);
-            setCurrentExerciseId(null);
-          }}
-          className={`group relative w-14 h-14 rounded-xl flex flex-col items-center justify-center transition-all duration-300 ${
-            isLearningMode
-              ? 'bg-white text-blue-600 shadow-lg scale-110'
-              : 'text-white hover:bg-white/20'
-          }`}
-          title="Learn"
-        >
-          <span className="text-2xl mb-0.5">📖</span>
-          <span className="text-[10px] font-semibold">Learn</span>
-          {isLearningMode && (
-            <div className="absolute -right-1 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-white rounded-full" />
-          )}
-        </button>
-        
-        {/* Practice Tab */}
-        <button
-          onClick={() => {
-            setIsLearningMode(false);
-            setCurrentLessonId(null);
-          }}
-          className={`group relative w-14 h-14 rounded-xl flex flex-col items-center justify-center transition-all duration-300 ${
-            !isLearningMode
-              ? 'bg-white text-purple-600 shadow-lg scale-110'
-              : 'text-white hover:bg-white/20'
-          }`}
-          title="Practice"
-        >
-          <span className="text-2xl mb-0.5">⚡</span>
-          <span className="text-[10px] font-semibold">Practice</span>
-          {!isLearningMode && (
-            <div className="absolute -right-1 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-white rounded-full" />
-          )}
-        </button>
-        
-        {/* Progress Indicator (for Learn mode) */}
-        {isLearningMode && (
-          <div className="mt-auto mb-4 flex flex-col items-center space-y-2">
-            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
-              <div className="relative w-10 h-10">
-                <svg className="transform -rotate-90" viewBox="0 0 36 36">
-                  <circle
-                    cx="18"
-                    cy="18"
-                    r="16"
-                    fill="none"
-                    stroke="rgba(255,255,255,0.3)"
-                    strokeWidth="3"
-                  />
-                  <circle
-                    cx="18"
-                    cy="18"
-                    r="16"
-                    fill="none"
-                    stroke="white"
-                    strokeWidth="3"
-                    strokeDasharray={`${(completedLessons.length / lessons.length) * 100}, 100`}
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">
-                    {Math.round((completedLessons.length / lessons.length) * 100)}%
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-      
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col">
-        <Header progress={progress} onReplayTour={handleReplayTour} />
-        
-        <div className="flex-1 flex overflow-hidden h-[calc(100vh-80px)]">
+        {/* Content Area */}
+        <div className="flex-1 flex overflow-hidden">
         {isLearningMode ? (
           /* Learning Mode Layout */
           <>
@@ -810,25 +775,14 @@ function App() {
           /* Exercise Mode Layout (existing code) */
           <>
         {/* Left Panel: Exercise List */}
-        <div className="flex"> {/* Container for button and panel */}
-          <button
-            onClick={() => setIsExerciseListOpen(!isExerciseListOpen)}
-            className="p-2 bg-gray-200 hover:bg-gray-300 h-full flex items-center justify-center z-10"
-            title={isExerciseListOpen ? "Collapse Exercise List" : "Expand Exercise List"}
-          >
-            {isExerciseListOpen ? <ChevronLeft size={20} /> : <PanelLeft size={20} />}
-          </button>
-          {isExerciseListOpen && (
-            <div data-tour-id="exercise-list-panel"> {/* Added tour ID to the wrapper */}
-              <SnakeFlowExerciseMap
-                exercises={allExercises}
-                progress={progress}
-                currentExerciseId={currentExerciseId}
-                onSelectExercise={handleSelectExercise}
-                isDryRunMode={isDryRunMode} // Pass dry run mode to disable interactions
-              />
-            </div>
-          )}
+        <div data-tour-id="exercise-list-panel">
+          <SnakeFlowExerciseMap
+            exercises={allExercises}
+            progress={progress}
+            currentExerciseId={currentExerciseId}
+            onSelectExercise={handleSelectExercise}
+            isDryRunMode={isDryRunMode}
+          />
         </div>
 
         {/* Main Content Area */}
@@ -1004,7 +958,7 @@ function App() {
         </div>
         </>
         )}
-      </div>
+        </div>
       </div>
 
       {/* Chat Feature Disabled - Not using Gemini API */}

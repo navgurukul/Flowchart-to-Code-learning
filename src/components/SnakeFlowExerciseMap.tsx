@@ -275,23 +275,6 @@ export const SnakeFlowExerciseMap: React.FC<SnakeFlowExerciseMapProps> = ({
           })}
         </div>
       </div>
-
-      {/* Legend */}
-      <div className="p-4 bg-white border-t border-gray-200 text-xs space-y-2">
-        <div className="flex items-center space-x-2">
-          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#2979FF' }}></div>
-          <span>Available</span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <div className="w-4 h-4 rounded-full bg-green-500"></div>
-          <span>Completed</span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <div className="w-4 h-4 rounded-full bg-gray-400"></div>
-          <span>Locked</span>
-        </div>
-      </div>
-
       {/* CSS Animation */}
       <style>{`
         @keyframes drawPath {
