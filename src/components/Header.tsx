@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StudentProgress } from '../types'; // Ensure this path is correct
-import { User, Trophy, Target, Clock, HelpCircle, Signal, Eye, EyeOff } from 'lucide-react'; // Added Eye, EyeOff
+import { User, Trophy, Target, Clock, HelpCircle, Signal, Eye, EyeOff, BookOpen } from 'lucide-react'; // Added Eye, EyeOff, BookOpen
 import { useAuth } from '../contexts/AuthContext';
 import { getDatabase, ref, onValue, onDisconnect, set, serverTimestamp, remove, get } from 'firebase/database'; // Added remove, get
 import { app } from "../firebaseConfig";
@@ -231,6 +231,16 @@ export const Header: React.FC<HeaderProps> = ({ progress, onReplayTour }) => { /
             >
               <HelpCircle size={20} /> {/* Using HelpCircle icon for consistency, could be changed */}
             </button>
+            
+            <a
+              href="/research.html"
+              target="_blank"
+              className="p-1.5 sm:p-2 text-gray-500 hover:text-purple-600 hover:bg-purple-100 rounded-full transition-colors duration-150"
+              title="Our Research: Flowchart-to-Code Approach"
+              aria-label="View Research Paper"
+            >
+              <BookOpen size={20} />
+            </a>
           </div>
         </div>
       </div>
