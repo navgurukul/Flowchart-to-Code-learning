@@ -129,7 +129,7 @@ export const Header: React.FC<HeaderProps> = ({ progress, onReplayTour }) => { /
           </div>
           {/* NavGurukul Labs Logo */}
           <div className="hidden md:flex items-center pl-4 border-l border-gray-300">
-            <svg width="180" height="28" viewBox="0 0 960 400" className="h-6" xmlns="http://www.w3.org/2000/svg">
+            <svg width="220" height="36" viewBox="0 0 960 400" className="h-8" xmlns="http://www.w3.org/2000/svg">
               <text x="90" y="240" fontFamily="Arial, sans-serif" fontSize="120" fontWeight="bold" fill="#FF5722">ai.</text>
               <text x="200" y="240" fontFamily="Arial, sans-serif" fontSize="120" fontWeight="bold" fill="#000000">navgurukil</text>
               <rect x="770" y="180" width="180" height="80" rx="10" stroke="#000000" strokeWidth="4" fill="none"/>
