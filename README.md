@@ -1,7 +1,7 @@
 # Client-Side Flowchart-to-Code Conversion
 
 [![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://navgurukul.github.io/Flowchart-to-Code-learning/)
-[![Research Paper](https://img.shields.io/badge/paper-read-blue)](https://navgurukul.github.io/Flowchart-to-Code-learning/research.html)
+[![Documentation](https://img.shields.io/badge/docs-read-blue)](https://navgurukul.github.io/Flowchart-to-Code-learning/research.html)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > Converting flowchart images to executable JavaScript code, entirely in the browser. Built for programming education in resource-constrained environments.
@@ -12,7 +12,7 @@
 
 Unlike ML-based approaches requiring expensive infrastructure, our system runs entirely client-side using COCO-SSD and rule-based code generation. It's designed for students with limited internet and low-end devices.
 
-**[Try it now →](https://navgurukul.github.io/Flowchart-to-Code-learning/)** | **[Read the paper →](https://navgurukul.github.io/Flowchart-to-Code-learning/research.html)**
+**[Try it now →](https://navgurukul.github.io/Flowchart-to-Code-learning/)** | **[Read documentation →](https://navgurukul.github.io/Flowchart-to-Code-learning/research.html)**
 
 ## Key Features
 
@@ -42,21 +42,9 @@ Graph Construction → Code Generation → JavaScript
 - Medium (6-10 shapes): 65-75% accuracy, ~2.1s
 - Complex (11+ shapes): 50-65% accuracy, ~3.5s
 
-## Research
+## Documentation
 
-This work is documented as an academic paper. **[Read full paper →](https://navgurukul.github.io/Flowchart-to-Code-learning/research.html)**
-
-**Citation:**
-```bibtex
-@techreport{navgurukul2026flowchart,
-  title={Client-Side Flowchart-to-Code Conversion: A Rule-Based Approach for Educational Contexts},
-  author={NavGurukul Engineering Team},
-  institution={NavGurukul Foundation for Social Welfare},
-  year={2026}
-}
-```
-
-**LaTeX source:** [docs/paper/paper.tex](docs/paper/paper.tex) | **[Compilation guide →](https://navgurukul.github.io/Flowchart-to-Code-learning/latex-guide.html)**
+Full technical documentation available at: **[navgurukul.github.io/Flowchart-to-Code-learning/research.html](https://navgurukul.github.io/Flowchart-to-Code-learning/research.html)**
 
 ## Tech Stack
 
