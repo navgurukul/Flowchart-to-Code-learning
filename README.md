@@ -4,190 +4,84 @@
 [![Research Paper](https://img.shields.io/badge/paper-read-blue)](https://navgurukul.github.io/Flowchart-to-Code-learning/research.html)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> A rule-based approach for educational contexts in resource-constrained environments
+> Converting flowchart images to executable JavaScript code, entirely in the browser. Built for programming education in resource-constrained environments.
 
-## 🎓 About
+## Why This Matters
 
-This project presents a novel client-side approach to converting flowchart images into executable JavaScript code, specifically designed for programming education in underserved communities. Unlike server-based ML approaches, our system runs entirely in the browser using open-source computer vision libraries and rule-based code generation.
+**65-75% accuracy. Zero server cost. 100% transparent.**
 
-**Key Features:**
-- ✅ 100% client-side processing (zero server cost)
-- ✅ Works offline after initial load
-- ✅ Transparent rule-based approach (educational)
-- ✅ 65-75% shape detection accuracy
-- ✅ Privacy-preserving (images never leave device)
-- ✅ Accessible on low-end devices
+Unlike ML-based approaches requiring expensive infrastructure, our system runs entirely client-side using COCO-SSD and rule-based code generation. It's designed for students with limited internet and low-end devices.
 
-## 📊 Research
+**[Try it now →](https://navgurukul.github.io/Flowchart-to-Code-learning/)** | **[Read the paper →](https://navgurukul.github.io/Flowchart-to-Code-learning/research.html)**
 
-This work has been documented as an academic research paper:
+## Key Features
 
-**[Read the Full Paper →](https://navgurukul.github.io/Flowchart-to-Code-learning/research.html)**
+- ✅ **Client-side processing** - Works offline, zero server cost
+- ✅ **Educational transparency** - Students see how it works
+- ✅ **Privacy-first** - Images never leave the device
+- ✅ **Accessible** - Runs on low-end devices
 
-### Abstract
+## Quick Start
 
-Programming education in resource-constrained environments faces unique challenges, including limited internet connectivity, low-end devices, and the need for transparent, understandable tools. We present a novel client-side approach to converting flowchart images into executable JavaScript code, specifically designed for educational contexts in underserved communities. Our method achieves 65-75% accuracy in shape detection while maintaining zero infrastructure cost, complete offline capability, and full transparency.
+```bash
+npm install
+npm run dev
+```
 
-### Citation
+Visit `http://localhost:5173`
 
+## How It Works
+
+```
+Image → COCO-SSD Detection → Shape Classification → 
+Graph Construction → Code Generation → JavaScript
+```
+
+**Performance:**
+- Simple flowcharts (3-5 shapes): 75-85% accuracy, ~1.2s
+- Medium (6-10 shapes): 65-75% accuracy, ~2.1s
+- Complex (11+ shapes): 50-65% accuracy, ~3.5s
+
+## Research
+
+This work is documented as an academic paper. **[Read full paper →](https://navgurukul.github.io/Flowchart-to-Code-learning/research.html)**
+
+**Citation:**
 ```bibtex
 @techreport{navgurukul2026flowchart,
   title={Client-Side Flowchart-to-Code Conversion: A Rule-Based Approach for Educational Contexts},
   author={NavGurukul Engineering Team},
   institution={NavGurukul Foundation for Social Welfare},
-  year={2026},
-  url={https://navgurukul.github.io/Flowchart-to-Code-learning/research.html}
+  year={2026}
 }
 ```
 
-## 🚀 Live Demo
+**LaTeX source:** [docs/paper/paper.tex](docs/paper/paper.tex) | **[Compilation guide →](https://navgurukul.github.io/Flowchart-to-Code-learning/latex-guide.html)**
 
-Try it now: **[https://navgurukul.github.io/Flowchart-to-Code-learning/](https://navgurukul.github.io/Flowchart-to-Code-learning/)**
+## Tech Stack
 
-## 🏗️ Architecture
+React 18 • TypeScript • TensorFlow.js • COCO-SSD • Firebase • Tailwind CSS
 
-```
-┌─────────────────────────────────────────────┐
-│         Client-Side Processing              │
-├─────────────────────────────────────────────┤
-│  1. Image Upload (File API)                │
-│           ↓                                 │
-│  2. COCO-SSD Object Detection               │
-│     (TensorFlow.js, ~5MB model)             │
-│           ↓                                 │
-│  3. Shape Classification                    │
-│     (Geometric Heuristics)                  │
-│           ↓                                 │
-│  4. Connection Inference                    │
-│     (Spatial Proximity)                     │
-│           ↓                                 │
-│  5. Graph Construction                      │
-│     (Adjacency List)                        │
-│           ↓                                 │
-│  6. Code Generation                         │
-│     (Template-Based)                        │
-│           ↓                                 │
-│  7. Executable JavaScript Code              │
-└─────────────────────────────────────────────┘
-```
+## Contributing
 
-## 📈 Performance
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-| Complexity | Shapes | Detection Accuracy | Processing Time |
-|------------|--------|-------------------|-----------------|
-| Simple     | 3-5    | 75-85%           | 1.2s ± 0.3s    |
-| Medium     | 6-10   | 65-75%           | 2.1s ± 0.5s    |
-| Complex    | 11-20  | 50-65%           | 3.5s ± 0.8s    |
-
-## 🛠️ Technology Stack
-
-- **Frontend:** React 18, TypeScript, Vite
-- **Object Detection:** TensorFlow.js, COCO-SSD (MobileNet v2)
-- **Styling:** Tailwind CSS
-- **Database:** Firebase Realtime Database
-- **Deployment:** GitHub Pages
-
-## 💻 Local Development
-
-### Prerequisites
-
-- Node.js 18+ and npm
-- Modern web browser
-
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/navgurukul/Flowchart-to-Code-learning.git
-cd Flowchart-to-Code-learning
-
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-```
-
-Visit `http://localhost:5173` to see the app.
-
-### Build for Production
-
-```bash
-npm run build
-npm run preview
-```
-
-## 🎯 Use Cases
-
-### For Students
-- Learn algorithmic thinking through flowcharts
-- Convert hand-drawn flowcharts to code
-- Understand the connection between visual logic and code
-- Practice programming without writing syntax initially
-
-### For Educators
-- Teach programming concepts visually
-- Assess student understanding of algorithms
-- Provide immediate feedback on flowchart logic
-- Bridge the gap between pseudocode and real code
-
-### For Researchers
-- Study flowchart-to-code conversion approaches
-- Explore trade-offs between accuracy and accessibility
-- Contribute to educational technology research
-- Build upon our open-source implementation
-
-## 🌍 Impact
-
-Deployed in **NavGurukul Foundation's** programming curriculum, serving students from marginalized communities across India. Our approach prioritizes:
-
-- **Accessibility** over maximum accuracy
-- **Transparency** over black-box solutions
-- **Sustainability** over expensive infrastructure
-- **Education** over pure automation
-
-## 📚 Documentation
-
-- [Research Paper](https://navgurukul.github.io/Flowchart-to-Code-learning/research.html) - Full academic paper
-- [LaTeX Source](docs/paper/paper.tex) - arXiv-ready LaTeX version
-- [Contributing Guidelines](CONTRIBUTING.md) - How to contribute
-- [Implementation Plans](docs/) - Technical documentation
-
-## 🤝 Contributing
-
-We welcome contributions from the community! Please read our [Contributing Guidelines](CONTRIBUTING.md) before submitting pull requests.
-
-Areas where we need help:
-- Improving shape detection accuracy
-- Adding OCR for text extraction
-- Supporting more programming languages
+**Priority areas:**
+- Shape detection improvements (OpenCV.js integration)
+- OCR for text extraction (Tesseract.js)
 - Hindi language support
-- Documentation and tutorials
+- More programming languages
 
-## 📄 License
+## Impact
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Deployed in NavGurukul Foundation's curriculum, serving students from marginalized communities across India. We prioritize accessibility and transparency over maximum accuracy.
 
-## 🙏 Acknowledgments
+## License
 
-- **Students** at NavGurukul for testing and feedback
-- **Open-source community** for TensorFlow.js, COCO-SSD, and other tools
-- **Researchers** working on flowchart recognition and code generation
-
-## 📧 Contact
-
-**NavGurukul Foundation for Social Welfare**
-
-- Website: [navgurukul.org](https://www.navgurukul.org/)
-- Email: contact@navgurukul.org
-- GitHub: [@navgurukul](https://github.com/navgurukul)
-
-## 🌟 Star History
-
-If you find this project useful, please consider giving it a star ⭐
+MIT License - see [LICENSE](LICENSE)
 
 ---
 
-**Made with ❤️ by NavGurukul Foundation**
+**NavGurukul Foundation** | [navgurukul.org](https://www.navgurukul.org/) | contact@navgurukul.org
 
 *Making quality programming education accessible to all*
